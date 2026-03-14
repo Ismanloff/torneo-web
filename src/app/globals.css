@@ -767,8 +767,14 @@ textarea {
 .public-title {
   font-family: var(--font-display), sans-serif;
   text-transform: uppercase;
-  line-height: 0.92;
-  letter-spacing: 0.03em;
+  line-height: 0.98;
+  letter-spacing: 0.02em;
+}
+
+@media (min-width: 1024px) {
+  .public-hero .public-title {
+    line-height: 1.01;
+  }
 }
 
 .public-copy {

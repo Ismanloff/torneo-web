@@ -89,7 +89,7 @@ export default async function Home() {
         <section className="public-hero">
           <div className="public-wrap py-5 sm:py-6 lg:py-8 max-w-5xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
+              <div className="max-w-4xl">
                 <div className="flex flex-wrap gap-2 mb-2">
                   <span className="public-tag public-tag--accent">
                     <Sparkles className="h-3.5 w-3.5" />
@@ -99,7 +99,7 @@ export default async function Home() {
                 <h1 className="public-title text-3xl sm:text-5xl lg:text-6xl">
                   {data.tournament.name}
                 </h1>
-                <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-[#9fb3d9]">
+                <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-[#9fb3d9]">
                   {formatLongDate(data.tournament.start_date)} &mdash;{" "}
                   {formatLongDate(data.tournament.end_date)} &middot;{" "}
                   {ALLOWED_SPORT_LABELS.join(" · ")}
@@ -132,7 +132,7 @@ export default async function Home() {
             </div>
 
             {isTournamentEmpty ? (
-              <div className="mt-5 public-soft px-4 py-4 sm:px-5">
+              <div className="mt-6 sm:mt-7 public-soft px-4 py-4 sm:px-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">Las inscripciones ya estan abiertas.</p>
