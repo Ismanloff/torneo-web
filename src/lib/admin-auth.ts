@@ -1,14 +1,13 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { StaffContext, StaffProfileRow, StaffRole } from "@/lib/types";
 
 const ADMIN_COOKIE_NAME = "torneo_admin_session";
-export const POST_LOGIN_COOKIE_NAME = "torneo_post_login";
+const STAFF_COOKIE_NAME = "torneo_staff_session";
 
 type AdminAccessContext =
   | {
@@ -38,6 +37,10 @@ function hashValue(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function signStaffId(staffId: string) {
+  return createHmac("sha256", getAdminAccessKey()).update(staffId).digest("hex");
+}
+
 export function isValidAdminAccessKey(input: string) {
   const expected = Buffer.from(getAdminAccessKey());
   const current = Buffer.from(input);
@@ -48,6 +51,8 @@ export function isValidAdminAccessKey(input: string) {
 
   return timingSafeEqual(expected, current);
 }
+
+/* ── Legacy admin session (passphrase) ── */
 
 export async function setLegacyAdminSession() {
   const store = await cookies();
@@ -73,90 +78,97 @@ async function hasLegacyAdminSession() {
   return token === hashValue(getAdminAccessKey());
 }
 
-export async function setPostLoginTarget(pathname: string) {
+/* ── PIN staff session ── */
+
+export async function setPinSession(staffId: string) {
   const store = await cookies();
-  store.set(POST_LOGIN_COOKIE_NAME, pathname, {
+  const signature = signStaffId(staffId);
+
+  store.set(STAFF_COOKIE_NAME, `${staffId}.${signature}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: true,
     path: "/",
-    maxAge: 60 * 10,
+    maxAge: 60 * 60 * 24,
   });
 }
 
-export async function consumePostLoginTarget() {
+export async function clearPinSession() {
   const store = await cookies();
-  const nextPath = store.get(POST_LOGIN_COOKIE_NAME)?.value ?? null;
-  store.delete(POST_LOGIN_COOKIE_NAME);
-  return nextPath;
+  store.delete(STAFF_COOKIE_NAME);
 }
 
-export async function getAuthenticatedStaffProfile() {
-  const supabase = await createSupabaseServerClient();
-  const claimsResult = await supabase.auth.getClaims();
-  const claims = claimsResult.data?.claims;
+async function getPinSessionStaffId(): Promise<string | null> {
+  const store = await cookies();
+  const value = store.get(STAFF_COOKIE_NAME)?.value;
 
-  const authUserId = claims?.sub;
+  if (!value) {
+    return null;
+  }
 
-  if (!authUserId) {
+  const dotIndex = value.indexOf(".");
+
+  if (dotIndex < 1) {
+    return null;
+  }
+
+  const staffId = value.slice(0, dotIndex);
+  const signature = value.slice(dotIndex + 1);
+  const expectedSignature = signStaffId(staffId);
+
+  if (signature.length !== expectedSignature.length) {
+    return null;
+  }
+
+  const valid = timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature),
+  );
+
+  return valid ? staffId : null;
+}
+
+async function getStaffProfileFromPinSession(): Promise<{
+  authUserId: string;
+  profile: StaffProfileRow;
+} | null> {
+  const staffId = await getPinSessionStaffId();
+
+  if (!staffId) {
     return null;
   }
 
   const { data: profile } = await supabaseAdmin
     .from("staff_profiles")
     .select("*")
-    .eq("auth_user_id", authUserId)
+    .eq("id", staffId)
     .eq("is_active", true)
     .maybeSingle<StaffProfileRow>();
 
-  if (profile) {
-    return {
-      authUserId,
-      profile,
-    };
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const email = user?.email?.toLowerCase();
-
-  if (!email) {
-    return null;
-  }
-
-  const { data: fallbackProfile } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("*")
-    .eq("email", email)
-    .eq("is_active", true)
-    .is("auth_user_id", null)
-    .maybeSingle<StaffProfileRow>();
-
-  if (!fallbackProfile) {
-    return null;
-  }
-
-  const { data: linkedProfile } = await supabaseAdmin
-    .from("staff_profiles")
-    .update({
-      auth_user_id: authUserId,
-    })
-    .eq("id", fallbackProfile.id)
-    .select("*")
-    .single<StaffProfileRow>();
-
-  if (!linkedProfile) {
+  if (!profile) {
     return null;
   }
 
   return {
-    authUserId,
-    profile: linkedProfile,
+    authUserId: profile.auth_user_id ?? profile.id,
+    profile,
   };
 }
 
+/* ── Access context ── */
+
 export async function getAdminAccessContext(): Promise<AdminAccessContext | null> {
+  const staff = await getStaffProfileFromPinSession();
+
+  if (staff) {
+    return {
+      mode: "staff",
+      role: staff.profile.role,
+      profile: staff.profile,
+      authUserId: staff.authUserId,
+    };
+  }
+
   if (await hasLegacyAdminSession()) {
     return {
       mode: "legacy",
@@ -166,18 +178,7 @@ export async function getAdminAccessContext(): Promise<AdminAccessContext | null
     };
   }
 
-  const staff = await getAuthenticatedStaffProfile();
-
-  if (!staff) {
-    return null;
-  }
-
-  return {
-    mode: "staff",
-    role: staff.profile.role,
-    profile: staff.profile,
-    authUserId: staff.authUserId,
-  };
+  return null;
 }
 
 export async function requireAdminSession() {
@@ -191,7 +192,7 @@ export async function requireAdminSession() {
 }
 
 export async function requireStaffSession(allowedRoles?: StaffRole[]) {
-  const staff = await getAuthenticatedStaffProfile();
+  const staff = await getStaffProfileFromPinSession();
 
   if (staff) {
     if (allowedRoles && !allowedRoles.includes(staff.profile.role)) {
@@ -213,6 +214,7 @@ export async function requireStaffSession(allowedRoles?: StaffRole[]) {
         email: "legacy-admin@local",
         full_name: "Admin temporal",
         role: "admin",
+        pin: null,
         is_active: true,
         created_at: new Date(0).toISOString(),
         updated_at: new Date(0).toISOString(),
@@ -230,6 +232,6 @@ export async function requireStaffSession(allowedRoles?: StaffRole[]) {
 }
 
 export async function signOutStaffSession() {
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  await clearPinSession();
+  await clearLegacyAdminSession();
 }

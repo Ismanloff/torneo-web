@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, QrCode, Users } from "lucide-react";
 
-import { saveCheckinAction } from "@/app/admin/actions";
+import { checkInTeamAction, saveCheckinAction } from "@/app/admin/actions";
 import { QrTile } from "@/components/qr-tile";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalTeamById } from "@/lib/supabase/queries";
@@ -119,6 +119,22 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             Estás en el flujo rápido de entrada. Valida si el equipo está presente y, si hace falta,
             abre directamente su próximo partido.
           </p>
+
+          <div className="mt-5">
+            {detail.team.checked_in_at ? (
+              <div className="app-chip app-chip--accent">
+                Llegada registrada · {formatDateTime(detail.team.checked_in_at)}
+              </div>
+            ) : (
+              <form action={checkInTeamAction}>
+                <input name="teamId" type="hidden" value={detail.team.id} />
+                <input name="redirectTo" type="hidden" value={`/app/equipo/${detail.team.id}?entry=1`} />
+                <button className="app-action w-full" type="submit">
+                  Marcar llegada al torneo
+                </button>
+              </form>
+            )}
+          </div>
         </section>
       ) : null}
 
@@ -139,6 +155,12 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                   ? "Confirmada"
                   : "Pendiente"
                 : "No requerida"}
+            </p>
+            <p>
+              Llegada al torneo:{" "}
+              {detail.team.checked_in_at
+                ? formatDateTime(detail.team.checked_in_at)
+                : "Sin registrar"}
             </p>
           </div>
         </article>

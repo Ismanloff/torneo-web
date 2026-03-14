@@ -1,30 +1,29 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import {
-  clearLegacyAdminSession,
   getAdminAccessContext,
   isValidAdminAccessKey,
   requireAdminSession,
   requireStaffSession,
   setLegacyAdminSession,
+  setPinSession,
   signOutStaffSession,
 } from "@/lib/admin-auth";
-import { getSiteUrl } from "@/lib/supabase/env";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
   getOperationalMatchById,
-  getStaffProfileByEmail,
   getTeamByRegistrationCode,
 } from "@/lib/supabase/queries";
 import { sendPushToStaff } from "@/lib/push-notify";
 import type {
   MatchScope,
+  StaffProfileRow,
   StaffRole,
   TeamCheckinRow,
 } from "@/lib/types";
@@ -88,10 +87,13 @@ const updateBracketMatchSchema = z.object({
   redirectTo: z.string().trim().optional().or(z.literal("")),
 });
 
-const inviteStaffSchema = z.object({
-  email: z.email().transform((value) => value.toLowerCase()),
-  fullName: z.string().trim().min(3).max(120),
+const createStaffSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
   role: z.enum(["admin", "referee", "assistant"]),
+});
+
+const pinLoginSchema = z.object({
+  pin: z.string().regex(/^\d{6}$/),
 });
 
 const assignStaffSchema = z.object({
@@ -415,8 +417,36 @@ export async function loginAdminAction(formData: FormData) {
   redirect("/app/admin");
 }
 
+export async function loginWithPinAction(formData: FormData) {
+  const parsed = pinLoginSchema.safeParse({
+    pin: formData.get("pin"),
+  });
+
+  if (!parsed.success) {
+    redirect("/login?error=pin");
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("*")
+    .eq("pin", parsed.data.pin)
+    .eq("is_active", true)
+    .maybeSingle<StaffProfileRow>();
+
+  if (!profile) {
+    redirect("/login?error=pin");
+  }
+
+  await setPinSession(profile.id);
+
+  if (profile.role === "admin") {
+    redirect("/app/admin");
+  }
+
+  redirect("/app");
+}
+
 export async function logoutAdminAction() {
-  await clearLegacyAdminSession();
   await signOutStaffSession();
   redirect("/login");
 }
@@ -745,11 +775,16 @@ export async function updateBracketMatchAction(formData: FormData) {
   redirect(safeRedirect(parsed.data.redirectTo, "/app/admin?saved=resultado-cuadro"));
 }
 
-export async function inviteStaffAction(formData: FormData) {
+function generatePin(): string {
+  const bytes = randomBytes(4);
+  const num = (bytes.readUInt32BE(0) % 900000) + 100000;
+  return String(num);
+}
+
+export async function createStaffAction(formData: FormData) {
   await requireAdminSession();
 
-  const parsed = inviteStaffSchema.safeParse({
-    email: formData.get("email"),
+  const parsed = createStaffSchema.safeParse({
     fullName: formData.get("fullName"),
     role: formData.get("role"),
   });
@@ -758,31 +793,29 @@ export async function inviteStaffAction(formData: FormData) {
     redirect("/app/admin?error=staff");
   }
 
-  const existing = await getStaffProfileByEmail(parsed.data.email);
-  const redirectTo = `${getSiteUrl()}/auth/confirm?next=/app`;
-  let authUserId = existing?.auth_user_id ?? null;
+  const pin = generatePin();
 
-  if (!authUserId) {
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      parsed.data.email,
-      {
-        redirectTo,
-      },
-    );
+  const { data: collision } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id")
+    .eq("pin", pin)
+    .eq("is_active", true)
+    .maybeSingle();
 
-    if (inviteError || !inviteData.user?.id) {
-      redirect(`/app/admin?error=${encodeURIComponent(inviteError?.message ?? "invite")}`);
-    }
-
-    authUserId = inviteData.user.id;
+  if (collision) {
+    redirect("/app/admin?error=pin-retry");
   }
 
-  const { error } = await supabaseAdmin.from("staff_profiles").upsert({
-    id: existing?.id,
-    auth_user_id: authUserId,
-    email: parsed.data.email,
+  const staffId = randomUUID();
+  const email = `staff-${staffId.slice(0, 8)}@torneo.local`;
+
+  const { error } = await supabaseAdmin.from("staff_profiles").insert({
+    id: staffId,
+    auth_user_id: staffId,
+    email,
     full_name: parsed.data.fullName,
     role: parsed.data.role,
+    pin,
     is_active: true,
   });
 
@@ -1205,4 +1238,38 @@ export async function removeStaffAction(formData: FormData) {
 
   revalidateTournamentSurface();
   redirect(`${basePath}?saved=borrado-staff`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Global team check-in (tournament day)                               */
+/* ------------------------------------------------------------------ */
+
+const globalCheckinSchema = z.object({
+  teamId: z.uuid(),
+  redirectTo: z.string().trim().optional().or(z.literal("")),
+});
+
+export async function checkInTeamAction(formData: FormData) {
+  await requireStaffSession();
+
+  const parsed = globalCheckinSchema.safeParse({
+    teamId: formData.get("teamId"),
+    redirectTo: formData.get("redirectTo"),
+  });
+
+  if (!parsed.success) {
+    redirect("/app?error=checkin");
+  }
+
+  const { error } = await supabaseAdmin
+    .from("teams")
+    .update({ checked_in_at: new Date().toISOString() })
+    .eq("id", parsed.data.teamId);
+
+  if (error) {
+    redirect(`/app?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidateTournamentSurface();
+  redirect(safeRedirect(parsed.data.redirectTo, "/app?saved=checkin"));
 }

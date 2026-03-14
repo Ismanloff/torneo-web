@@ -47,6 +47,7 @@ export type TeamRow = {
   parental_confirmation_required: boolean;
   parental_confirmed_at: string | null;
   notes: string | null;
+  checked_in_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -185,6 +186,7 @@ export type StaffProfileRow = {
   email: string;
   full_name: string;
   role: StaffRole;
+  pin: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

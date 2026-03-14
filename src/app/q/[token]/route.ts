@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { setPostLoginTarget } from "@/lib/admin-auth";
+import { getAdminAccessContext } from "@/lib/admin-auth";
 import { getQrTargetByToken, touchQrToken } from "@/lib/supabase/queries";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildPublicQrTargetPath, buildQrTargetPath } from "@/lib/utils";
 
 type QrRouteProps = {
@@ -30,14 +29,12 @@ export async function GET(request: Request, { params }: QrRouteProps) {
     ...qrTarget,
     token,
   });
-  const supabase = await createSupabaseServerClient();
-  const claimsResult = await supabase.auth.getClaims();
-  const claims = claimsResult.data?.claims;
 
-  if (!claims?.sub) {
+  const context = await getAdminAccessContext();
+
+  if (!context) {
     return NextResponse.redirect(`${origin}${publicDestination}`);
   }
 
-  await setPostLoginTarget(appDestination);
   return NextResponse.redirect(`${origin}${appDestination}`);
 }

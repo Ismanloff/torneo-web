@@ -1,6 +1,6 @@
 "use client";
 
-import { inviteStaffAction, removeStaffAction } from "@/app/admin/actions";
+import { createStaffAction, removeStaffAction } from "@/app/admin/actions";
 import { formatStaffRoleLabel } from "@/lib/utils";
 
 import type { StaffProfileRow } from "@/lib/types";
@@ -14,28 +14,24 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-      {/* Invite staff form */}
+      {/* Create staff form */}
       <div className="admin-card">
         <p className="app-kicker">Alta de staff</p>
-        <form action={inviteStaffAction} className="mt-4 grid gap-3">
+        <form action={createStaffAction} className="mt-4 grid gap-3">
           <label className="field-shell">
             <span className="field-label field-label--dark">Nombre</span>
             <input className="field-input field-input--dark" name="fullName" placeholder="Nombre y apellidos" required />
           </label>
           <label className="field-shell">
-            <span className="field-label field-label--dark">Correo</span>
-            <input className="field-input field-input--dark" name="email" placeholder="persona@colegio.es" required type="email" />
-          </label>
-          <label className="field-shell">
             <span className="field-label field-label--dark">Rol</span>
-            <select className="field-input field-input--dark" defaultValue="assistant" name="role">
-              <option value="assistant">Organizacion</option>
+            <select className="field-input field-input--dark" defaultValue="referee" name="role">
               <option value="referee">Arbitro</option>
+              <option value="assistant">Organizacion</option>
               <option value="admin">Admin</option>
             </select>
           </label>
           <button className="admin-btn admin-btn--primary mt-2" type="submit">
-            Crear y enviar acceso
+            Crear staff (genera PIN)
           </button>
         </form>
       </div>
@@ -50,11 +46,17 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
                 <div>
                   <p className="font-semibold text-white">{profile.full_name}</p>
                   <p className="mt-0.5 text-sm text-[var(--app-muted)]">
-                    {profile.email} · {formatStaffRoleLabel(profile.role)}
+                    {formatStaffRoleLabel(profile.role)}
                   </p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">
-                    {profile.auth_user_id ? "Cuenta enlazada" : "Pendiente de primer acceso"}
-                  </p>
+                  {profile.pin ? (
+                    <p className="mt-1.5 font-mono text-lg font-bold tracking-[0.3em] text-[var(--app-accent)]">
+                      {profile.pin}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">
+                      Sin PIN asignado
+                    </p>
+                  )}
                 </div>
                 <form action={removeStaffAction}>
                   <input name="staffId" type="hidden" value={profile.id} />

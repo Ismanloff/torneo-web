@@ -47,13 +47,19 @@ export function CategoryGrid({ groups }: { groups: CategoryGroup[] }) {
                       {category.registeredTeams} / {category.maxTeams} equipos
                     </span>
                   </div>
-                  <Link
-                    href="/#inscripcion"
-                    className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--signal)]"
-                  >
-                    Inscribir
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
+                  {category.remainingSlots === 0 ? (
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--muted)] opacity-60">
+                      Completo
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/registro/${category.id}`}
+                      className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--signal)]"
+                    >
+                      Inscribir
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  )}
                 </div>
               </article>
             ))}
