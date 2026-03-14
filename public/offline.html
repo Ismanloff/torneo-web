@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0b0f1a" />
+    <title>Sin conexion — Torneo Escolar 2026</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f1a;
+        --surface: rgba(14, 20, 38, 0.72);
+        --line: rgba(148, 163, 184, 0.18);
+        --text: #f8fafc;
+        --muted: #8fa1c2;
+        --accent: #8df65f;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(104, 85, 255, 0.18), transparent 28%),
+          radial-gradient(circle at top right, rgba(83, 225, 255, 0.14), transparent 26%),
+          linear-gradient(180deg, #040611 0%, #07101f 42%, #050816 100%);
+        color: var(--text);
+      }
+
+      article {
+        max-width: 440px;
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 2rem;
+        background: linear-gradient(180deg, rgba(12, 18, 34, 0.8), rgba(8, 12, 24, 0.92));
+        padding: 2rem 1.6rem;
+        box-shadow: 0 26px 80px rgba(2, 6, 23, 0.42);
+        backdrop-filter: blur(20px);
+        text-align: center;
+      }
+
+      .brand {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 1.6rem;
+      }
+
+      .wifi-icon {
+        position: relative;
+        display: inline-block;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 1.2rem;
+      }
+
+      .wifi-icon svg {
+        width: 64px;
+        height: 64px;
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        line-height: 0.95;
+        margin-bottom: 0.8rem;
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.7;
+        font-size: 0.92rem;
+        margin-bottom: 1.6rem;
+      }
+
+      .retry-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.65rem;
+        min-height: 3.15rem;
+        padding: 0.95rem 1.6rem;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #b3ff7b 0%, #63dd36 100%);
+        color: #051006;
+        font-size: 0.84rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow: 0 20px 50px rgba(86, 209, 43, 0.2);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        width: 100%;
+        max-width: 240px;
+      }
+
+      .retry-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 60px rgba(86, 209, 43, 0.26);
+      }
+
+      .retry-btn:active {
+        transform: translateY(0);
+      }
+
+      .sync-note {
+        margin-top: 1.4rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(141, 246, 95, 0.16);
+        border-radius: 1rem;
+        background: rgba(141, 246, 95, 0.06);
+        font-size: 0.8rem;
+        color: #d8ffc7;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <article>
+      <div class="brand">Torneo Escolar 2026</div>
+
+      <div class="wifi-icon">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- WiFi arcs -->
+          <path d="M12 28c10.5-10.5 29.5-10.5 40 0" stroke="#8fa1c2" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+          <path d="M18 36c7.5-7.5 20.5-7.5 28 0" stroke="#8fa1c2" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+          <path d="M24 44c4.5-4.5 11.5-4.5 16 0" stroke="#8fa1c2" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+          <!-- WiFi dot -->
+          <circle cx="32" cy="50" r="3" fill="#8fa1c2" opacity="0.4"/>
+          <!-- Slash through -->
+          <line x1="14" y1="14" x2="50" y2="50" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <h1>Sin conexion</h1>
+
+      <p>
+        No hay acceso a internet en este momento. Puedes seguir consultando los datos ya cargados.
+      </p>
+
+      <button class="retry-btn" onclick="location.reload()">
+        Reintentar
+      </button>
+
+      <div class="sync-note">
+        Los resultados pendientes se sincronizaran automaticamente cuando vuelvas a tener red.
+      </div>
+    </article>
+  </body>
+</html>

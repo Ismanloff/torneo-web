@@ -1,0 +1,268 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Wifi, WifiOff } from "lucide-react";
+
+import { submitMatchResultAction } from "@/app/admin/actions";
+import { queueOfflineScore } from "@/lib/offline-store";
+import type { MatchScope } from "@/lib/types";
+
+type OfflineScoreFormProps = {
+  matchId: string;
+  matchScope: MatchScope;
+  categoryId: string;
+  bracketId?: string | null;
+  homeTeamName: string;
+  awayTeamName: string;
+  currentHomeScore: number | null;
+  currentAwayScore: number | null;
+  currentStatus: string;
+  currentNotes: string | null;
+  currentScheduledAt: string | null;
+  currentLocation: string | null;
+  actorRole: string;
+  canSubmit: boolean;
+};
+
+export function OfflineScoreForm({
+  matchId,
+  matchScope,
+  categoryId,
+  bracketId,
+  homeTeamName,
+  awayTeamName,
+  currentHomeScore,
+  currentAwayScore,
+  currentStatus,
+  currentNotes,
+  currentScheduledAt,
+  currentLocation,
+  actorRole,
+  canSubmit,
+}: OfflineScoreFormProps) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
+  const [offlineSaved, setOfflineSaved] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Listen for sync-complete messages from the service worker
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "sync-complete") {
+        router.refresh();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+    };
+  }, [router]);
+
+  async function handleSubmit(formData: FormData) {
+    if (!isOnline) {
+      const rawHome = formData.get("homeScore") as string;
+      const rawAway = formData.get("awayScore") as string;
+
+      if (rawHome === "" || rawAway === "") {
+        setOfflineSaved(false);
+        alert("Introduce ambos marcadores antes de guardar.");
+        return;
+      }
+
+      const homeScore = Number(rawHome);
+      const awayScore = Number(rawAway);
+
+      if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
+        alert("Los marcadores deben ser numeros validos.");
+        return;
+      }
+
+      // Offline queue intentionally stores only scores (homeScore/awayScore).
+      // Fields like status, scheduledAt, location, and notes are not queued
+      // because offline mode targets field referees who only need to record
+      // match results. Full match editing is done online via the admin panel.
+      await queueOfflineScore({
+        id: crypto.randomUUID(),
+        matchId,
+        matchScope,
+        homeScore,
+        awayScore,
+        actorRole,
+        timestamp: Date.now(),
+      });
+
+      // Register background sync if available
+      if ("serviceWorker" in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+
+          if ("sync" in registration) {
+            await (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("sync-scores");
+          }
+        } catch {
+          // Background sync not supported or failed — scores remain in IndexedDB
+        }
+      }
+
+      setOfflineSaved(true);
+      setTimeout(() => setOfflineSaved(false), 4000);
+      return;
+    }
+
+    // Online: use the server action
+    startTransition(() => {
+      submitMatchResultAction(formData);
+    });
+  }
+
+  const redirectTo = `/app/partido/${matchId}?scope=${matchScope}`;
+
+  return (
+    <article className="app-panel-strong">
+      <div className="flex items-center justify-between">
+        <p className="app-kicker">Resultado final</p>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+            isOnline
+              ? "bg-green-100 text-green-800"
+              : "bg-amber-100 text-amber-800"
+          }`}
+        >
+          {isOnline ? (
+            <>
+              <Wifi className="h-3 w-3" />
+              Online
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3 w-3" />
+              Offline
+            </>
+          )}
+        </span>
+      </div>
+
+      <form ref={formRef} action={handleSubmit} className="mt-4 grid gap-3">
+        <input name="scope" type="hidden" value={matchScope} />
+        <input name="matchId" type="hidden" value={matchId} />
+        <input name="categoryId" type="hidden" value={categoryId} />
+        <input name="redirectTo" type="hidden" value={redirectTo} />
+        {matchScope === "bracket_match" && bracketId ? (
+          <input name="bracketId" type="hidden" value={bracketId} />
+        ) : null}
+
+        <label className="field-shell">
+          <span className="field-label field-label--dark">Estado</span>
+          <select
+            className="field-input field-input--dark"
+            defaultValue={currentStatus}
+            name="status"
+          >
+            <option value="scheduled">Programado</option>
+            <option value="completed">Finalizado</option>
+            <option value="cancelled">Cancelado</option>
+          </select>
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="field-shell">
+            <span className="field-label field-label--dark">
+              {homeTeamName}
+            </span>
+            <input
+              className="field-input field-input--dark"
+              defaultValue={currentHomeScore ?? ""}
+              disabled={!canSubmit}
+              name="homeScore"
+              type="number"
+            />
+          </label>
+          <label className="field-shell">
+            <span className="field-label field-label--dark">
+              {awayTeamName}
+            </span>
+            <input
+              className="field-input field-input--dark"
+              defaultValue={currentAwayScore ?? ""}
+              disabled={!canSubmit}
+              name="awayScore"
+              type="number"
+            />
+          </label>
+          <label className="field-shell">
+            <span className="field-label field-label--dark">Fecha y hora</span>
+            <input
+              className="field-input field-input--dark"
+              defaultValue={currentScheduledAt ?? ""}
+              name="scheduledAt"
+              type="datetime-local"
+            />
+          </label>
+          <label className="field-shell">
+            <span className="field-label field-label--dark">
+              Cancha o pista
+            </span>
+            <input
+              className="field-input field-input--dark"
+              defaultValue={currentLocation ?? ""}
+              name="location"
+            />
+          </label>
+        </div>
+
+        <label className="field-shell">
+          <span className="field-label field-label--dark">Notas</span>
+          <textarea
+            className="field-input field-input--dark min-h-24"
+            defaultValue={currentNotes ?? ""}
+            name="notes"
+          />
+        </label>
+
+        {offlineSaved ? (
+          <div className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-medium text-white">
+            <Check className="h-4 w-4" />
+            Resultado guardado offline. Se sincronizara automaticamente.
+          </div>
+        ) : null}
+
+        <button
+          className={`app-action ${offlineSaved ? "bg-green-600 text-white" : ""}`}
+          disabled={!canSubmit || isPending}
+          type="submit"
+        >
+          {isPending
+            ? "Guardando..."
+            : offlineSaved
+              ? "Guardado offline"
+              : isOnline
+                ? "Guardar resultado"
+                : "Guardar offline"}
+        </button>
+      </form>
+    </article>
+  );
+}
