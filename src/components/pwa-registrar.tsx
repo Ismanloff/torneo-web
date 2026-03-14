@@ -168,14 +168,14 @@ export function PwaRegistrar() {
   return (
     <>
       {shouldShowInstallPrompt ? (
-        <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-[1.2rem] border border-[var(--line)] bg-[color:rgba(255,248,236,0.96)] p-3 shadow-[var(--shadow)] backdrop-blur">
+        <div className="fixed inset-x-3 bottom-[max(0.9rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-[22rem] rounded-[1.15rem] border border-[var(--line)] bg-[color:rgba(255,248,236,0.96)] p-2.5 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
                 PWA
               </p>
-              <p className="mt-1 text-sm leading-5 text-[var(--ink)]">
-                Instala el torneo para abrirlo como app en movil.
+              <p className="mt-1 text-[0.95rem] leading-5 text-[var(--ink)]">
+                Instala el torneo y abrelo como app en el movil.
               </p>
             </div>
             <button
@@ -187,9 +187,9 @@ export function PwaRegistrar() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2">
             <button
-              className="action-button action-button--signal min-h-11 flex-1 px-5 py-3 text-sm"
+              className="action-button action-button--signal min-h-10 flex-1 px-4 py-2.5 text-[0.8rem]"
               type="button"
               onClick={async () => {
                 await installEvent.prompt();
@@ -200,7 +200,7 @@ export function PwaRegistrar() {
               Instalar
             </button>
             <button
-              className="rounded-full border border-[var(--line)] px-4 py-3 text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
+              className="rounded-full border border-[var(--line)] px-3 py-2 text-[0.92rem] font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
               type="button"
               onClick={dismissInstallPrompt}
             >
