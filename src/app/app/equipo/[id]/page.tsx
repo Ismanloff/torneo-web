@@ -62,6 +62,10 @@ function canQuickCheckIn(staff: StaffContext, match: TeamRelatedMatch) {
   );
 }
 
+function canManageArrival(staff: StaffContext) {
+  return staff.profile.role === "admin" || staff.profile.role === "assistant";
+}
+
 function isOpenMatch(match: TeamRelatedMatch) {
   return match.status !== "completed" && match.status !== "cancelled";
 }
@@ -90,6 +94,8 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
   const nextCheckin = nextOpenMatch ? getTeamCheckin(nextOpenMatch, detail.team.id) : null;
   const nextCheckinAllowed = nextOpenMatch ? canQuickCheckIn(staff, nextOpenMatch) : false;
   const entryMode = query.entry === "1";
+  const canSeeContacts = staff.profile.role === "admin" || staff.profile.role === "assistant";
+  const canHandleArrival = canManageArrival(staff);
 
   return (
     <main className="grid gap-6">
@@ -109,7 +115,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
         </div>
       </section>
 
-      {entryMode ? (
+      {entryMode && canHandleArrival ? (
         <section className="app-panel border-[var(--app-accent-strong)] bg-[rgba(141,246,95,0.09)]">
           <p className="app-kicker">
             Acceso por QR
@@ -136,6 +142,13 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             )}
           </div>
         </section>
+      ) : entryMode ? (
+        <section className="app-panel">
+          <p className="app-kicker">Acceso por QR</p>
+          <p className="mt-3 text-sm text-[var(--app-muted)]">
+            Este modo de llegada está reservado a mesa y administración.
+          </p>
+        </section>
       ) : null}
 
       <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
@@ -145,8 +158,9 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
           </p>
           <div className="mt-4 grid gap-3 text-sm text-[var(--app-muted)]">
             <p>Capitan: {detail.team.captain_name}</p>
-            <p>Email: {detail.team.captain_email}</p>
-            <p>Telefono: {detail.team.captain_phone}</p>
+            {canSeeContacts ? <p>Email: {detail.team.captain_email}</p> : null}
+            {canSeeContacts ? <p>Telefono: {detail.team.captain_phone}</p> : null}
+            {!canSeeContacts ? <p>Contacto directo reservado a mesa y administración.</p> : null}
             <p>Estado: {detail.team.status}</p>
             <p>
               Autorizacion parental:{" "}

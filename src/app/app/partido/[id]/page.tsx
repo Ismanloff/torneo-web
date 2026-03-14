@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardCheck, QrCode, TimerReset } from "lucide-react";
+import { ClipboardCheck, Shield, TimerReset, UserRound, Users } from "lucide-react";
 
 import { saveCheckinAction } from "@/app/admin/actions";
 import { OfflineScoreForm } from "@/components/offline-score-form";
@@ -25,6 +25,13 @@ function checkinLabel(status: string | null | undefined) {
   return "Pendiente";
 }
 
+function getOperationLabel(canSubmitResult: boolean, canCheckIn: boolean) {
+  if (canSubmitResult && canCheckIn) return "Control total";
+  if (canSubmitResult) return "Arbitraje";
+  if (canCheckIn) return "Control de llegada";
+  return "Consulta";
+}
+
 export default async function MatchDetailPage({ params, searchParams }: MatchDetailPageProps) {
   const staff = await requireStaffSession();
   const [{ id }, query] = await Promise.all([params, searchParams]);
@@ -42,6 +49,7 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
 
   const redirectTo = `/app/partido/${id}?scope=${scope}`;
   const qrPath = detail.match.qr_token ? buildQrShareUrl(detail.match.qr_token.token) : null;
+  const operationLabel = getOperationLabel(detail.canSubmitResult, detail.canCheckIn);
 
   return (
     <main className="grid gap-6 max-w-4xl mx-auto">
@@ -54,7 +62,7 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
             </span>
             <span className="app-chip">
               <TimerReset className="h-4 w-4" />
-              {detail.match.status}
+              {operationLabel}
             </span>
           </div>
 
@@ -151,28 +159,58 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <OfflineScoreForm
-          actorRole={staff.profile.role}
-          bracketId={scope === "bracket_match" ? detail.category.bracket?.bracket.id : null}
-          canSubmit={detail.canSubmitResult}
-          categoryId={detail.category.category.id}
-          currentAwayScore={detail.match.away_score ?? null}
-          currentHomeScore={detail.match.home_score ?? null}
-          currentLocation={detail.match.location ?? null}
-          currentNotes={detail.match.notes ?? null}
-          currentScheduledAt={formatDateTimeLocalValue(detail.match.scheduled_at) || null}
-          currentStatus={detail.match.status}
-          homeTeamName={detail.match.home_team?.team_name ?? "Local"}
-          awayTeamName={detail.match.away_team?.team_name ?? "Visitante"}
-          matchId={detail.match.id}
-          matchScope={scope}
-        />
+        {detail.canSubmitResult ? (
+          <OfflineScoreForm
+            actorRole={staff.profile.role}
+            bracketId={scope === "bracket_match" ? detail.category.bracket?.bracket.id : null}
+            canSubmit={detail.canSubmitResult}
+            categoryId={detail.category.category.id}
+            currentAwayScore={detail.match.away_score ?? null}
+            currentHomeScore={detail.match.home_score ?? null}
+            currentLocation={detail.match.location ?? null}
+            currentNotes={detail.match.notes ?? null}
+            currentScheduledAt={formatDateTimeLocalValue(detail.match.scheduled_at) || null}
+            currentStatus={detail.match.status}
+            homeTeamName={detail.match.home_team?.team_name ?? "Local"}
+            awayTeamName={detail.match.away_team?.team_name ?? "Visitante"}
+            matchId={detail.match.id}
+            matchScope={scope}
+          />
+        ) : (
+          <article className="app-panel-strong">
+            <p className="app-kicker">Mesa y llegada</p>
+            <h2 className="mt-3 font-display text-[2rem] font-semibold tracking-[-0.04em] text-white">
+              Flujo de asistencia
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-[var(--app-muted)]">
+              Tu perfil está orientado a check-in, incidencias y preparación del partido. El resultado se registra desde arbitraje o administración.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
+                <p className="app-metric__label">Estado</p>
+                <p className="mt-3 text-xl font-semibold text-white">{detail.match.status}</p>
+              </div>
+              <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
+                <p className="app-metric__label">Marcador actual</p>
+                <p className="font-mono mt-3 text-xl font-semibold text-white">
+                  {detail.match.home_score ?? "-"} : {detail.match.away_score ?? "-"}
+                </p>
+              </div>
+            </div>
+          </article>
+        )}
 
         <article className="app-panel">
           <div className="flex items-center gap-2">
-            <QrCode className="h-4 w-4 text-[var(--app-accent)]" />
+            {detail.canSubmitResult ? (
+              <UserRound className="h-4 w-4 text-[var(--app-accent)]" />
+            ) : detail.canCheckIn ? (
+              <Users className="h-4 w-4 text-[var(--app-info)]" />
+            ) : (
+              <Shield className="h-4 w-4 text-[var(--app-accent)]" />
+            )}
             <p className="app-kicker">
-            Acceso rapido
+              {detail.canSubmitResult ? "Arbitraje" : detail.canCheckIn ? "Mesa" : "Acceso rapido"}
             </p>
           </div>
           {qrPath ? <QrTile href={qrPath} label="QR del partido" /> : null}

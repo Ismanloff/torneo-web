@@ -11,23 +11,10 @@ type PinLoginFormProps = {
 export function PinLoginForm({ error }: PinLoginFormProps) {
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [isPending, startTransition] = useTransition();
-  const [shake, setShake] = useState(false);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     refs.current[0]?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (error) {
-      setShake(true);
-      setDigits(Array(6).fill(""));
-      const timeout = setTimeout(() => {
-        setShake(false);
-        refs.current[0]?.focus();
-      }, 550);
-      return () => clearTimeout(timeout);
-    }
   }, [error]);
 
   const submit = useCallback((pin: string) => {
@@ -99,7 +86,13 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
 
   return (
     <div>
-      {/* Progress bar */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8fa1c2]">
+          PIN de 6 digitos
+        </p>
+        <p className="font-mono text-xs text-[#8fa1c2]">{filledCount}/6</p>
+      </div>
+
       <div className="mb-7 h-[2px] overflow-hidden rounded-full bg-white/[0.06]">
         <div
           className="h-full rounded-full transition-all duration-300 ease-out"
@@ -111,8 +104,7 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
         />
       </div>
 
-      {/* PIN digit boxes */}
-      <div className={`flex justify-center gap-2.5 sm:gap-3 ${shake ? "pin-shake" : ""}`}>
+      <div className={`flex justify-center gap-2.5 sm:gap-3 ${error ? "pin-shake" : ""}`}>
         {digits.map((digit, i) => (
           <div key={i} className="relative">
             <input
@@ -123,9 +115,9 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
               autoComplete="one-time-code"
               className={[
                 "h-14 w-12 sm:h-16 sm:w-[3.4rem]",
-                "text-center text-2xl font-bold sm:text-3xl",
-                "rounded-xl border outline-none",
-                "bg-white/[0.03] text-[var(--app-text)]",
+                "font-mono text-center text-2xl font-bold sm:text-3xl",
+                "rounded-[1.1rem] border outline-none",
+                "bg-white/[0.035] text-[var(--app-text)]",
                 "transition-all duration-200",
                 digit
                   ? "border-[rgba(141,246,95,0.4)] shadow-[0_0_20px_rgba(141,246,95,0.1)]"
@@ -137,7 +129,7 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
               inputMode="numeric"
               maxLength={1}
               pattern="[0-9]"
-              style={{ caretColor: "#8df65f", fontFamily: "var(--font-display), monospace" }}
+              style={{ caretColor: "#8df65f" }}
               type="text"
               value={digit}
               onChange={(e) => handleChange(i, e.target.value)}
@@ -157,10 +149,9 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
         ))}
       </div>
 
-      {/* Status message */}
       <div className="mt-8 min-h-[1.5rem] text-center">
         {isPending ? (
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-accent)] animate-pulse">
+          <p className="animate-pulse text-sm font-bold uppercase tracking-[0.2em] text-[var(--app-accent)]">
             Verificando...
           </p>
         ) : error ? (

@@ -21,9 +21,11 @@ export function AdminConfigTab({
 }: AdminConfigTabProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {/* QR Generator */}
       <div className="admin-card">
-        <p className="app-kicker">Generador de QR por equipo</p>
+        <p className="app-kicker">Recursos del torneo</p>
+        <h3 className="mt-3 font-display text-[1.9rem] font-semibold tracking-[-0.04em] text-white">
+          QR por equipo
+        </h3>
         <div className="mt-4 grid gap-3">
           {categories.map((cat) =>
             cat.teams.length ? (
@@ -60,10 +62,12 @@ export function AdminConfigTab({
         </div>
       </div>
 
-      {/* Session info & audit */}
       <div className="grid gap-6 content-start">
         <div className="admin-card">
-          <p className="app-kicker">Resumen del torneo</p>
+          <p className="app-kicker">Vista de gestion</p>
+          <h3 className="mt-3 font-display text-[1.9rem] font-semibold tracking-[-0.04em] text-white">
+            Resumen del torneo
+          </h3>
           <div className="mt-4 grid gap-2 text-sm text-[var(--app-muted)]">
             <p>
               Torneo: <strong className="text-white">{tournament.name}</strong>
@@ -85,6 +89,9 @@ export function AdminConfigTab({
 
         <div className="admin-card">
           <p className="app-kicker">Sesion y acceso</p>
+          <h3 className="mt-3 font-display text-[1.9rem] font-semibold tracking-[-0.04em] text-white">
+            Control de sesion
+          </h3>
           <div className="mt-4 grid gap-3">
             <p className="text-sm text-[var(--app-muted)]">
               Estas conectado como administrador del torneo. Desde aqui puedes cerrar sesion de forma segura.

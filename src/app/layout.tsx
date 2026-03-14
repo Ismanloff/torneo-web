@@ -1,19 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { Bebas_Neue, Literata } from "next/font/google";
+import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
 
 import { PwaRegistrar } from "@/components/pwa-registrar";
 
 import "./globals.css";
 
-const displayFont = Bebas_Neue({
+const displayFont = Outfit({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: "400",
+  display: "swap",
 });
 
-const bodyFont = Literata({
+const bodyFont = Inter({
   subsets: ["latin"],
   variable: "--font-body",
+  display: "swap",
+});
+
+const monoFont = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -36,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#171311",
+  themeColor: "#050816",
 };
 
 export default function RootLayout({
@@ -46,7 +53,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${displayFont.variable} ${bodyFont.variable}`}>
+      <body className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-green-600 focus:px-4 focus:py-2 focus:text-white"

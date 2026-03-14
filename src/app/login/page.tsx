@@ -1,4 +1,4 @@
-import { KeyRound, Shield } from "lucide-react";
+import { KeyRound, Shield, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { loginAdminAction } from "@/app/admin/actions";
@@ -32,21 +32,28 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="public-auth flex min-h-dvh items-center justify-center">
-      <div className="w-full max-w-[400px] px-4 py-10">
-        <section className="public-glass p-6 sm:p-8">
-          <div className="mb-2 flex items-center justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(141,246,95,0.2)] bg-gradient-to-br from-[rgba(141,246,95,0.2)] to-[rgba(84,209,43,0.08)]">
+      <div className="w-full max-w-[430px] px-4 py-10">
+        <section className="public-glass overflow-hidden p-6 sm:p-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] border border-[rgba(141,246,95,0.2)] bg-gradient-to-br from-[rgba(141,246,95,0.24)] to-[rgba(84,209,43,0.08)]">
               <Shield className="h-5 w-5 text-[var(--app-accent)]" />
             </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold text-[#d6e1f3]">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--app-accent)]" />
+              PWA staff
+            </span>
           </div>
 
-          <p className="public-kicker text-center">Torneo Escolar</p>
-          <h1 className="public-title mt-2 text-center text-2xl sm:text-3xl">
+          <p className="public-kicker">Torneo Escolar</p>
+          <h1 className="public-title mt-3 text-4xl text-white sm:text-[2.8rem]">
             Acceso Staff
           </h1>
+          <p className="mt-3 text-sm leading-7 text-[#a8b7d2]">
+            Entra con PIN para abrir la operativa movil. La experiencia esta optimizada para uso en pista como app instalada.
+          </p>
 
           {errorLabel ? (
-            <div className="mt-5 rounded-[1.4rem] border border-[rgba(255,107,107,0.28)] bg-[rgba(127,29,29,0.2)] px-4 py-3 text-center text-sm text-[#fecaca]">
+            <div className="mt-5 rounded-[1.4rem] border border-[rgba(255,107,107,0.28)] bg-[rgba(127,29,29,0.2)] px-4 py-3 text-sm text-[#fecaca]">
               {errorLabel}
             </div>
           ) : null}

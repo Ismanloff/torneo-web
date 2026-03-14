@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CalendarClock, MapPin, PencilLine, QrCode, Trash2, UserRound, Users } from "lucide-react";
 
 import {
   addAdjustmentAction,
@@ -19,6 +20,30 @@ import { AdminModal } from "@/components/admin-modal";
 import { formatDateTime, formatDateTimeLocalValue, formatStaffRoleLabel } from "@/lib/utils";
 
 import type { ScoreboardCategory, StaffProfileRow } from "@/lib/types";
+
+function getStatusLabel(status: string) {
+  if (status === "completed") return "Finalizado";
+  if (status === "cancelled") return "Cancelado";
+  if (status === "in_progress") return "En juego";
+  return "Programado";
+}
+
+function getStatusClass(status: string) {
+  if (status === "completed") {
+    return "border-[rgba(141,246,95,0.18)] bg-[rgba(141,246,95,0.12)] text-[#d8ffc7]";
+  }
+  if (status === "cancelled") {
+    return "border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[#fecaca]";
+  }
+  if (status === "in_progress") {
+    return "border-[rgba(97,216,255,0.18)] bg-[rgba(97,216,255,0.12)] text-[#d2f4ff]";
+  }
+  return "border-white/10 bg-white/[0.05] text-[var(--app-muted)]";
+}
+
+function renderAssignmentLabel(staff: { full_name: string } | null | undefined) {
+  return staff?.full_name ?? "Sin asignar";
+}
 
 /* ------------------------------------------------------------------ */
 /* Staff select (inline)                                               */
@@ -103,6 +128,8 @@ export function AdminPartidosTab({
   const [modalCreateMatch, setModalCreateMatch] = useState(false);
   const [modalAdjustment, setModalAdjustment] = useState(false);
   const [modalBracket, setModalBracket] = useState(false);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [editingBracketMatchId, setEditingBracketMatchId] = useState<string | null>(null);
 
   const category = categories.find((c) => c.category.id === selectedCategoryId);
 
@@ -116,11 +143,11 @@ export function AdminPartidosTab({
 
   return (
     <div className="grid gap-6">
-      {/* Category selector */}
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="field-shell flex-1">
+      <div className="admin-card">
+        <label className="field-shell flex-1" htmlFor="admin-category-selector">
           <span className="field-label field-label--dark">Categoria</span>
           <select
+            id="admin-category-selector"
             className="field-input field-input--dark"
             onChange={(e) => setSelectedCategoryId(e.target.value)}
             value={selectedCategoryId}
@@ -132,18 +159,20 @@ export function AdminPartidosTab({
             ))}
           </select>
         </label>
+        <div className="mt-4 rounded-[1.25rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--app-muted)]">
+          Esta seccion organiza calendario y estructura competitiva. Para scoring en vivo y check-in, abre la operativa de cada partido.
+        </div>
       </div>
 
       {category && (
         <>
-          {/* Category header */}
           <div className="admin-card">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="app-kicker">
                   {category.category.sport} · {category.category.age_group}
                 </p>
-                <h2 className="mt-2 app-title text-2xl text-white">
+                <h2 className="mt-3 font-display text-[2.2rem] font-semibold tracking-[-0.05em] text-white">
                   {category.category.name}
                 </h2>
                 <p className="mt-1 text-sm text-[var(--app-muted)]">
@@ -155,7 +184,6 @@ export function AdminPartidosTab({
               </Link>
             </div>
 
-            {/* Quick action buttons */}
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 className="admin-btn admin-btn--primary"
@@ -185,107 +213,189 @@ export function AdminPartidosTab({
               >
                 Cuadro eliminacion
               </button>
+              <Link className="admin-btn admin-btn--secondary" href="/app/partidos">
+                Ir a operativa
+              </Link>
             </div>
           </div>
 
-          {/* Matches list */}
           <div className="grid gap-4">
             <h3 className="app-kicker">Partidos de fase de grupos</h3>
             {category.matches.length ? (
               category.matches.map((match) => (
                 <div key={match.id} className="admin-card">
-                  <form action={updateMatchAction} className="grid gap-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="app-metric__label">{match.round_label || "Partido"}</p>
+                      <p className="mt-2 font-display text-[1.7rem] font-semibold tracking-[-0.04em] text-white">
+                        {match.home_team.team_name} <span className="text-[var(--app-muted)]">vs</span> {match.away_team.team_name}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-white/[0.04] px-3 py-1.5 text-xs text-[var(--app-muted)]">
+                          <CalendarClock className="h-3.5 w-3.5" />
+                          {match.scheduled_at ? formatDateTime(match.scheduled_at) : "Sin fecha"}
+                        </span>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-white/[0.04] px-3 py-1.5 text-xs text-[var(--app-muted)]">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {match.location ?? "Sin pista"}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getStatusClass(match.status)}`}>
+                      {getStatusLabel(match.status)}
+                    </span>
+                  </div>
+
+                  <form action={updateMatchAction} className="mt-5 grid gap-4">
                     <input name="matchId" type="hidden" value={match.id} />
                     <input name="categoryId" type="hidden" value={category.category.id} />
                     <input name="redirectTo" type="hidden" value={surfacePath} />
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-white">
-                          {match.home_team.team_name} vs {match.away_team.team_name}
-                        </p>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">
-                          {match.round_label || "Partido"} · {match.scheduled_at ? formatDateTime(match.scheduled_at) : "Sin fecha"}
-                        </p>
-                      </div>
-                      <select className="field-input field-input--dark max-w-52" defaultValue={match.status} name="status">
-                        <option value="scheduled">Programado</option>
-                        <option value="completed">Finalizado</option>
-                        <option value="cancelled">Cancelado</option>
-                      </select>
-                    </div>
+                    <input name="scheduledAt" type="hidden" value={formatDateTimeLocalValue(match.scheduled_at)} />
+                    <input name="location" type="hidden" value={match.location ?? ""} />
+                    <input name="notes" type="hidden" value={match.notes ?? ""} />
 
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
                       <label className="field-shell">
                         <span className="field-label field-label--dark">Local</span>
-                        <input className="field-input field-input--dark" defaultValue={match.home_score ?? ""} name="homeScore" type="number" />
+                        <input className="field-input field-input--dark font-mono" defaultValue={match.home_score ?? ""} name="homeScore" type="number" />
                       </label>
                       <label className="field-shell">
                         <span className="field-label field-label--dark">Visitante</span>
-                        <input className="field-input field-input--dark" defaultValue={match.away_score ?? ""} name="awayScore" type="number" />
+                        <input className="field-input field-input--dark font-mono" defaultValue={match.away_score ?? ""} name="awayScore" type="number" />
                       </label>
                       <label className="field-shell">
-                        <span className="field-label field-label--dark">Fecha y hora</span>
-                        <input className="field-input field-input--dark" defaultValue={formatDateTimeLocalValue(match.scheduled_at)} name="scheduledAt" type="datetime-local" />
-                      </label>
-                      <label className="field-shell">
-                        <span className="field-label field-label--dark">Pista o lugar</span>
-                        <input className="field-input field-input--dark" defaultValue={match.location ?? ""} name="location" />
+                        <span className="field-label field-label--dark">Estado</span>
+                        <select className="field-input field-input--dark min-w-[10rem]" defaultValue={match.status} name="status">
+                          <option value="scheduled">Programado</option>
+                          <option value="completed">Finalizado</option>
+                          <option value="cancelled">Cancelado</option>
+                        </select>
                       </label>
                     </div>
 
-                    <label className="field-shell">
-                      <span className="field-label field-label--dark">Notas</span>
-                      <textarea className="field-input field-input--dark min-h-20" defaultValue={match.notes ?? ""} name="notes" />
-                    </label>
+                    <div className="grid gap-2 rounded-[1.25rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--app-muted)] sm:grid-cols-2">
+                      <div className="flex items-center gap-2">
+                        <UserRound className="h-4 w-4 text-[var(--app-accent)]" />
+                        Arbitro: {renderAssignmentLabel(match.referee_assignment)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-[var(--app-info)]" />
+                        Organizacion: {renderAssignmentLabel(match.assistant_assignment)}
+                      </div>
+                    </div>
 
                     <div className="flex flex-wrap gap-2">
                       <button className="admin-btn admin-btn--primary" type="submit">
-                        Guardar resultado
+                        Guardar marcador
+                      </button>
+                      <Link
+                        className="admin-btn admin-btn--secondary"
+                        href={`/app/partido/${match.id}?scope=category_match`}
+                      >
+                        Abrir operativa
+                      </Link>
+                      <button
+                        className="admin-btn admin-btn--secondary"
+                        onClick={() => setEditingMatchId(match.id)}
+                        type="button"
+                      >
+                        <PencilLine className="h-4 w-4" />
+                        Edicion avanzada
                       </button>
                     </div>
                   </form>
 
-                  {/* Delete match */}
-                  <form action={deleteMatchAction} className="mt-3">
-                    <input name="matchId" type="hidden" value={match.id} />
-                    <input name="categoryId" type="hidden" value={category.category.id} />
-                    <input name="redirectTo" type="hidden" value={surfacePath} />
-                    <button className="admin-btn admin-btn--danger text-xs" type="submit">
-                      Eliminar partido
-                    </button>
-                  </form>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <StaffSelect
-                      categoryId={category.category.id}
-                      duty="referee"
-                      matchId={match.id}
-                      scope="category_match"
-                      staffProfiles={staffProfiles}
-                      tournamentId={tournamentId}
-                      value={match.referee_assignment?.auth_user_id ?? ""}
-                    />
-                    <StaffSelect
-                      categoryId={category.category.id}
-                      duty="assistant"
-                      matchId={match.id}
-                      scope="category_match"
-                      staffProfiles={staffProfiles}
-                      tournamentId={tournamentId}
-                      value={match.assistant_assignment?.auth_user_id ?? ""}
-                    />
-                  </div>
-
-                  <div className="mt-4">
-                    <form action={generateQrForResourceAction}>
-                      <input name="resourceType" type="hidden" value="category_match" />
-                      <input name="resourceId" type="hidden" value={match.id} />
+                  <AdminModal
+                    isOpen={editingMatchId === match.id}
+                    onClose={() => setEditingMatchId(null)}
+                    title={`${match.home_team.team_name} vs ${match.away_team.team_name}`}
+                  >
+                    <form action={updateMatchAction} className="grid gap-4">
+                      <input name="matchId" type="hidden" value={match.id} />
                       <input name="categoryId" type="hidden" value={category.category.id} />
-                      <button className="admin-btn admin-btn--secondary text-xs" type="submit">
-                        Regenerar QR de partido
-                      </button>
+                      <input name="redirectTo" type="hidden" value={surfacePath} />
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <label className="field-shell">
+                          <span className="field-label field-label--dark">Estado</span>
+                          <select className="field-input field-input--dark" defaultValue={match.status} name="status">
+                            <option value="scheduled">Programado</option>
+                            <option value="completed">Finalizado</option>
+                            <option value="cancelled">Cancelado</option>
+                          </select>
+                        </label>
+                        <label className="field-shell">
+                          <span className="field-label field-label--dark">Fecha y hora</span>
+                          <input className="field-input field-input--dark" defaultValue={formatDateTimeLocalValue(match.scheduled_at)} name="scheduledAt" type="datetime-local" />
+                        </label>
+                        <label className="field-shell">
+                          <span className="field-label field-label--dark">Local</span>
+                          <input className="field-input field-input--dark font-mono" defaultValue={match.home_score ?? ""} name="homeScore" type="number" />
+                        </label>
+                        <label className="field-shell">
+                          <span className="field-label field-label--dark">Visitante</span>
+                          <input className="field-input field-input--dark font-mono" defaultValue={match.away_score ?? ""} name="awayScore" type="number" />
+                        </label>
+                        <label className="field-shell md:col-span-2">
+                          <span className="field-label field-label--dark">Pista o lugar</span>
+                          <input className="field-input field-input--dark" defaultValue={match.location ?? ""} name="location" />
+                        </label>
+                      </div>
+
+                      <label className="field-shell">
+                        <span className="field-label field-label--dark">Notas</span>
+                        <textarea className="field-input field-input--dark min-h-20" defaultValue={match.notes ?? ""} name="notes" />
+                      </label>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <StaffSelect
+                          categoryId={category.category.id}
+                          duty="referee"
+                          matchId={match.id}
+                          scope="category_match"
+                          staffProfiles={staffProfiles}
+                          tournamentId={tournamentId}
+                          value={match.referee_assignment?.auth_user_id ?? ""}
+                        />
+                        <StaffSelect
+                          categoryId={category.category.id}
+                          duty="assistant"
+                          matchId={match.id}
+                          scope="category_match"
+                          staffProfiles={staffProfiles}
+                          tournamentId={tournamentId}
+                          value={match.assistant_assignment?.auth_user_id ?? ""}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button className="admin-btn admin-btn--primary" type="submit">
+                          Guardar cambios
+                        </button>
+                      </div>
                     </form>
-                  </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <form action={generateQrForResourceAction}>
+                        <input name="resourceType" type="hidden" value="category_match" />
+                        <input name="resourceId" type="hidden" value={match.id} />
+                        <input name="categoryId" type="hidden" value={category.category.id} />
+                        <button className="admin-btn admin-btn--secondary" type="submit">
+                          <QrCode className="h-4 w-4" />
+                          Regenerar QR
+                        </button>
+                      </form>
+                      <form action={deleteMatchAction}>
+                        <input name="matchId" type="hidden" value={match.id} />
+                        <input name="categoryId" type="hidden" value={category.category.id} />
+                        <input name="redirectTo" type="hidden" value={surfacePath} />
+                        <button className="admin-btn admin-btn--danger" type="submit">
+                          <Trash2 className="h-4 w-4" />
+                          Eliminar partido
+                        </button>
+                      </form>
+                    </div>
+                  </AdminModal>
                 </div>
               ))
             ) : (
@@ -295,7 +405,6 @@ export function AdminPartidosTab({
             )}
           </div>
 
-          {/* Bracket matches */}
           {category.bracket?.rounds.length ? (
             <div className="grid gap-4">
               <h3 className="app-kicker">Cruces del cuadro</h3>
@@ -304,80 +413,172 @@ export function AdminPartidosTab({
                   <p className="mb-3 font-semibold text-white">{round.name}</p>
                   <div className="grid gap-4">
                     {matches.map((match) => (
-                      <div key={match.id} className="rounded-xl border border-[var(--app-line)] bg-white/[0.03] p-4">
-                        <form action={updateBracketMatchAction} className="grid gap-4">
+                      <div key={match.id} className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="app-metric__label">Cruce {match.match_number}</p>
+                            <p className="mt-2 text-lg font-semibold text-white">
+                              {match.home_team?.team_name ?? "Pendiente"} vs {match.away_team?.team_name ?? "Pendiente"}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-white/[0.04] px-3 py-1.5 text-xs text-[var(--app-muted)]">
+                                <CalendarClock className="h-3.5 w-3.5" />
+                                {match.scheduled_at ? formatDateTime(match.scheduled_at) : "Sin fecha"}
+                              </span>
+                              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-white/[0.04] px-3 py-1.5 text-xs text-[var(--app-muted)]">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {match.location ?? "Sin pista"}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getStatusClass(match.status)}`}>
+                            {getStatusLabel(match.status)}
+                          </span>
+                        </div>
+
+                        <form action={updateBracketMatchAction} className="mt-4 grid gap-4">
                           <input name="bracketId" type="hidden" value={category.bracket?.bracket.id} />
                           <input name="categoryId" type="hidden" value={category.category.id} />
                           <input name="matchId" type="hidden" value={match.id} />
                           <input name="redirectTo" type="hidden" value={surfacePath} />
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <p className="font-semibold text-white">
-                              {match.home_team?.team_name ?? "Pendiente"} vs {match.away_team?.team_name ?? "Pendiente"}
-                            </p>
-                            <select className="field-input field-input--dark max-w-52" defaultValue={match.status} name="status">
-                              <option value="scheduled">Programado</option>
-                              <option value="completed">Finalizado</option>
-                              <option value="cancelled">Cancelado</option>
-                            </select>
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                          <input name="scheduledAt" type="hidden" value={formatDateTimeLocalValue(match.scheduled_at)} />
+                          <input name="location" type="hidden" value={match.location ?? ""} />
+                          <input name="notes" type="hidden" value={match.notes ?? ""} />
+
+                          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
                             <label className="field-shell">
                               <span className="field-label field-label--dark">Local</span>
-                              <input className="field-input field-input--dark" defaultValue={match.home_score ?? ""} name="homeScore" type="number" />
+                              <input className="field-input field-input--dark font-mono" defaultValue={match.home_score ?? ""} name="homeScore" type="number" />
                             </label>
                             <label className="field-shell">
                               <span className="field-label field-label--dark">Visitante</span>
-                              <input className="field-input field-input--dark" defaultValue={match.away_score ?? ""} name="awayScore" type="number" />
+                              <input className="field-input field-input--dark font-mono" defaultValue={match.away_score ?? ""} name="awayScore" type="number" />
                             </label>
                             <label className="field-shell">
-                              <span className="field-label field-label--dark">Fecha y hora</span>
-                              <input className="field-input field-input--dark" defaultValue={formatDateTimeLocalValue(match.scheduled_at)} name="scheduledAt" type="datetime-local" />
-                            </label>
-                            <label className="field-shell">
-                              <span className="field-label field-label--dark">Pista o lugar</span>
-                              <input className="field-input field-input--dark" defaultValue={match.location ?? ""} name="location" />
+                              <span className="field-label field-label--dark">Estado</span>
+                              <select className="field-input field-input--dark min-w-[10rem]" defaultValue={match.status} name="status">
+                                <option value="scheduled">Programado</option>
+                                <option value="completed">Finalizado</option>
+                                <option value="cancelled">Cancelado</option>
+                              </select>
                             </label>
                           </div>
-                          <label className="field-shell">
-                            <span className="field-label field-label--dark">Notas</span>
-                            <textarea className="field-input field-input--dark min-h-20" defaultValue={match.notes ?? ""} name="notes" />
-                          </label>
-                          <button className="admin-btn admin-btn--primary" type="submit">
-                            Guardar cruce
-                          </button>
+
+                          <div className="grid gap-2 rounded-[1.25rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--app-muted)] sm:grid-cols-2">
+                            <div className="flex items-center gap-2">
+                              <UserRound className="h-4 w-4 text-[var(--app-accent)]" />
+                              Arbitro: {renderAssignmentLabel(match.referee_assignment)}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-[var(--app-info)]" />
+                              Organizacion: {renderAssignmentLabel(match.assistant_assignment)}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button className="admin-btn admin-btn--primary" type="submit">
+                              Guardar cruce
+                            </button>
+                            <Link
+                              className="admin-btn admin-btn--secondary"
+                              href={`/app/partido/${match.id}?scope=bracket_match`}
+                            >
+                              Abrir operativa
+                            </Link>
+                            <button
+                              className="admin-btn admin-btn--secondary"
+                              onClick={() => setEditingBracketMatchId(match.id)}
+                              type="button"
+                            >
+                              <PencilLine className="h-4 w-4" />
+                              Edicion avanzada
+                            </button>
+                          </div>
                         </form>
 
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          <StaffSelect
-                            categoryId={category.category.id}
-                            duty="referee"
-                            matchId={match.id}
-                            scope="bracket_match"
-                            staffProfiles={staffProfiles}
-                            tournamentId={tournamentId}
-                            value={match.referee_assignment?.auth_user_id ?? ""}
-                          />
-                          <StaffSelect
-                            categoryId={category.category.id}
-                            duty="assistant"
-                            matchId={match.id}
-                            scope="bracket_match"
-                            staffProfiles={staffProfiles}
-                            tournamentId={tournamentId}
-                            value={match.assistant_assignment?.auth_user_id ?? ""}
-                          />
-                        </div>
-
-                        <div className="mt-4">
-                          <form action={generateQrForResourceAction}>
-                            <input name="resourceType" type="hidden" value="bracket_match" />
-                            <input name="resourceId" type="hidden" value={match.id} />
+                        <AdminModal
+                          isOpen={editingBracketMatchId === match.id}
+                          onClose={() => setEditingBracketMatchId(null)}
+                          title={`${match.home_team?.team_name ?? "Pendiente"} vs ${match.away_team?.team_name ?? "Pendiente"}`}
+                        >
+                          <form action={updateBracketMatchAction} className="grid gap-4">
+                            <input name="bracketId" type="hidden" value={category.bracket?.bracket.id} />
                             <input name="categoryId" type="hidden" value={category.category.id} />
-                            <button className="admin-btn admin-btn--secondary text-xs" type="submit">
-                              Regenerar QR del cruce
-                            </button>
+                            <input name="matchId" type="hidden" value={match.id} />
+                            <input name="redirectTo" type="hidden" value={surfacePath} />
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="field-shell">
+                                <span className="field-label field-label--dark">Estado</span>
+                                <select className="field-input field-input--dark" defaultValue={match.status} name="status">
+                                  <option value="scheduled">Programado</option>
+                                  <option value="completed">Finalizado</option>
+                                  <option value="cancelled">Cancelado</option>
+                                </select>
+                              </label>
+                              <label className="field-shell">
+                                <span className="field-label field-label--dark">Fecha y hora</span>
+                                <input className="field-input field-input--dark" defaultValue={formatDateTimeLocalValue(match.scheduled_at)} name="scheduledAt" type="datetime-local" />
+                              </label>
+                              <label className="field-shell">
+                                <span className="field-label field-label--dark">Local</span>
+                                <input className="field-input field-input--dark font-mono" defaultValue={match.home_score ?? ""} name="homeScore" type="number" />
+                              </label>
+                              <label className="field-shell">
+                                <span className="field-label field-label--dark">Visitante</span>
+                                <input className="field-input field-input--dark font-mono" defaultValue={match.away_score ?? ""} name="awayScore" type="number" />
+                              </label>
+                              <label className="field-shell md:col-span-2">
+                                <span className="field-label field-label--dark">Pista o lugar</span>
+                                <input className="field-input field-input--dark" defaultValue={match.location ?? ""} name="location" />
+                              </label>
+                            </div>
+
+                            <label className="field-shell">
+                              <span className="field-label field-label--dark">Notas</span>
+                              <textarea className="field-input field-input--dark min-h-20" defaultValue={match.notes ?? ""} name="notes" />
+                            </label>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <StaffSelect
+                                categoryId={category.category.id}
+                                duty="referee"
+                                matchId={match.id}
+                                scope="bracket_match"
+                                staffProfiles={staffProfiles}
+                                tournamentId={tournamentId}
+                                value={match.referee_assignment?.auth_user_id ?? ""}
+                              />
+                              <StaffSelect
+                                categoryId={category.category.id}
+                                duty="assistant"
+                                matchId={match.id}
+                                scope="bracket_match"
+                                staffProfiles={staffProfiles}
+                                tournamentId={tournamentId}
+                                value={match.assistant_assignment?.auth_user_id ?? ""}
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button className="admin-btn admin-btn--primary" type="submit">
+                                Guardar cambios
+                              </button>
+                            </div>
                           </form>
-                        </div>
+
+                          <div className="mt-4">
+                            <form action={generateQrForResourceAction}>
+                              <input name="resourceType" type="hidden" value="bracket_match" />
+                              <input name="resourceId" type="hidden" value={match.id} />
+                              <input name="categoryId" type="hidden" value={category.category.id} />
+                              <button className="admin-btn admin-btn--secondary" type="submit">
+                                <QrCode className="h-4 w-4" />
+                                Regenerar QR del cruce
+                              </button>
+                            </form>
+                          </div>
+                        </AdminModal>
                       </div>
                     ))}
                   </div>

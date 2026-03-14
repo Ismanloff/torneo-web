@@ -140,6 +140,30 @@ export function OfflineScoreForm({
 
   const redirectTo = `/app/partido/${matchId}?scope=${matchScope}`;
 
+  if (!canSubmit) {
+    return (
+      <article className="app-panel-strong">
+        <p className="app-kicker">Resultado final</p>
+        <h2 className="mt-3 font-display text-[2rem] font-semibold tracking-[-0.04em] text-white">
+          Marcador reservado a arbitraje
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-[var(--app-muted)]">
+          Tu perfil puede consultar estado, pista y contexto del partido, pero el resultado solo lo puede editar el arbitro asignado o un admin.
+        </p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
+            <p className="app-metric__label">{homeTeamName}</p>
+            <p className="font-mono mt-3 text-3xl font-semibold text-white">{currentHomeScore ?? "-"}</p>
+          </div>
+          <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
+            <p className="app-metric__label">{awayTeamName}</p>
+            <p className="font-mono mt-3 text-3xl font-semibold text-white">{currentAwayScore ?? "-"}</p>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="app-panel-strong">
       <div className="flex items-center justify-between">

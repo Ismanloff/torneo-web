@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Users } from "lucide-react";
+import { ArrowUpRight, Search, Users } from "lucide-react";
 
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalDashboardData } from "@/lib/supabase/queries";
@@ -25,7 +25,7 @@ export default async function StaffTeamsPage() {
 
             <div>
               <p className="app-kicker">Consulta operativa</p>
-              <h1 className="app-title mt-3 text-6xl sm:text-7xl">Equipos</h1>
+              <h1 className="app-title mt-3 text-5xl text-white sm:text-6xl">Equipos</h1>
               <p className="app-copy mt-4 max-w-2xl">
                 Acceso rápido a las fichas de equipo para validar llegada, revisar próximos partidos
                 y abrir el flujo de mesa sin depender solo del escáner.
@@ -52,7 +52,7 @@ export default async function StaffTeamsPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="app-kicker">Listado operativo</p>
-            <h2 className="app-section-title mt-3 text-[2.4rem]">Todos los equipos</h2>
+            <h2 className="app-section-title mt-3 text-[2.2rem] text-white">Todos los equipos</h2>
           </div>
           <Link className="app-link-pill" href="/app/scan">
             <span className="inline-flex items-center gap-2">
@@ -62,16 +62,23 @@ export default async function StaffTeamsPage() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-2">
           {data.teams.length ? (
             data.teams.map((team) => (
-              <Link key={team.id} className="app-soft-card" href={`/app/equipo/${team.id}`}>
-                <p className="app-metric__label">{team.category.name}</p>
-                <p className="mt-2 text-xl font-semibold">{team.team_name}</p>
-                <p className="mt-3 text-sm text-[var(--app-muted)]">{team.registration_code}</p>
-                <p className="mt-1 text-sm text-[var(--app-muted)]">
-                  {team.category.sport} · {team.category.age_group}
-                </p>
+              <Link
+                key={team.id}
+                className="flex items-center justify-between gap-4 rounded-[1.45rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.05]"
+                href={`/app/equipo/${team.id}`}
+              >
+                <div className="min-w-0">
+                  <p className="app-metric__label">{team.category.name}</p>
+                  <p className="mt-2 truncate text-lg font-semibold text-white">{team.team_name}</p>
+                  <p className="mt-2 font-mono text-sm text-[var(--app-muted)]">{team.registration_code}</p>
+                  <p className="mt-1 text-sm text-[var(--app-muted)]">
+                    {team.category.sport} · {team.category.age_group}
+                  </p>
+                </div>
+                <ArrowUpRight className="h-5 w-5 shrink-0 text-[var(--app-muted)]" />
               </Link>
             ))
           ) : (

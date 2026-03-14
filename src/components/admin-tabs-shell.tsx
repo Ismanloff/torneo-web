@@ -21,9 +21,9 @@ type AdminTabsProps = {
 };
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "partidos", label: "Partidos" },
+  { key: "partidos", label: "Calendario" },
   { key: "staff", label: "Staff" },
-  { key: "config", label: "Config" },
+  { key: "config", label: "Recursos" },
 ];
 
 export function AdminTabs({
@@ -61,8 +61,11 @@ export function AdminTabs({
 
   return (
     <div>
-      {/* Tab bar */}
-      <div className="admin-tabs sticky top-0 z-10 bg-[var(--app-bg)] border-b border-[var(--app-line)] shadow-[0_1px_3px_rgba(0,0,0,0.3)]" role="tablist" aria-label="Administracion">
+      <div
+        className="admin-tabs sticky top-[5.75rem] z-10"
+        role="tablist"
+        aria-label="Administracion"
+      >
         {TABS.map((tab, index) => {
           const isActive = activeTab === tab.key;
           return (
@@ -85,7 +88,6 @@ export function AdminTabs({
         })}
       </div>
 
-      {/* Tab content */}
       <div
         className="mt-6"
         role="tabpanel"

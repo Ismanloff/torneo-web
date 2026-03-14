@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { ClipboardList, Settings2, Users } from "lucide-react";
 
 import { requireAdminSession } from "@/lib/admin-auth";
-import { ALLOWED_SPORT_LABELS } from "@/lib/allowed-sports";
 import { getAdminScoreboardData } from "@/lib/supabase/queries";
 
 import { AdminTabs } from "@/components/admin-tabs-shell";
@@ -18,71 +18,91 @@ export async function AdminControlCenter({
   const activeStaff = data.staffProfiles.filter((profile) => profile.is_active);
 
   return (
-    <main className="app-canvas">
-      <div className="app-shell">
-        <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-          {/* Hero section */}
-          <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-            <article className="app-panel-strong">
-              <div className="app-hero__content relative z-[1]">
-                <p className="app-kicker">Panel maestro</p>
-                <h1 className="mt-3 app-title text-4xl lg:text-5xl text-white">
-                  {data.tournament.name}
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--app-muted)]">
-                  Controla scoring, cruces, staff, QR y operativa movil para {ALLOWED_SPORT_LABELS.join(", ")}.
-                </p>
-              </div>
-            </article>
+    <main className="grid gap-6">
+      <section className="app-hero">
+        <div className="app-hero__content grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <article>
+            <p className="app-kicker">Gestion de torneo</p>
+            <h1 className="app-title mt-3 text-5xl text-white lg:text-6xl">
+              Backoffice movil
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--app-muted)]">
+              Configura calendario, estructura competitiva, staff y recursos del torneo {data.tournament.name}. La operativa en vivo se ejecuta desde Inicio, Partidos y Scan.
+            </p>
+          </article>
 
-            <article className="app-panel">
-              <p className="app-kicker">Resumen</p>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="app-soft-card text-center">
-                  <p className="app-metric__value text-2xl text-white">{data.totalTeams}</p>
-                  <p className="app-metric__label mt-1">Equipos</p>
-                </div>
-                <div className="app-soft-card text-center">
-                  <p className="app-metric__value text-2xl text-white">{data.totalMatches}</p>
-                  <p className="app-metric__label mt-1">Partidos</p>
-                </div>
-                <div className="app-soft-card text-center">
-                  <p className="app-metric__value text-2xl text-white">{activeStaff.length}</p>
-                  <p className="app-metric__label mt-1">Staff</p>
-                </div>
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Link className="app-link-pill" href="/">
-                  Portal publico
-                </Link>
-                <Link className="app-link-pill" href="/app">
-                  Dashboard
-                </Link>
-                <Link className="app-link-pill" href="/app/scan">
-                  Escanear QR
-                </Link>
-                <Link className="app-link-pill" href="/app/equipos">
-                  Equipos
-                </Link>
-              </div>
-            </article>
-          </section>
-
-          {/* Tabs */}
-          <section className="mt-8">
-            <AdminTabs
-              categories={data.categories}
-              staffProfiles={data.staffProfiles}
-              tournament={data.tournament}
-              totalTeams={data.totalTeams}
-              totalMatches={data.totalMatches}
-              activeStaffCount={activeStaff.length}
-              surfacePath={surfacePath}
-            />
-          </section>
+          <article className="grid gap-3 sm:grid-cols-3">
+            <div className="app-soft-card text-center">
+              <p className="app-metric__value text-2xl text-white">{data.totalTeams}</p>
+              <p className="app-metric__label mt-1">Equipos</p>
+            </div>
+            <div className="app-soft-card text-center">
+              <p className="app-metric__value text-2xl text-white">{data.totalMatches}</p>
+              <p className="app-metric__label mt-1">Partidos</p>
+            </div>
+            <div className="app-soft-card text-center">
+              <p className="app-metric__value text-2xl text-white">{activeStaff.length}</p>
+              <p className="app-metric__label mt-1">Staff</p>
+            </div>
+          </article>
         </div>
-      </div>
+      </section>
+
+      <section className="app-panel">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[1.4rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2 text-[var(--app-accent)]">
+              <ClipboardList className="h-4 w-4" />
+              <p className="app-kicker text-[var(--app-accent)]">Calendario</p>
+            </div>
+            <p className="mt-3 text-sm text-[var(--app-muted)]">Altas de partidos, reglas, ajustes y cuadro.</p>
+          </div>
+          <div className="rounded-[1.4rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2 text-[var(--app-info)]">
+              <Users className="h-4 w-4" />
+              <p className="app-kicker text-[var(--app-info)]">Staff</p>
+            </div>
+            <p className="mt-3 text-sm text-[var(--app-muted)]">Altas, desactivaciones y reparto de roles operativos.</p>
+          </div>
+          <div className="rounded-[1.4rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2 text-[var(--app-accent)]">
+              <Settings2 className="h-4 w-4" />
+              <p className="app-kicker text-[var(--app-accent)]">Recursos</p>
+            </div>
+            <p className="mt-3 text-sm text-[var(--app-muted)]">QR por equipo, resumen del torneo y cierre de sesion.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Link className="app-link-pill" href="/app/partidos">
+            Volver a operativa
+          </Link>
+          <Link className="app-link-pill" href="/">
+            Portal publico
+          </Link>
+          <Link className="app-link-pill" href="/app">
+            Inicio
+          </Link>
+          <Link className="app-link-pill" href="/app/scan">
+            Scan
+          </Link>
+          <Link className="app-link-pill" href="/app/partidos">
+            Partidos vivos
+          </Link>
+        </div>
+      </section>
+
+      <section>
+        <AdminTabs
+          categories={data.categories}
+          staffProfiles={data.staffProfiles}
+          tournament={data.tournament}
+          totalTeams={data.totalTeams}
+          totalMatches={data.totalMatches}
+          activeStaffCount={activeStaff.length}
+          surfacePath={surfacePath}
+        />
+      </section>
     </main>
   );
 }

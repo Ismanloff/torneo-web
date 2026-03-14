@@ -1250,7 +1250,7 @@ const globalCheckinSchema = z.object({
 });
 
 export async function checkInTeamAction(formData: FormData) {
-  await requireStaffSession();
+  await requireStaffSession(["admin", "assistant"]);
 
   const parsed = globalCheckinSchema.safeParse({
     teamId: formData.get("teamId"),

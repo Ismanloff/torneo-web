@@ -14,9 +14,11 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-      {/* Create staff form */}
       <div className="admin-card">
         <p className="app-kicker">Alta de staff</p>
+        <h3 className="mt-3 font-display text-[1.9rem] font-semibold tracking-[-0.04em] text-white">
+          Nuevo perfil operativo
+        </h3>
         <form action={createStaffAction} className="mt-4 grid gap-3">
           <label className="field-shell">
             <span className="field-label field-label--dark">Nombre</span>
@@ -36,20 +38,22 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
         </form>
       </div>
 
-      {/* Staff list */}
       <div className="admin-card">
         <p className="app-kicker">Staff activo</p>
+        <h3 className="mt-3 font-display text-[1.9rem] font-semibold tracking-[-0.04em] text-white">
+          Equipo en pista
+        </h3>
         <div className="mt-4 grid gap-3">
           {activeStaff.length ? (
             activeStaff.map((profile) => (
-              <div key={profile.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--app-line)] bg-white/[0.03] px-4 py-3">
+              <div key={profile.id} className="flex items-center justify-between gap-3 rounded-[1.3rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3.5">
                 <div>
                   <p className="font-semibold text-white">{profile.full_name}</p>
                   <p className="mt-0.5 text-sm text-[var(--app-muted)]">
                     {formatStaffRoleLabel(profile.role)}
                   </p>
                   {profile.pin ? (
-                    <p className="mt-1.5 font-mono text-lg font-bold tracking-[0.3em] text-[var(--app-accent)]">
+                    <p className="font-mono mt-1.5 text-lg font-bold tracking-[0.3em] text-[var(--app-accent)]">
                       {profile.pin}
                     </p>
                   ) : (

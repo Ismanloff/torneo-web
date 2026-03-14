@@ -11,7 +11,7 @@ const ITEMS = [
   { href: "/app/scan", label: "Scan", icon: QrCode },
   { href: "/app/partidos", label: "Partidos", icon: ClipboardList },
   { href: "/app/equipos", label: "Equipos", icon: Users },
-  { href: "/app/admin", label: "Admin", icon: Shield, adminOnly: true },
+  { href: "/app/admin", label: "Gestion", icon: Shield, adminOnly: true },
 ];
 
 export function AppShellNav({ role }: { role: StaffRole }) {
