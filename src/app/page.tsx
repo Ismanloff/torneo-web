@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const data = await getScoreboardHomeData();
+  const isTournamentEmpty = data.totalTeams === 0 && data.totalMatches === 0;
 
   // Build unique sport list from the categories data, preserving ALLOWED_SPORT_LABELS order
   const sportSet = new Set(data.categories.map((c) => c.category.sport));
@@ -129,6 +130,22 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+
+            {isTournamentEmpty ? (
+              <div className="mt-5 public-soft px-4 py-4 sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Las inscripciones ya estan abiertas.</p>
+                    <p className="mt-1 text-sm text-[#9fb3d9]">
+                      Los equipos y partidos apareceran aqui en cuanto organizacion reciba las primeras altas.
+                    </p>
+                  </div>
+                  <Link className="public-action public-action--primary" href="/inscripcion">
+                    Inscribir equipo
+                  </Link>
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
 

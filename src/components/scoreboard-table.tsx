@@ -74,7 +74,7 @@ export function ScoreboardTable({ category, compact = false, showHeader = true }
             ) : (
               <tr>
                 <td className="px-4 py-6 text-[#8fa1c2]" colSpan={8}>
-                  Todavia no hay equipos inscritos en esta categoria.
+                  Las inscripciones estan abiertas. Los equipos apareceran aqui en cuanto se registren.
                 </td>
               </tr>
             )}

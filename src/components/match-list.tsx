@@ -62,7 +62,7 @@ export function MatchList({ category }: MatchListProps) {
         ))
       ) : (
         <div className="public-soft px-4 py-6 text-sm text-[#8fa1c2]">
-          Todavia no hay partidos cargados para esta categoria.
+          Todavia no hay partidos programados para esta categoria.
         </div>
       )}
     </div>

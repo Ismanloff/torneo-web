@@ -72,6 +72,8 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
 
   const categoriesWithMatches = filteredCategories.filter((c) => c.matches.length > 0);
   const bracketCategories = filteredCategories.filter((c) => c.bracket);
+  const hasTeamsInSport = filteredCategories.some((category) => category.teams.length > 0);
+  const hasAnyMatchesInSport = filteredCategories.some((category) => category.matches.length > 0);
 
   return (
     <div>
@@ -138,6 +140,20 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             <h2 className="public-title text-5xl sm:text-6xl">Tabla publica</h2>
           </div>
 
+          {!hasTeamsInSport && filteredCategories.length > 0 ? (
+            <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div>
+                <p className="text-sm font-semibold text-white">Las inscripciones estan abiertas para {activeSport}.</p>
+                <p className="mt-1 text-sm text-[#9fb3d9]">
+                  Los equipos apareceran aqui en cuanto completen su registro.
+                </p>
+              </div>
+              <Link className="public-action public-action--ghost" href="/inscripcion">
+                Ir a inscripcion
+              </Link>
+            </div>
+          ) : null}
+
           <div className="grid gap-6 xl:grid-cols-2">
             {filteredCategories.length > 0 ? (
               filteredCategories.map((category) => (
@@ -147,10 +163,10 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
               <div className="public-soft flex flex-col items-center gap-3 py-10 text-center xl:col-span-2">
                 <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
                 <p className="text-sm font-medium text-[#8fa1c2]">
-                  No hay categorias registradas en este deporte todavia.
+                  No hay categorias publicadas para este deporte todavia.
                 </p>
                 <p className="text-xs text-[#8fa1c2]/60">
-                  Las clasificaciones apareceran aqui cuando se configuren las categorias
+                  La clasificacion aparecera aqui cuando organizacion configure la estructura
                 </p>
               </div>
             )}
@@ -165,6 +181,20 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             <p className="public-kicker">Partidos</p>
             <h2 className="public-title text-5xl sm:text-6xl">Proximos encuentros</h2>
           </div>
+
+          {!hasAnyMatchesInSport && filteredCategories.length > 0 ? (
+            <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div>
+                <p className="text-sm font-semibold text-white">Todavia no hay partidos programados para {activeSport}.</p>
+                <p className="mt-1 text-sm text-[#9fb3d9]">
+                  El calendario aparecera aqui cuando organizacion prepare los encuentros.
+                </p>
+              </div>
+              <a className="public-action public-action--ghost" href="#clasificacion">
+                Ver categorias
+              </a>
+            </div>
+          ) : null}
 
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
             {categoriesWithMatches.length > 0 ? (
@@ -243,10 +273,10 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
               <div className="public-soft flex flex-col items-center gap-3 py-10 text-center lg:col-span-2 xl:col-span-3">
                 <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
                 <p className="text-sm font-medium text-[#8fa1c2]">
-                  Partidos pendientes de programar para este deporte.
+                  Todavia no hay partidos programados para este deporte.
                 </p>
                 <p className="text-xs text-[#8fa1c2]/60">
-                  Los partidos apareceran aqui cuando se programen
+                  El calendario aparecera aqui cuando organizacion cree los encuentros
                 </p>
               </div>
             )}
