@@ -91,22 +91,24 @@ export function PushPermissionBanner() {
   };
 
   return (
-    <div className="app-panel flex items-start gap-3">
-      <Bell className="mt-0.5 h-5 w-5 shrink-0 text-[var(--app-accent)]" />
-      <div className="flex-1">
-        <p className="text-sm font-medium text-[var(--app-text)]">
+    <div className="app-soft-card flex items-start gap-3 border border-[var(--app-line)]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(141,246,95,0.18)] bg-[var(--app-accent-soft)]">
+        <Bell className="h-4 w-4 text-[var(--app-accent)]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium leading-6 text-[var(--app-text)]">
           Activa las notificaciones para recibir avisos de tus partidos
         </p>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
-            className="rounded-full bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            className="inline-flex min-h-10 items-center justify-center rounded-full bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-[#041006] transition hover:opacity-90"
             type="button"
             onClick={handleActivate}
           >
             Activar
           </button>
           <button
-            className="rounded-full border border-[var(--app-line)] px-4 py-2 text-sm font-medium text-[var(--app-muted)] transition hover:text-[var(--app-text)]"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[var(--app-line)] px-4 py-2 text-sm font-medium text-[var(--app-muted)] transition hover:text-[var(--app-text)]"
             type="button"
             onClick={handleDismiss}
           >
@@ -116,7 +118,7 @@ export function PushPermissionBanner() {
       </div>
       <button
         aria-label="Cerrar aviso de notificaciones"
-        className="shrink-0 rounded-full p-1 text-[var(--app-muted)] transition hover:text-[var(--app-text)]"
+        className="shrink-0 rounded-full p-1.5 text-[var(--app-muted)] transition hover:text-[var(--app-text)]"
         type="button"
         onClick={handleDismiss}
       >

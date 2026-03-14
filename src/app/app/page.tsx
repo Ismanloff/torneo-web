@@ -75,7 +75,6 @@ export default async function StaffAppHomePage() {
 
   return (
     <main className="grid gap-5">
-      <PushPermissionBanner />
       <section className="app-hero">
         <div className="app-hero__content grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
           <div className="space-y-5">
@@ -161,6 +160,8 @@ export default async function StaffAppHomePage() {
           </div>
         </div>
       </section>
+
+      <PushPermissionBanner />
 
       <div className="grid gap-5 lg:grid-cols-[0.92fr_1.08fr]">
         <section className={`grid gap-3 ${staff.profile.role === "admin" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>

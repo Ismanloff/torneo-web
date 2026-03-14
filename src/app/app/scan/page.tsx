@@ -23,29 +23,54 @@ export default async function ScanPage({ searchParams }: ScanPageProps) {
 
   return (
     <main className="grid gap-5">
-      <section className="app-hero">
-        <div className="app-hero__content grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div>
+      <section className="app-hero app-hero--compact">
+        <div className="app-hero__content grid gap-5 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
+          <div className="order-1">
             <div className="app-chip-row">
               <span className="app-chip app-chip--accent">
                 <ScanLine className="h-4 w-4" />
                 Acceso instantaneo
               </span>
             </div>
-            <p className="app-kicker mt-5">Escaner operativo</p>
+            <p className="app-kicker mt-4">Escaner operativo</p>
             <h1 className="app-section-title mt-3 text-white">Scan QR</h1>
             <p className="app-copy mt-4 max-w-xl text-sm">
               Usa camara para abrir equipos y flujos de mesa. Si el QR falla, entra por codigo manual sin salir de la vista.
             </p>
+
+            <section className="app-panel mt-4 lg:hidden">
+              <div className="flex items-center gap-2">
+                <Keyboard className="h-4 w-4 text-[var(--app-info)]" />
+                <p className="app-kicker">Fallback manual</p>
+              </div>
+              <form action={lookupTeamByCodeAction} className="mt-4 grid gap-3">
+                <label className="field-shell">
+                  <span className="field-label field-label--dark">Codigo del equipo</span>
+                  <input
+                    required
+                    className="field-input field-input--dark"
+                    name="registrationCode"
+                    placeholder="LOBOS-SAN-JOSE-282"
+                  />
+                </label>
+                <button className="app-action w-full sm:w-fit" type="submit">
+                  <QrCode className="h-4 w-4" />
+                  Abrir equipo
+                </button>
+                <p className="text-sm text-[var(--app-muted)]">
+                  Usa esta entrada cuando la camara no lea bien o el brillo de pista moleste.
+                </p>
+              </form>
+            </section>
           </div>
 
-          <section className="app-panel-strong">
+          <section className="app-panel-strong order-2" id="scanner">
             <LiveQrScanner />
           </section>
         </div>
       </section>
 
-      <section className="app-panel">
+      <section className="app-panel hidden lg:block" id="manual">
         <div className="flex items-center gap-2">
           <Keyboard className="h-4 w-4 text-[var(--app-info)]" />
           <p className="app-kicker">Fallback manual</p>

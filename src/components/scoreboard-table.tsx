@@ -6,34 +6,37 @@ import type { ScoreboardCategory } from "@/lib/types";
 type ScoreboardTableProps = {
   category: ScoreboardCategory;
   compact?: boolean;
+  showHeader?: boolean;
 };
 
-export function ScoreboardTable({ category, compact = false }: ScoreboardTableProps) {
+export function ScoreboardTable({ category, compact = false, showHeader = true }: ScoreboardTableProps) {
   const rows = compact ? category.standings.slice(0, 5) : category.standings;
 
   return (
     <div className="public-scoreboard">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
-        <div>
-          <p className="text-lg font-semibold text-white">{category.category.name}</p>
-          <p className="text-sm text-[#9fb3d9]">
-            {category.category.sport} · {category.category.age_group} · {category.category.school}
-          </p>
+      {showHeader ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+          <div>
+            <p className="text-lg font-semibold text-white">{category.category.name}</p>
+            <p className="text-sm text-[#9fb3d9]">
+              {category.category.sport} · {category.category.age_group} · {category.category.school}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <ExportPdfButton
+              categoryName={category.category.name}
+              sport={category.category.sport}
+              standings={category.standings}
+            />
+            <Link
+              className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--app-accent)]"
+              href={`/clasificacion/${category.category.id}`}
+            >
+              Ver detalle
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <ExportPdfButton
-            categoryName={category.category.name}
-            sport={category.category.sport}
-            standings={category.standings}
-          />
-          <Link
-            className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--app-accent)]"
-            href={`/clasificacion/${category.category.id}`}
-          >
-            Ver detalle
-          </Link>
-        </div>
-      </div>
+      ) : null}
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">

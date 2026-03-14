@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Wifi, WifiOff } from "lucide-react";
+import { Check, Settings2, Wifi, WifiOff } from "lucide-react";
 
 import { submitMatchResultAction } from "@/app/admin/actions";
+import { AdminModal } from "@/components/admin-modal";
 import { queueOfflineScore } from "@/lib/offline-store";
 import type { MatchScope } from "@/lib/types";
 
@@ -47,6 +48,10 @@ export function OfflineScoreForm({
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
   const [offlineSaved, setOfflineSaved] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [scheduledAtValue, setScheduledAtValue] = useState(currentScheduledAt ?? "");
+  const [locationValue, setLocationValue] = useState(currentLocation ?? "");
+  const [notesValue, setNotesValue] = useState(currentNotes ?? "");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -198,73 +203,70 @@ export function OfflineScoreForm({
           <input name="bracketId" type="hidden" value={bracketId} />
         ) : null}
 
-        <label className="field-shell">
-          <span className="field-label field-label--dark">Estado</span>
-          <select
-            className="field-input field-input--dark"
-            defaultValue={currentStatus}
-            name="status"
-          >
-            <option value="scheduled">Programado</option>
-            <option value="completed">Finalizado</option>
-            <option value="cancelled">Cancelado</option>
-          </select>
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="field-shell">
-            <span className="field-label field-label--dark">
-              {homeTeamName}
-            </span>
-            <input
-              className="field-input field-input--dark"
-              defaultValue={currentHomeScore ?? ""}
-              disabled={!canSubmit}
-              name="homeScore"
-              type="number"
-            />
-          </label>
-          <label className="field-shell">
-            <span className="field-label field-label--dark">
-              {awayTeamName}
-            </span>
-            <input
-              className="field-input field-input--dark"
-              defaultValue={currentAwayScore ?? ""}
-              disabled={!canSubmit}
-              name="awayScore"
-              type="number"
-            />
-          </label>
-          <label className="field-shell">
-            <span className="field-label field-label--dark">Fecha y hora</span>
-            <input
-              className="field-input field-input--dark"
-              defaultValue={currentScheduledAt ?? ""}
-              name="scheduledAt"
-              type="datetime-local"
-            />
-          </label>
-          <label className="field-shell">
-            <span className="field-label field-label--dark">
-              Cancha o pista
-            </span>
-            <input
-              className="field-input field-input--dark"
-              defaultValue={currentLocation ?? ""}
-              name="location"
-            />
-          </label>
+        <div className="app-soft-card">
+          <p className="text-sm leading-6 text-[var(--app-muted)]">
+            Prioriza marcador y estado del partido. Pista, hora y notas quedan en detalles avanzados para no romper el flujo en pista.
+          </p>
         </div>
 
-        <label className="field-shell">
-          <span className="field-label field-label--dark">Notas</span>
-          <textarea
-            className="field-input field-input--dark min-h-24"
-            defaultValue={currentNotes ?? ""}
-            name="notes"
-          />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-[0.7fr_1fr]">
+          <label className="field-shell">
+            <span className="field-label field-label--dark">Estado</span>
+            <select
+              className="field-input field-input--dark"
+              defaultValue={currentStatus}
+              name="status"
+            >
+              <option value="scheduled">Programado</option>
+              <option value="completed">Finalizado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="field-shell">
+              <span className="field-label field-label--dark">
+                {homeTeamName}
+              </span>
+              <input
+                className="field-input field-input--dark font-mono text-lg"
+                defaultValue={currentHomeScore ?? ""}
+                disabled={!canSubmit}
+                name="homeScore"
+                inputMode="numeric"
+                type="number"
+              />
+            </label>
+            <label className="field-shell">
+              <span className="field-label field-label--dark">
+                {awayTeamName}
+              </span>
+              <input
+                className="field-input field-input--dark font-mono text-lg"
+                defaultValue={currentAwayScore ?? ""}
+                disabled={!canSubmit}
+                name="awayScore"
+                inputMode="numeric"
+                type="number"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
+            <p className="app-metric__label">{homeTeamName}</p>
+            <p className="font-mono mt-3 text-4xl font-semibold text-white">{currentHomeScore ?? "-"}</p>
+          </div>
+          <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
+            <p className="app-metric__label">{awayTeamName}</p>
+            <p className="font-mono mt-3 text-4xl font-semibold text-white">{currentAwayScore ?? "-"}</p>
+          </div>
+        </div>
+
+        <input name="scheduledAt" type="hidden" value={scheduledAtValue} />
+        <input name="location" type="hidden" value={locationValue} />
+        <input name="notes" type="hidden" value={notesValue} />
 
         {offlineSaved ? (
           <div className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-medium text-white">
@@ -273,19 +275,70 @@ export function OfflineScoreForm({
           </div>
         ) : null}
 
-        <button
-          className={`app-action ${offlineSaved ? "bg-green-600 text-white" : ""}`}
-          disabled={!canSubmit || isPending}
-          type="submit"
+        <div className="flex flex-wrap gap-3">
+          <button
+            className={`app-action ${offlineSaved ? "bg-green-600 text-white" : ""}`}
+            disabled={!canSubmit || isPending}
+            type="submit"
+          >
+            {isPending
+              ? "Guardando..."
+              : offlineSaved
+                ? "Guardado offline"
+                : isOnline
+                  ? "Guardar resultado"
+                  : "Guardar offline"}
+          </button>
+          <button
+            className="app-action app-action--ghost"
+            onClick={() => setIsAdvancedOpen(true)}
+            type="button"
+          >
+            <Settings2 className="h-4 w-4" />
+            Detalles avanzados
+          </button>
+        </div>
+
+        <AdminModal
+          isOpen={isAdvancedOpen}
+          onClose={() => setIsAdvancedOpen(false)}
+          title="Detalles del partido"
         >
-          {isPending
-            ? "Guardando..."
-            : offlineSaved
-              ? "Guardado offline"
-              : isOnline
-                ? "Guardar resultado"
-                : "Guardar offline"}
-        </button>
+          <div className="grid gap-4">
+            <label className="field-shell">
+              <span className="field-label field-label--dark">Fecha y hora</span>
+              <input
+                className="field-input field-input--dark"
+                onChange={(event) => setScheduledAtValue(event.target.value)}
+                type="datetime-local"
+                value={scheduledAtValue}
+              />
+            </label>
+            <label className="field-shell">
+              <span className="field-label field-label--dark">
+                Cancha o pista
+              </span>
+              <input
+                className="field-input field-input--dark"
+                onChange={(event) => setLocationValue(event.target.value)}
+                value={locationValue}
+              />
+            </label>
+            <label className="field-shell">
+              <span className="field-label field-label--dark">Notas</span>
+              <textarea
+                className="field-input field-input--dark min-h-24"
+                onChange={(event) => setNotesValue(event.target.value)}
+                value={notesValue}
+              />
+            </label>
+            <div className="flex justify-end">
+              <button className="admin-btn admin-btn--secondary" onClick={() => setIsAdvancedOpen(false)} type="button">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </AdminModal>
       </form>
     </article>
   );

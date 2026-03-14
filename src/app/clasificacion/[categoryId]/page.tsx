@@ -49,11 +49,12 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
       description={`${category.category.sport} · ${category.category.age_group} · ${category.category.school}`}
       backHref="/#clasificacion"
       backLabel="Volver a clasificacion"
+      compactHero
       actions={
-        <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <div className="public-soft p-4">
             <p className="public-kicker">Equipos</p>
-            <p className="public-stat-value mt-3 text-[3rem]">{category.teams.length}</p>
+            <p className="public-stat-value mt-3 text-[2.5rem]">{category.teams.length}</p>
           </div>
           <div className="public-soft p-4">
             <p className="public-kicker">Partidos</p>
@@ -71,7 +72,24 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
         </div>
       }
     >
-      <ScoreboardTable category={category} />
+      <div className="public-glass p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+          <div>
+            <p className="public-kicker">Tabla oficial</p>
+            <p className="mt-2 text-sm text-[#a8b7d2]">
+              Clasificacion general y diferencia de goles de la categoria.
+            </p>
+          </div>
+          {category.bracket ? (
+            <div className="flex items-center gap-3">
+              <Link className="public-action public-action--ghost" href={`/cuadro/${category.category.id}`}>
+                Cuadro
+              </Link>
+            </div>
+          ) : null}
+        </div>
+        <ScoreboardTable category={category} showHeader={false} />
+      </div>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <article className="public-glass p-5 sm:p-6">

@@ -10,7 +10,7 @@ export default async function StaffTeamsPage() {
 
   return (
     <main className="grid gap-6">
-      <section className="app-hero">
+      <section className="app-hero app-hero--compact">
         <div className="app-hero__content grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
           <div className="space-y-4">
             <div className="app-chip-row">
@@ -25,8 +25,8 @@ export default async function StaffTeamsPage() {
 
             <div>
               <p className="app-kicker">Consulta operativa</p>
-              <h1 className="app-title mt-3 text-5xl text-white sm:text-6xl">Equipos</h1>
-              <p className="app-copy mt-4 max-w-2xl">
+              <h1 className="app-title mt-3 text-[clamp(2.6rem,10vw,4.4rem)] text-white">Equipos</h1>
+              <p className="app-copy mt-3 max-w-2xl text-sm sm:text-base">
                 Acceso rápido a las fichas de equipo para validar llegada, revisar próximos partidos
                 y abrir el flujo de mesa sin depender solo del escáner.
               </p>
@@ -35,8 +35,8 @@ export default async function StaffTeamsPage() {
 
           <article className="app-soft-card">
             <p className="app-metric__label">Atajo recomendado</p>
-            <p className="mt-3 text-xl font-semibold">Escanear si tienes el QR, buscar si no</p>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <p className="mt-3 text-lg font-semibold text-white">Escanear si tienes el QR, buscar si no</p>
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link className="app-action" href="/app/scan">
                 Abrir escaner
               </Link>
@@ -62,7 +62,7 @@ export default async function StaffTeamsPage() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-2">
+        <div className="mt-5 grid gap-2">
           {data.teams.length ? (
             data.teams.map((team) => (
               <Link

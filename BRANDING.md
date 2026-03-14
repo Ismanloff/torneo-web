@@ -1,5 +1,7 @@
 # Branding & Tipografia — Torneo Escolar Intercentros 2026
 
+Este documento define la direccion de identidad visual y tecnica. Para reglas operativas de interfaz, componentes canonicos y patrones por rol, ver `DESIGN_SYSTEM.md`.
+
 ## Stack tipografico
 
 ### Fuentes seleccionadas
@@ -174,7 +176,48 @@ OKLCH ofrece gamut mas amplio y uniformidad perceptual:
 
 ---
 
-## Glassmorphism (evolucion 2025-2026)
+## Guardrails de plataforma
+
+Estas reglas no son de estilo: son limites de usabilidad para que la app siga sintiendose premium sin pasarse.
+
+### Navegacion inferior
+
+- usar la barra inferior solo para `3-5` destinos principales
+- los destinos deben ser de primer nivel, no acciones ni filtros
+- si una accion es destructiva o de configuracion profunda, no va en el dock
+
+### Targets tactiles
+
+- tamano minimo recomendado: `44x44 pt` en iOS y `48x48 dp` en Android
+- cualquier boton clave en movil debe poder pulsarse sin precision fina
+- cuando haya varias acciones juntas, el espaciado importa tanto como el tamaño del control
+
+### Cards con criterio
+
+- una card debe agrupar contenido relacionado y una accion clara
+- si el usuario tiene que escanear muchas filas, mejor lista compacta o bloque continuo
+- no usar cards altas para volumen operativo si una fila resuelve mejor el trabajo
+
+### PWA instalada
+
+- al usar modo app/standalone, la interfaz debe incluir su propia navegacion y affordances de vuelta
+- no depender del chrome del navegador para orientacion o salida
+- la experiencia instalada debe priorizar foco, legibilidad y acciones recurrentes
+
+### Regla de anti-overkill
+
+Si una decision visual empeora aunque sea un poco la lectura de:
+
+- estado
+- score
+- siguiente accion
+- pista/hora
+
+esa decision no entra.
+
+---
+
+## Profundidad y transparencia (usar con moderacion)
 
 ### Capas actuales (mantener)
 
@@ -184,7 +227,7 @@ El proyecto ya usa dark glassmorphism correctamente:
 - Gradientes radiales como orbes de ambiente
 - Bordes sutiles (`rgba(255, 255, 255, 0.1)`)
 
-### Mejora: orbes ambientales animados
+### Mejora opcional: orbes ambientales animados
 
 ```css
 @keyframes ambient-shift {
@@ -210,6 +253,12 @@ El proyecto ya usa dark glassmorphism correctamente:
 ### Accesibilidad
 
 Siempre asegurar contraste WCAG AA sobre superficies glass. Los fondos actuales con `rgba(12, 18, 34, 0.8)` cumplen. Verificar con herramientas de contraste al cambiar opacidades.
+
+### Limite de uso
+
+- no aplicar blur fuerte a todas las capas
+- no encadenar glass + glow + gradiente + borde brillante en el mismo componente por defecto
+- reservar la superficie mas rica para heroes, scanner, score principal o puntos de entrada
 
 ---
 
@@ -317,6 +366,14 @@ Las cards de partido se adaptan al tamaño de su contenedor, no al viewport.
 | Font loading | next/font | Añadir `display: "swap"` y fuente mono |
 | Config Tailwind | CSS variables | Añadir bloque `@theme` |
 
+### Que no debemos hacer
+
+- convertir toda la app en una coleccion de tarjetas iguales
+- usar mas de una accion primaria fuerte por viewport
+- confiar en trends visuales si empeoran densidad operativa
+- usar colores semanticos deportivos en todas partes a la vez
+- añadir motion continuo salvo en puntos de feedback real
+
 ### Prioridad de implementacion
 
 1. **Inmediato**: Cambiar fuentes (Outfit + Inter + JetBrains Mono), añadir `tabular-nums`
@@ -334,7 +391,10 @@ Las cards de partido se adaptan al tamaño de su contenedor, no al viewport.
 - [LaLiga Custom Font - Arillatype Studio](https://arillatype.studio/laliga-custom-brand-font)
 - [Tailwind CSS v4](https://tailwindcss.com/blog/tailwindcss-v4)
 - [Next.js Font Optimization](https://nextjs.org/docs/app/getting-started/fonts)
+- [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines)
+- [Apple Layout and organization](https://developer.apple.com/design/human-interface-guidelines/layout-and-organization)
+- [Apple Navigation](https://developer.apple.com/design/human-interface-guidelines/navigation)
 - [OKLCH Color Space](https://oklch.com/)
-- [Dark Glassmorphism UI 2026](https://medium.com/@developer_89726/dark-glassmorphism-the-aesthetic-that-will-define-ui-in-2026-93aa4153088f)
-- [Motion UI Trends 2026](https://lomatechnology.com/blog/motion-ui-trends-2026/2911)
+- [Android Touch targets](https://developer.android.com/design/ui/mobile/guides/layout-and-content/spacing)
+- [MDN Progressive web apps](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 - [Lucide vs Phosphor Comparison](https://lucide.dev/guide/comparison)

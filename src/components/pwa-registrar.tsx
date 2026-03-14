@@ -142,11 +142,16 @@ export function PwaRegistrar() {
   return (
     <>
       {shouldShowInstallPrompt ? (
-        <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-[1.4rem] border border-[var(--line)] bg-[color:rgba(255,248,236,0.98)] p-4 shadow-[var(--shadow)] backdrop-blur">
+        <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-[1.2rem] border border-[var(--line)] bg-[color:rgba(255,248,236,0.96)] p-3 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
-              Instalar app
-            </p>
+            <div className="min-w-0">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
+                PWA
+              </p>
+              <p className="mt-1 text-sm leading-5 text-[var(--ink)]">
+                Instala el torneo para abrirlo como app en movil.
+              </p>
+            </div>
             <button
               aria-label="Cerrar aviso de instalacion"
               className="rounded-full border border-[var(--line)] p-2 text-[var(--muted)] transition hover:text-[var(--ink)]"
@@ -156,12 +161,9 @@ export function PwaRegistrar() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            Anade el torneo a la pantalla de inicio para usarlo como PWA en movil.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
-              className="action-button action-button--signal w-full"
+              className="action-button action-button--signal min-h-11 flex-1 px-5 py-3 text-sm"
               type="button"
               onClick={async () => {
                 await installEvent.prompt();
@@ -169,7 +171,7 @@ export function PwaRegistrar() {
                 setInstallEvent(null);
               }}
             >
-              Instalar ahora
+              Instalar
             </button>
             <button
               className="rounded-full border border-[var(--line)] px-4 py-3 text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"

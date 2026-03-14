@@ -289,6 +289,16 @@ textarea {
   padding: 1.55rem;
 }
 
+.app-hero--compact .app-hero__content {
+  padding: 1.2rem;
+}
+
+.app-hero--compact .app-chip {
+  min-height: 2rem;
+  padding: 0.48rem 0.78rem;
+  font-size: 0.68rem;
+}
+
 .app-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -685,6 +695,16 @@ textarea {
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.public-hero--compact .public-glass {
+  border-radius: 1.55rem;
+}
+
+.public-hero--compact .public-tag {
+  min-height: 2.2rem;
+  padding: 0.48rem 0.82rem;
+  font-size: 0.68rem;
 }
 
 .public-hero::after {
@@ -1100,6 +1120,16 @@ input[type="number"] {
 
 /* Mobile: compact scoreboard table cells */
 @media (max-width: 639px) {
+  .app-hero--compact .app-hero__content {
+    padding: 1rem;
+  }
+
+  .app-hero--compact .app-link-pill {
+    min-height: 2.45rem;
+    padding-inline: 0.9rem;
+    font-size: 0.72rem;
+  }
+
   .public-scoreboard th,
   .public-scoreboard td {
     padding-left: 0.5rem;
