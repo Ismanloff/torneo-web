@@ -68,6 +68,13 @@ export function PwaRegistrar() {
       Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
     );
   });
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia?.("(max-width: 767px)").matches ?? false;
+  });
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
@@ -125,11 +132,30 @@ export function PwaRegistrar() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const handleChange = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
   const shouldShowInstallPrompt =
     pathname === "/" &&
     installEvent &&
     !installDismissed &&
-    !isStandaloneMode;
+    !isStandaloneMode &&
+    isMobileViewport;
 
   const dismissInstallPrompt = () => {
     if (typeof window !== "undefined") {
