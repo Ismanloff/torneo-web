@@ -34,7 +34,7 @@ export async function registerTeamAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect(`/registro/${formData.get("categoryId") ?? ""}?error=registro`);
+    redirect(`/inscripcion/${formData.get("categoryId") ?? ""}?error=registro`);
   }
 
   const { data: category, error: categoryError } = await supabaseAdmin
@@ -45,11 +45,11 @@ export async function registerTeamAction(formData: FormData) {
     .single();
 
   if (categoryError || !category) {
-    redirect(`/registro/${parsed.data.categoryId}?error=registro`);
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
   if (category.current_teams >= category.max_teams) {
-    redirect(`/registro/${parsed.data.categoryId}?error=registro`);
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
   const suffix = randomBytes(2).toString("hex").toUpperCase();
@@ -74,7 +74,7 @@ export async function registerTeamAction(formData: FormData) {
     .single();
 
   if (teamError || !team) {
-    redirect(`/registro/${parsed.data.categoryId}?error=registro`);
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
   const qrToken = randomBytes(18).toString("base64url");
@@ -89,7 +89,7 @@ export async function registerTeamAction(formData: FormData) {
     });
 
   if (qrError) {
-    redirect(`/registro/${parsed.data.categoryId}?error=registro`);
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
   // Fire-and-forget email
@@ -104,6 +104,6 @@ export async function registerTeamAction(formData: FormData) {
   }).catch(console.error);
 
   revalidatePath("/");
-  revalidatePath("/registro");
-  redirect(`/registro/exito?code=${registrationCode}`);
+  revalidatePath("/inscripcion");
+  redirect(`/inscripcion/exito?code=${registrationCode}`);
 }

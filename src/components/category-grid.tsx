@@ -53,7 +53,7 @@ export function CategoryGrid({ groups }: { groups: CategoryGroup[] }) {
                     </span>
                   ) : (
                     <Link
-                      href={`/registro/${category.id}`}
+                      href={`/inscripcion/${category.id}`}
                       className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--signal)]"
                     >
                       Inscribir

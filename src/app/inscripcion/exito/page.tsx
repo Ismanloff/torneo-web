@@ -40,7 +40,7 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
                 <Link className="public-nav__link" href="/">
                   Inicio
                 </Link>
-                <Link className="public-nav__link" href="/registro">
+                <Link className="public-nav__link" href="/inscripcion">
                   Inscripcion
                 </Link>
               </nav>

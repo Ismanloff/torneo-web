@@ -72,7 +72,7 @@ export default async function Home() {
                 <a className="public-nav__link" href="#cruces">
                   Cruces
                 </a>
-                <Link className="public-nav__link" href="/registro">
+                <Link className="public-nav__link" href="/inscripcion">
                   Inscripcion
                 </Link>
                 <Link className="public-nav__link" href="/login">

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 
-import { registerTeamAction } from "@/app/registro/actions";
+import { registerTeamAction } from "@/app/inscripcion/actions";
 
 type TeamRegistrationFormProps = {
   categoryId: string;

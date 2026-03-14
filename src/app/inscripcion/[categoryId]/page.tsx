@@ -37,7 +37,7 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
     .maybeSingle<CategoryRow>();
 
   if (!category) {
-    redirect("/registro?error=categoria");
+    redirect("/inscripcion?error=categoria");
   }
 
   // Check capacity
@@ -50,7 +50,7 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
   const currentTeams = count ?? category.current_teams;
 
   if (currentTeams >= category.max_teams) {
-    redirect("/registro?error=categoria");
+    redirect("/inscripcion?error=categoria");
   }
 
   const remaining = category.max_teams - currentTeams;
@@ -76,7 +76,7 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
                 <Link className="public-nav__link" href="/">
                   Inicio
                 </Link>
-                <Link className="public-nav__link" href="/registro">
+                <Link className="public-nav__link" href="/inscripcion">
                   Categorias
                 </Link>
               </nav>
@@ -88,7 +88,7 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
         <section className="public-hero">
           <div className="public-wrap py-10 lg:py-14">
             <article className="public-glass p-6 lg:p-8 max-w-2xl mx-auto">
-              <Link className="public-tag" href="/registro">
+              <Link className="public-tag" href="/inscripcion">
                 <ChevronLeft className="h-4 w-4" />
                 Volver a categorias
               </Link>

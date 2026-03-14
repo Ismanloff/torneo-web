@@ -128,7 +128,7 @@ export default async function RegistroPage() {
               </Link>
               <p className="public-kicker mt-8">Inscripcion de equipos</p>
               <h1 className="public-title mt-4 text-5xl sm:text-6xl">
-                Registro
+                Inscripcion
               </h1>
               <p className="public-copy mt-5 max-w-xl text-base">
                 Selecciona la categoria en la que quieres inscribir tu equipo. Una vez registrado,
@@ -189,7 +189,7 @@ export default async function RegistroPage() {
                     }
 
                     return (
-                      <Link key={cat.id} href={`/registro/${cat.id}`}>
+                      <Link key={cat.id} href={`/inscripcion/${cat.id}`}>
                         {cardContent}
                       </Link>
                     );
