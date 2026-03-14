@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { MatchCountdown } from "@/components/match-countdown";
+import { MobileNavToggle } from "@/components/mobile-nav-toggle";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { SportTabs } from "@/components/sport-tabs";
 import { ALLOWED_SPORT_LABELS } from "@/lib/allowed-sports";
@@ -62,7 +63,7 @@ export default async function Home() {
                 </div>
               </div>
 
-              <nav className="public-nav">
+              <MobileNavToggle>
                 <a className="public-nav__link" href="#clasificacion">
                   Clasificacion
                 </a>
@@ -78,54 +79,52 @@ export default async function Home() {
                 <Link className="public-nav__link" href="/login">
                   Staff
                 </Link>
-              </nav>
+              </MobileNavToggle>
             </div>
           </div>
         </header>
 
-        {/* Compact hero — max 200px */}
+        {/* Compact hero */}
         <section className="public-hero">
-          <div className="public-wrap py-6 lg:py-8 max-w-5xl mx-auto" style={{ maxHeight: "200px" }}>
-            <div className="flex flex-wrap items-center justify-between gap-6">
-              <div className="flex items-center gap-5">
-                <div>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    <span className="public-tag public-tag--accent">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      En directo
-                    </span>
-                  </div>
-                  <h1 className="public-title text-4xl sm:text-5xl lg:text-6xl">
-                    {data.tournament.name}
-                  </h1>
-                  <p className="mt-2 text-sm text-[#9fb3d9]">
-                    {formatLongDate(data.tournament.start_date)} &mdash;{" "}
-                    {formatLongDate(data.tournament.end_date)} &middot;{" "}
-                    {ALLOWED_SPORT_LABELS.join(" · ")}
-                  </p>
+          <div className="public-wrap py-5 sm:py-6 lg:py-8 max-w-5xl mx-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <span className="public-tag public-tag--accent">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    En directo
+                  </span>
                 </div>
+                <h1 className="public-title text-3xl sm:text-5xl lg:text-6xl">
+                  {data.tournament.name}
+                </h1>
+                <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-[#9fb3d9]">
+                  {formatLongDate(data.tournament.start_date)} &mdash;{" "}
+                  {formatLongDate(data.tournament.end_date)} &middot;{" "}
+                  {ALLOWED_SPORT_LABELS.join(" · ")}
+                </p>
               </div>
 
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-3">
-                  <Trophy className="h-4 w-4 text-[var(--app-accent)]" />
+              <div className="flex gap-5 sm:gap-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-3.5 w-3.5 text-[var(--app-accent)]" />
                   <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#8fa1c2]">Categorias</p>
-                    <p className="text-lg font-semibold text-white">{data.categories.length}</p>
+                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#8fa1c2]">Categorias</p>
+                    <p className="text-base sm:text-lg font-semibold text-white">{data.categories.length}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CalendarDays className="h-4 w-4 text-[var(--app-accent)]" />
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-3.5 w-3.5 text-[var(--app-accent)]" />
                   <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#8fa1c2]">Equipos</p>
-                    <p className="text-lg font-semibold text-white">{data.totalTeams}</p>
+                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#8fa1c2]">Equipos</p>
+                    <p className="text-base sm:text-lg font-semibold text-white">{data.totalTeams}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Swords className="h-4 w-4 text-[var(--app-accent)]" />
+                <div className="flex items-center gap-2">
+                  <Swords className="h-3.5 w-3.5 text-[var(--app-accent)]" />
                   <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#8fa1c2]">Partidos</p>
-                    <p className="text-lg font-semibold text-white">{data.totalMatches}</p>
+                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#8fa1c2]">Partidos</p>
+                    <p className="text-base sm:text-lg font-semibold text-white">{data.totalMatches}</p>
                   </div>
                 </div>
               </div>

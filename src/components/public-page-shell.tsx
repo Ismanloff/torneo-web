@@ -60,7 +60,7 @@ export function PublicPageShell({
                   {backLabel}
                 </Link>
                 <p className="public-kicker mt-8">{eyebrow}</p>
-                <h1 className="public-title mt-4 text-6xl sm:text-7xl">{title}</h1>
+                <h1 className="public-title mt-4 text-4xl sm:text-6xl lg:text-7xl">{title}</h1>
                 {description ? <p className="public-copy mt-5 max-w-3xl text-base">{description}</p> : null}
               </article>
 
