@@ -8,10 +8,10 @@ import type { StaffRole } from "@/lib/types";
 
 const ITEMS = [
   { href: "/app", label: "Inicio", icon: LayoutDashboard },
-  { href: "/app/scan", label: "Scan", icon: QrCode },
+  { href: "/app/scan", label: "Escáner", icon: QrCode },
   { href: "/app/partidos", label: "Partidos", icon: ClipboardList },
   { href: "/app/equipos", label: "Equipos", icon: Users },
-  { href: "/app/admin", label: "Gestion", icon: Shield, adminOnly: true },
+  { href: "/app/admin", label: "Gestión", icon: Shield, adminOnly: true },
 ];
 
 export function AppShellNav({ role }: { role: StaffRole }) {
@@ -21,11 +21,14 @@ export function AppShellNav({ role }: { role: StaffRole }) {
     visibleItems.length === 5 ? "grid-cols-5" : visibleItems.length === 4 ? "grid-cols-4" : "grid-cols-3";
 
   return (
-    <nav className="app-nav lg:max-w-md lg:rounded-t-2xl" aria-label="Navegacion principal">
+    <nav className="app-nav lg:max-w-md lg:rounded-t-2xl" aria-label="Navegación principal">
       <div className={`app-nav__grid ${columns}`}>
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active =
+            item.href === "/app"
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link

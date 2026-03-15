@@ -38,10 +38,10 @@ export default async function StaffTeamsPage() {
             <p className="mt-3 text-lg font-semibold text-white">Escanear si tienes el QR, buscar si no</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link className="app-action" href="/app/scan">
-                Abrir escaner
+                Abrir escáner
               </Link>
               <Link className="app-link-pill" href="/app/scan">
-                Buscar por codigo
+                Buscar por código
               </Link>
             </div>
           </article>

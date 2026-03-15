@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const category = data.categories.find((item) => item.category.id === categoryId);
 
   return {
-    title: category ? `Clasificacion ${category.category.name}` : "Clasificacion",
+    title: category ? `Clasificación ${category.category.name}` : "Clasificación",
   };
 }
 
@@ -25,12 +25,14 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
   const { categoryId } = await params;
   const data = await getScoreboardHomeData();
   const category = data.categories.find((item) => item.category.id === categoryId);
+  const totalPoints = category?.standings.reduce((sum, row) => sum + row.total_points, 0) ?? 0;
+  const leadTeam = category?.standings[0] ?? null;
 
   if (!category) {
     return (
       <PublicPageShell
         eyebrow="Categoria no encontrada"
-        title="No existe esa clasificacion"
+        title="No existe esa clasificación"
         description="Revisa el enlace o vuelve al portal principal para navegar desde la tabla pública."
       >
         <div className="public-glass p-6">
@@ -44,11 +46,11 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
 
   return (
     <PublicPageShell
-      eyebrow="Clasificacion completa"
+      eyebrow="Clasificación completa"
       title={category.category.name}
       description={`${category.category.sport} · ${category.category.age_group} · ${category.category.school}`}
       backHref="/#clasificacion"
-      backLabel="Volver a clasificacion"
+      backLabel="Volver a clasificación"
       compactHero
       actions={
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -60,8 +62,7 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
             <p className="public-kicker">Partidos</p>
             <p className="mt-3 text-2xl font-semibold text-white">{category.matches.length}</p>
             <p className="mt-2 text-sm text-[#a8b7d2]">
-              Regla actual {category.scoringRule?.points_win ?? 3}/{category.scoringRule?.points_draw ?? 1}/
-              {category.scoringRule?.points_loss ?? 0}
+              Clasificación ordenada por puntos, diferencia y tantos a favor.
             </p>
           </div>
           {category.bracket ? (
@@ -77,7 +78,7 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
           <div>
             <p className="public-kicker">Tabla oficial</p>
             <p className="mt-2 text-sm text-[#a8b7d2]">
-              Clasificacion general y diferencia de goles de la categoria.
+              Se ordena por puntos, diferencia y tantos a favor. Si hay grupos, cada grupo se muestra por separado.
             </p>
           </div>
           {category.bracket ? (
@@ -100,22 +101,24 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
         </article>
 
         <article className="public-glass p-5 sm:p-6">
-          <p className="public-kicker">Ajustes manuales</p>
+          <p className="public-kicker">Criterio</p>
           <div className="mt-5 grid gap-3">
-            {category.adjustments.length ? (
-              category.adjustments.map((adjustment) => (
-                <div key={adjustment.id} className="public-soft p-4">
-                  <p className="font-semibold text-white">{adjustment.team.team_name}</p>
-                  <p className="mt-2 text-sm text-[#a8b7d2]">{adjustment.note}</p>
-                  <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[var(--app-accent)]">
-                    {adjustment.points_delta >= 0 ? "+" : ""}
-                    {adjustment.points_delta} puntos
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div className="public-soft p-4 text-sm text-[#8fa1c2]">Sin ajustes registrados.</div>
-            )}
+            <div className="public-soft p-4">
+              <p className="font-semibold text-white">Puntos primero, luego desempates</p>
+              <p className="mt-2 text-sm text-[#a8b7d2]">
+                La clasificación se resuelve por puntos, después por diferencia y, si sigue el empate, por tantos a favor y orden alfabético.
+              </p>
+            </div>
+            <div className="public-soft p-4">
+              <p className="font-semibold text-white">Puntos totales de la categoría</p>
+              <p className="mt-3 text-3xl font-semibold text-[var(--app-accent)]">{totalPoints}</p>
+              {leadTeam ? (
+                <p className="mt-2 text-sm text-[#a8b7d2]">
+                  Registro líder: <strong className="text-white">{leadTeam.team_name}</strong> con{" "}
+                  {leadTeam.total_points} puntos.
+                </p>
+              ) : null}
+            </div>
           </div>
         </article>
       </section>

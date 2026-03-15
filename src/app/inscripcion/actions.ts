@@ -48,7 +48,18 @@ export async function registerTeamAction(formData: FormData) {
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
-  if (category.current_teams >= category.max_teams) {
+  const { count: activeTeamCount, error: teamCountError } = await supabaseAdmin
+    .from("teams")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", parsed.data.categoryId)
+    .neq("status", "cancelled");
+
+  if (teamCountError) {
+    console.error("registerTeamAction team count error", teamCountError);
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
+  }
+
+  if ((activeTeamCount ?? 0) >= category.max_teams) {
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
@@ -65,7 +76,7 @@ export async function registerTeamAction(formData: FormData) {
       captain_email: parsed.data.captainEmail,
       total_players: parsed.data.totalPlayers,
       registration_code: registrationCode,
-      status: "registered",
+      status: "pending",
       gdpr_consent: true,
       regulation_accepted: true,
       parental_confirmation_required: false,
@@ -74,6 +85,7 @@ export async function registerTeamAction(formData: FormData) {
     .single();
 
   if (teamError || !team) {
+    console.error("registerTeamAction team insert error", teamError);
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
@@ -89,21 +101,34 @@ export async function registerTeamAction(formData: FormData) {
     });
 
   if (qrError) {
+    console.error("registerTeamAction qr insert error", qrError);
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
-  // Fire-and-forget email
-  void sendRegistrationEmail({
+  const emailResult = await sendRegistrationEmail({
     to: parsed.data.captainEmail,
+    teamId: team.id,
     teamName: parsed.data.teamName,
     categoryName: category.name,
     sport: category.sport,
+    ageGroup: category.age_group,
+    schoolName: category.school,
     registrationCode,
     qrToken,
     captainName: parsed.data.captainName,
-  }).catch(console.error);
+  });
+
+  if (emailResult.status !== "sent") {
+    console.warn("registerTeamAction email unavailable", {
+      registrationCode,
+      status: emailResult.status,
+      reason: emailResult.error,
+    });
+  }
+
+  const emailStatus = emailResult.status === "sent" ? "sent" : emailResult.status;
 
   revalidatePath("/");
   revalidatePath("/inscripcion");
-  redirect(`/inscripcion/exito?code=${registrationCode}`);
+  redirect(`/inscripcion/exito?code=${registrationCode}&email=${emailStatus}`);
 }

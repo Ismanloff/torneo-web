@@ -1,12 +1,15 @@
 import { ALLOWED_SPORT_LABELS, isAllowedSport } from "@/lib/allowed-sports";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
+  AdminArrivalLogEntry,
+  AdminMatchCheckinLogEntry,
   BracketMatchRow,
   BracketRoundRow,
   CategoryBracketRow,
   CategoryMatchRow,
+  CategoryOperationalSettingsRow,
   CategoryRow,
-  CategoryStandingRow,
+  CategoryScheduleRunRow,
   ConfirmationRow,
   EnrichedBracketMatch,
   EnrichedCategoryMatch,
@@ -27,6 +30,8 @@ import type {
   TeamStatusRow,
   TournamentRow,
 } from "@/lib/types";
+import { getDefaultOperationalSettings } from "@/lib/operational-scheduling";
+import { buildCategoryStandings, buildGroupedStandings } from "@/lib/standings";
 
 function requireTournament(tournament: TournamentRow | null): TournamentRow {
   if (!tournament) {
@@ -34,24 +39,6 @@ function requireTournament(tournament: TournamentRow | null): TournamentRow {
   }
 
   return tournament;
-}
-
-function sortStandings(rows: CategoryStandingRow[]) {
-  return [...rows].sort((left, right) => {
-    if (right.total_points !== left.total_points) {
-      return right.total_points - left.total_points;
-    }
-
-    if (right.goal_difference !== left.goal_difference) {
-      return right.goal_difference - left.goal_difference;
-    }
-
-    if (right.goals_for !== left.goals_for) {
-      return right.goals_for - left.goals_for;
-    }
-
-    return left.team_name.localeCompare(right.team_name, "es");
-  });
 }
 
 function sortBracketRounds(rounds: BracketRoundRow[]) {
@@ -143,24 +130,26 @@ function buildQrTokenMap(tokens: MatchQrTokenRow[]) {
 function enrichCategories(input: {
   categories: CategoryRow[];
   teams: TeamRow[];
-  standings: CategoryStandingRow[];
   matches: CategoryMatchRow[];
   rules: ScoringRuleRow[];
   adjustments: TeamScoreAdjustmentRow[];
   brackets: CategoryBracketRow[];
   bracketRounds: BracketRoundRow[];
   bracketMatches: BracketMatchRow[];
+  operationalSettings: CategoryOperationalSettingsRow[];
+  scheduleRuns: CategoryScheduleRunRow[];
   staffProfiles: StaffProfileRow[];
   assignments: StaffAssignmentRow[];
   checkins: TeamCheckinRow[];
   qrTokens: MatchQrTokenRow[];
 }): ScoreboardCategory[] {
   const teamLookup = new Map(input.teams.map((team) => [team.id, team]));
-  const standingsByCategory = new Map<string, CategoryStandingRow[]>();
   const matchesByCategory = new Map<string, CategoryMatchRow[]>();
   const rulesByCategory = new Map(input.rules.map((rule) => [rule.category_id, rule]));
   const adjustmentsByCategory = new Map<string, TeamScoreAdjustmentRow[]>();
   const bracketsByCategory = new Map(input.brackets.map((bracket) => [bracket.category_id, bracket]));
+  const settingsByCategory = new Map(input.operationalSettings.map((settings) => [settings.category_id, settings]));
+  const scheduleRunsByCategory = new Map<string, CategoryScheduleRunRow[]>();
   const roundsByBracket = new Map<string, BracketRoundRow[]>();
   const matchesByBracket = new Map<string, BracketMatchRow[]>();
   const { byCategoryMatchId, byBracketMatchId, byCategoryId } = buildAssignmentMaps(
@@ -170,16 +159,16 @@ function enrichCategories(input: {
   const checkinsByKey = buildCheckinMap(input.checkins, input.staffProfiles);
   const qrTokensByKey = buildQrTokenMap(input.qrTokens);
 
-  for (const standing of input.standings) {
-    const current = standingsByCategory.get(standing.category_id) ?? [];
-    current.push(standing);
-    standingsByCategory.set(standing.category_id, current);
-  }
-
   for (const match of input.matches) {
     const current = matchesByCategory.get(match.category_id) ?? [];
     current.push(match);
     matchesByCategory.set(match.category_id, current);
+  }
+
+  for (const run of input.scheduleRuns) {
+    const current = scheduleRunsByCategory.get(run.category_id) ?? [];
+    current.push(run);
+    scheduleRunsByCategory.set(run.category_id, current);
   }
 
   for (const adjustment of input.adjustments) {
@@ -251,6 +240,22 @@ function enrichCategories(input: {
         return left.match_order - right.match_order;
       });
 
+    const scoringRule = rulesByCategory.get(category.id) ?? null;
+    const standings = buildCategoryStandings({
+      category,
+      teams,
+      matches,
+      scoringRule,
+      adjustments: adjustmentsByCategory.get(category.id) ?? [],
+    });
+    const groupStandings = buildGroupedStandings({
+      category,
+      teams,
+      matches,
+      scoringRule,
+      adjustments: adjustmentsByCategory.get(category.id) ?? [],
+    });
+
     const adjustments = (adjustmentsByCategory.get(category.id) ?? [])
       .map((adjustment) => ({
         ...adjustment,
@@ -262,7 +267,6 @@ function enrichCategories(input: {
       }))
       .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
 
-    const standings = sortStandings(standingsByCategory.get(category.id) ?? []);
     const bracket = bracketsByCategory.get(category.id) ?? null;
     const bracketData = bracket
       ? {
@@ -325,12 +329,17 @@ function enrichCategories(input: {
       category,
       category_referee_assignment: categoryAssignmentMap?.get("referee") ?? null,
       category_assistant_assignment: categoryAssignmentMap?.get("assistant") ?? null,
+      operationalSettings: settingsByCategory.get(category.id) ?? getDefaultOperationalSettings(category),
+      scheduleRuns: (scheduleRunsByCategory.get(category.id) ?? []).sort(
+        (left, right) => new Date(right.snapshot_at).getTime() - new Date(left.snapshot_at).getTime(),
+      ),
       teams,
       standings,
+      groupStandings,
       matches,
       adjustments,
       bracket: bracketData,
-      scoringRule: rulesByCategory.get(category.id) ?? null,
+      scoringRule,
     };
   });
 }
@@ -393,21 +402,17 @@ export async function getScoreboardHomeData(): Promise<ScoreboardHomeData> {
 
   // Phase 1: fetch category-scoped data + brackets in parallel
   const [
-    { data: standings },
     { data: matches },
     { data: rules },
     { data: adjustments },
     { data: brackets },
+    { data: operationalSettings },
+    { data: scheduleRuns },
     { data: staffProfiles },
     { data: assignments },
     { data: checkins },
     { data: qrTokens },
   ] = await Promise.all([
-    supabaseAdmin
-      .from("category_standings")
-      .select("*")
-      .in("category_id", categoryIds)
-      .returns<CategoryStandingRow[]>(),
     supabaseAdmin
       .from("category_matches")
       .select("*")
@@ -428,6 +433,16 @@ export async function getScoreboardHomeData(): Promise<ScoreboardHomeData> {
       .select("*")
       .in("category_id", categoryIds)
       .returns<CategoryBracketRow[]>(),
+    supabaseAdmin
+      .from("category_operational_settings")
+      .select("*")
+      .in("category_id", categoryIds)
+      .returns<CategoryOperationalSettingsRow[]>(),
+    supabaseAdmin
+      .from("category_schedule_runs")
+      .select("*")
+      .in("category_id", categoryIds)
+      .returns<CategoryScheduleRunRow[]>(),
     supabaseAdmin
       .from("staff_profiles")
       .select("*")
@@ -477,13 +492,14 @@ export async function getScoreboardHomeData(): Promise<ScoreboardHomeData> {
   const categories = enrichCategories({
     categories: base.categories,
     teams: base.teams,
-    standings: standings ?? [],
     matches: matches ?? [],
     rules: rules ?? [],
     adjustments: adjustments ?? [],
     brackets: brackets ?? [],
     bracketRounds,
     bracketMatches,
+    operationalSettings: operationalSettings ?? [],
+    scheduleRuns: scheduleRuns ?? [],
     staffProfiles: staffProfiles ?? [],
     assignments: assignments ?? [],
     checkins: checkins ?? [],
@@ -514,7 +530,124 @@ export async function getAdminScoreboardData() {
     totalMatches: home.totalMatches,
     categories: home.categories,
     staffProfiles: staffProfiles ?? [],
+    recentArrivals: buildAdminArrivalLog(home.categories),
+    recentMatchCheckins: buildAdminMatchCheckinLog(home.categories),
   };
+}
+
+function buildAdminArrivalLog(categories: ScoreboardCategory[]): AdminArrivalLogEntry[] {
+  return categories
+    .flatMap((category) =>
+      category.teams
+        .filter((team) => Boolean(team.checked_in_at))
+        .map((team) => ({
+          teamId: team.id,
+          teamName: team.team_name,
+          registrationCode: team.registration_code,
+          categoryId: category.category.id,
+          categoryName: category.category.name,
+          sport: category.category.sport,
+          checkedInAt: team.checked_in_at as string,
+        })),
+    )
+    .sort((left, right) => new Date(right.checkedInAt).getTime() - new Date(left.checkedInAt).getTime())
+    .slice(0, 12);
+}
+
+function buildAdminMatchCheckinLog(categories: ScoreboardCategory[]): AdminMatchCheckinLogEntry[] {
+  return categories
+    .flatMap((category) => {
+      const categoryMatchEntries = category.matches.flatMap((match) => {
+        const entries: AdminMatchCheckinLogEntry[] = [];
+
+        if (match.home_checkin) {
+          entries.push({
+            key: `${match.home_checkin.id}:${match.home_team.id}`,
+            teamId: match.home_team.id,
+            teamName: match.home_team.team_name,
+            registrationCode: match.home_team.registration_code,
+            matchId: match.id,
+            matchScope: match.scope,
+            matchLabel: `${match.home_team.team_name} vs ${match.away_team.team_name}`,
+            categoryId: category.category.id,
+            categoryName: category.category.name,
+            status: match.home_checkin.status,
+            incidentLabel: match.home_checkin.incident_label,
+            checkedInAt: match.home_checkin.checked_in_at,
+            recordedByName: match.home_checkin.recorded_by?.full_name ?? null,
+          });
+        }
+
+        if (match.away_checkin) {
+          entries.push({
+            key: `${match.away_checkin.id}:${match.away_team.id}`,
+            teamId: match.away_team.id,
+            teamName: match.away_team.team_name,
+            registrationCode: match.away_team.registration_code,
+            matchId: match.id,
+            matchScope: match.scope,
+            matchLabel: `${match.home_team.team_name} vs ${match.away_team.team_name}`,
+            categoryId: category.category.id,
+            categoryName: category.category.name,
+            status: match.away_checkin.status,
+            incidentLabel: match.away_checkin.incident_label,
+            checkedInAt: match.away_checkin.checked_in_at,
+            recordedByName: match.away_checkin.recorded_by?.full_name ?? null,
+          });
+        }
+
+        return entries;
+      });
+
+      const bracketEntries = (category.bracket?.rounds ?? []).flatMap((round) =>
+        round.matches.flatMap((match) => {
+          const entries: AdminMatchCheckinLogEntry[] = [];
+          const matchLabel = `${match.home_team?.team_name ?? "Pendiente"} vs ${match.away_team?.team_name ?? "Pendiente"}`;
+
+          if (match.home_checkin && match.home_team) {
+            entries.push({
+              key: `${match.home_checkin.id}:${match.home_team.id}`,
+              teamId: match.home_team.id,
+              teamName: match.home_team.team_name,
+              registrationCode: match.home_team.registration_code,
+              matchId: match.id,
+              matchScope: match.scope,
+              matchLabel,
+              categoryId: category.category.id,
+              categoryName: `${category.category.name} · ${round.round.name}`,
+              status: match.home_checkin.status,
+              incidentLabel: match.home_checkin.incident_label,
+              checkedInAt: match.home_checkin.checked_in_at,
+              recordedByName: match.home_checkin.recorded_by?.full_name ?? null,
+            });
+          }
+
+          if (match.away_checkin && match.away_team) {
+            entries.push({
+              key: `${match.away_checkin.id}:${match.away_team.id}`,
+              teamId: match.away_team.id,
+              teamName: match.away_team.team_name,
+              registrationCode: match.away_team.registration_code,
+              matchId: match.id,
+              matchScope: match.scope,
+              matchLabel,
+              categoryId: category.category.id,
+              categoryName: `${category.category.name} · ${round.round.name}`,
+              status: match.away_checkin.status,
+              incidentLabel: match.away_checkin.incident_label,
+              checkedInAt: match.away_checkin.checked_in_at,
+              recordedByName: match.away_checkin.recorded_by?.full_name ?? null,
+            });
+          }
+
+          return entries;
+        }),
+      );
+
+      return [...categoryMatchEntries, ...bracketEntries];
+    })
+    .sort((left, right) => new Date(right.checkedInAt).getTime() - new Date(left.checkedInAt).getTime())
+    .slice(0, 12);
 }
 
 function flattenOperationalMatches(
@@ -827,7 +960,24 @@ export async function getTeamByRegistrationCode(code: string) {
     .eq("registration_code", normalizedCode)
     .maybeSingle<TeamStatusRow & { category: CategoryRow }>();
 
-  return data;
+  if (!data) {
+    return null;
+  }
+
+  const { data: qrToken } = await supabaseAdmin
+    .from("match_qr_tokens")
+    .select("*")
+    .eq("resource_type", "team")
+    .eq("resource_id", data.id)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MatchQrTokenRow>();
+
+  return {
+    ...data,
+    qr_token: qrToken ?? null,
+  };
 }
 
 export async function getParentalConfirmationByToken(token: string) {

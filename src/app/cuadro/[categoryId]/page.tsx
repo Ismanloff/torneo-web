@@ -46,7 +46,7 @@ export default async function BracketPage({ params }: BracketPageProps) {
       title={category.category.name}
       description="Vista completa del cuadro de eliminación para esta categoría."
       backHref={`/clasificacion/${category.category.id}`}
-      backLabel="Volver a clasificacion"
+      backLabel="Volver a clasificación"
       actions={
         <div className="grid gap-3">
           <div className="public-soft p-4">

@@ -45,7 +45,7 @@ export default async function PublicMatchPage({ params, searchParams }: PublicMa
       title={`${detail.match.home_team?.team_name ?? "Pendiente"} vs ${detail.match.away_team?.team_name ?? "Pendiente"}`}
       description={`${detail.category.category.name} · ${detail.match.location ?? "Sin pista"} · ${detail.match.scheduled_at ? formatDateTime(detail.match.scheduled_at) : "Sin fecha"}`}
       backHref={`/clasificacion/${detail.category.category.id}`}
-      backLabel="Volver a clasificacion"
+      backLabel="Volver a clasificación"
       actions={
         <div className="grid gap-3">
           <div className="public-soft p-4 text-center">

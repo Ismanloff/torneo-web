@@ -2,22 +2,25 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, MapPin, PencilLine, QrCode, Trash2, UserRound, Users } from "lucide-react";
+import { CalendarClock, MapPin, PencilLine, QrCode, Save, Sparkles, Trash2, UserRound, Users } from "lucide-react";
 
 import {
-  addAdjustmentAction,
   assignStaffToCategoryAction,
   assignStaffToMatchAction,
   createMatchAction,
-  deleteAdjustmentAction,
   deleteMatchAction,
+  generateOperationalFinalStageAction,
+  generateOperationalScheduleAction,
+  generateThirdPlaceMatchAction,
   generateBracketAction,
   generateQrForResourceAction,
-  saveScoringRuleAction,
+  saveOperationalSettingsAction,
   updateBracketMatchAction,
   updateMatchAction,
 } from "@/app/admin/actions";
 import { AdminModal } from "@/components/admin-modal";
+import { buildInitialOperationalPlan, getDefaultOperationalSettings } from "@/lib/operational-scheduling";
+import { getScoreMetricLabelLower } from "@/lib/score-metric";
 import { formatDateTime, formatDateTimeLocalValue, formatStaffRoleLabel } from "@/lib/utils";
 
 import type { ScoreboardCategory, StaffProfileRow } from "@/lib/types";
@@ -44,6 +47,29 @@ function getStatusClass(status: string) {
 
 function renderAssignmentLabel(staff: { full_name: string } | null | undefined) {
   return staff?.full_name ?? "Sin asignar";
+}
+
+function formatTimeInputValue(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.slice(0, 5);
+}
+
+function getPresentTeams(category: ScoreboardCategory) {
+  return category.teams.filter((team) => Boolean(team.checked_in_at));
+}
+
+function getLatestRun(category: ScoreboardCategory, stage: "initial" | "final") {
+  return category.scheduleRuns.find((run) => run.stage === stage && run.status === "generated") ?? null;
+}
+
+function getPhaseLabel(phase: string) {
+  if (phase === "group") return "Grupos";
+  if (phase === "placement") return "Colocación";
+  if (phase === "friendly") return "Amistoso";
+  return "Liga";
 }
 
 /* ------------------------------------------------------------------ */
@@ -84,7 +110,7 @@ function StaffSelect({
       <input name="scope" type="hidden" value={scope} />
       <input name="matchId" type="hidden" value={matchId} />
       <label className="field-shell">
-        <span className="field-label field-label--dark">{duty === "referee" ? "Arbitro" : "Organizacion"}</span>
+        <span className="field-label field-label--dark">{duty === "referee" ? "Árbitro" : "Organización"}</span>
         <select className="field-input field-input--dark" defaultValue={value ?? ""} name="staffUserId">
           <option value="">Sin asignar</option>
           {availableStaff.map((profile) => (
@@ -130,7 +156,7 @@ function CategoryStaffSelect({
       <input name="duty" type="hidden" value={duty} />
       <label className="field-shell">
         <span className="field-label field-label--dark">
-          {duty === "referee" ? "Arbitraje de categoria" : "Organizacion de categoria"}
+          {duty === "referee" ? "Arbitraje de categoría" : "Organización de categoría"}
         </span>
         <select className="field-input field-input--dark" defaultValue={value ?? ""} name="staffUserId">
           <option value="">Sin asignar</option>
@@ -142,10 +168,10 @@ function CategoryStaffSelect({
         </select>
       </label>
       <p className="text-xs leading-5 text-[var(--app-muted)]">
-        Se aplicara a todos los partidos y cruces de esta categoria salvo que un partido tenga una asignacion propia.
+        Se aplicará a todos los partidos y cruces de esta categoría salvo que un partido tenga una asignación propia.
       </p>
       <button className="admin-btn admin-btn--secondary" type="submit">
-        Guardar categoria
+        Guardar categoría
       </button>
     </form>
   );
@@ -159,6 +185,7 @@ type AdminPartidosTabProps = {
   categories: ScoreboardCategory[];
   staffProfiles: StaffProfileRow[];
   tournamentId: string;
+  tournamentStartDate: string;
   surfacePath: string;
 };
 
@@ -170,24 +197,61 @@ export function AdminPartidosTab({
   categories,
   staffProfiles,
   tournamentId,
+  tournamentStartDate,
   surfacePath,
 }: AdminPartidosTabProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     categories[0]?.category.id ?? "",
   );
-  const [modalScoringRule, setModalScoringRule] = useState(false);
   const [modalCreateMatch, setModalCreateMatch] = useState(false);
-  const [modalAdjustment, setModalAdjustment] = useState(false);
   const [modalBracket, setModalBracket] = useState(false);
+  const [modalPreview, setModalPreview] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [editingBracketMatchId, setEditingBracketMatchId] = useState<string | null>(null);
 
   const category = categories.find((c) => c.category.id === selectedCategoryId);
+  const scoreMetricLower = category
+    ? getScoreMetricLabelLower(category.category.sport)
+    : "goles";
+  const presentTeams = category ? getPresentTeams(category) : [];
+  const operationalSettings = category?.operationalSettings ?? (category ? getDefaultOperationalSettings(category.category) : null);
+  const previewPlan =
+    category && operationalSettings && presentTeams.length >= 4
+      ? (() => {
+          try {
+            return buildInitialOperationalPlan({
+              category: category.category,
+              eventDate: tournamentStartDate.slice(0, 10),
+              presentTeams,
+              settings: operationalSettings,
+            });
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+  const latestInitialRun = category ? getLatestRun(category, "initial") : null;
+  const latestFinalRun = category ? getLatestRun(category, "final") : null;
+  const canGenerateFinalStage =
+    Boolean(category && latestInitialRun && !latestFinalRun) &&
+    category!.matches.filter(
+      (match) =>
+        match.schedule_run_id === latestInitialRun!.id &&
+        match.counts_for_standings &&
+        match.status !== "completed",
+    ).length === 0;
+  const canGenerateThirdPlace = Boolean(
+    category &&
+      category.bracket &&
+      latestFinalRun &&
+      category.bracket.rounds.find((round) => round.round.round_number === 1)?.matches.length === 2 &&
+      !category.matches.some((match) => match.phase === "placement" && match.round_label === "3º/4º"),
+  );
 
   if (!categories.length) {
     return (
       <div className="admin-empty-state">
-        No hay categorias creadas todavia.
+        No hay categorías creadas todavía.
       </div>
     );
   }
@@ -196,7 +260,7 @@ export function AdminPartidosTab({
     <div className="grid gap-6">
       <div className="admin-card">
         <label className="field-shell flex-1" htmlFor="admin-category-selector">
-          <span className="field-label field-label--dark">Categoria</span>
+          <span className="field-label field-label--dark">Categoría</span>
           <select
             id="admin-category-selector"
             className="field-input field-input--dark"
@@ -205,13 +269,13 @@ export function AdminPartidosTab({
           >
             {categories.map((cat) => (
               <option key={cat.category.id} value={cat.category.id}>
-                {cat.category.sport} · {cat.category.age_group} — {cat.category.name}
+                {cat.category.name} · {cat.category.age_group}
               </option>
             ))}
           </select>
         </label>
         <div className="mt-4 rounded-[1.25rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--app-muted)]">
-          Esta seccion organiza calendario y estructura competitiva. Para scoring en vivo y check-in, abre la operativa de cada partido.
+          Esta sección organiza calendario y estructura competitiva. La clasificación pública y los cruces se resuelven por {scoreMetricLower} marcados.
         </div>
       </div>
 
@@ -227,46 +291,162 @@ export function AdminPartidosTab({
                   {category.category.name}
                 </h2>
                 <p className="mt-1 text-sm text-[var(--app-muted)]">
-                  {category.category.school} · {category.teams.length} equipos · {category.matches.length} partidos
+                  {category.category.school} · {category.teams.length} equipos · {presentTeams.length} llegadas confirmadas
                 </p>
               </div>
               <Link className="app-link-pill" href={`/clasificacion/${category.category.id}`}>
-                Clasificacion
+                Clasificación
               </Link>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                className="admin-btn admin-btn--primary"
-                onClick={() => setModalCreateMatch(true)}
-                type="button"
-              >
-                Crear partido
-              </button>
-              <button
-                className="admin-btn admin-btn--secondary"
-                onClick={() => setModalScoringRule(true)}
-                type="button"
-              >
-                Reglas puntos
-              </button>
-              <button
-                className="admin-btn admin-btn--secondary"
-                onClick={() => setModalAdjustment(true)}
-                type="button"
-              >
-                Ajuste manual
-              </button>
-              <button
-                className="admin-btn admin-btn--secondary"
-                onClick={() => setModalBracket(true)}
-                type="button"
-              >
-                Cuadro eliminacion
-              </button>
-              <Link className="admin-btn admin-btn--secondary" href="/app/partidos">
-                Ir a operativa
-              </Link>
+            <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="app-kicker">Jornada automática</p>
+                    <p className="mt-2 text-sm text-[var(--app-muted)]">
+                      Se genera solo con los equipos ya llegados por QR. Los equipos que lleguen después quedan fuera de este lote.
+                    </p>
+                  </div>
+                  <span className="inline-flex rounded-full border border-[var(--app-line)] bg-white/[0.04] px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--app-muted)]">
+                    {previewPlan ? previewPlan.formatLabel : "Esperando llegadas"}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-black/20 p-4">
+                    <p className="app-metric__label">Llegadas</p>
+                    <p className="mt-3 text-3xl font-semibold text-white">{presentTeams.length}</p>
+                    <p className="mt-2 text-xs text-[var(--app-muted)]">Mínimo 4 para generar</p>
+                  </div>
+                  <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-black/20 p-4">
+                    <p className="app-metric__label">Capacidad</p>
+                    <p className="mt-3 text-3xl font-semibold text-white">
+                      {previewPlan ? previewPlan.capacity.maxMatches : operationalSettings?.venue_count ?? 0}
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--app-muted)]">
+                      {operationalSettings?.venue_count ?? 0} pistas · {operationalSettings?.match_minutes ?? 0} min
+                    </p>
+                  </div>
+                  <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-black/20 p-4">
+                    <p className="app-metric__label">Fase final</p>
+                    <p className="mt-3 text-base font-semibold text-white">
+                      {previewPlan?.finalStage === "top4_bracket"
+                        ? "Semis + final"
+                        : previewPlan?.finalStage === "top2_final"
+                          ? "Final directa"
+                          : latestFinalRun
+                            ? "Ya generada"
+                            : "Sin fase extra"}
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--app-muted)]">
+                      {latestInitialRun ? `Lote inicial ${formatDateTime(latestInitialRun.snapshot_at)}` : "Sin lote generado"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    className="admin-btn admin-btn--secondary"
+                    disabled={!previewPlan}
+                    onClick={() => setModalPreview(true)}
+                    type="button"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Cerrar presentes y previsualizar
+                  </button>
+                  <form action={generateOperationalScheduleAction}>
+                    <input name="categoryId" type="hidden" value={category.category.id} />
+                    <input name="redirectTo" type="hidden" value={surfacePath} />
+                    <button
+                      className="admin-btn admin-btn--primary"
+                      disabled={!previewPlan || Boolean(latestInitialRun)}
+                      type="submit"
+                    >
+                      Generar jornada
+                    </button>
+                  </form>
+                  <form action={generateOperationalFinalStageAction}>
+                    <input name="categoryId" type="hidden" value={category.category.id} />
+                    <input name="runId" type="hidden" value={latestInitialRun?.id ?? ""} />
+                    <input name="redirectTo" type="hidden" value={surfacePath} />
+                    <button
+                      className="admin-btn admin-btn--secondary"
+                      disabled={!canGenerateFinalStage}
+                      type="submit"
+                    >
+                      Generar fase final
+                    </button>
+                  </form>
+                  {category.bracket ? (
+                    <form action={generateThirdPlaceMatchAction}>
+                      <input name="categoryId" type="hidden" value={category.category.id} />
+                      <input name="bracketId" type="hidden" value={category.bracket.bracket.id} />
+                      <input name="redirectTo" type="hidden" value={surfacePath} />
+                      <button
+                        className="admin-btn admin-btn--secondary"
+                        disabled={!canGenerateThirdPlace}
+                        type="submit"
+                      >
+                        Generar 3º/4º
+                      </button>
+                    </form>
+                  ) : null}
+                  <Link className="admin-btn admin-btn--secondary" href="/app/partidos">
+                    Ir a operativa
+                  </Link>
+                </div>
+
+                {previewPlan?.warnings.length ? (
+                  <div className="mt-4 grid gap-2 rounded-[1.15rem] border border-[rgba(245,205,118,0.16)] bg-[rgba(245,205,118,0.08)] p-4 text-sm text-[#f6e7b0]">
+                    {previewPlan.warnings.map((warning) => (
+                      <p key={warning}>{warning}</p>
+                    ))}
+                  </div>
+                ) : null}
+
+                {latestFinalRun ? (
+                  <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[var(--app-accent)]">
+                    Fase final generada el {formatDateTime(latestFinalRun.snapshot_at)}
+                  </p>
+                ) : latestInitialRun ? (
+                  <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[var(--app-accent)]">
+                    Jornada inicial generada el {formatDateTime(latestInitialRun.snapshot_at)}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                <p className="app-kicker">Ajustes de jornada</p>
+                <form action={saveOperationalSettingsAction} className="mt-4 grid gap-3">
+                  <input name="categoryId" type="hidden" value={category.category.id} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="field-shell">
+                      <span className="field-label field-label--dark">Minutos de juego</span>
+                      <input className="field-input field-input--dark" defaultValue={operationalSettings?.match_minutes ?? 20} min={5} max={120} name="matchMinutes" type="number" />
+                    </label>
+                    <label className="field-shell">
+                      <span className="field-label field-label--dark">Cambio / descanso</span>
+                      <input className="field-input field-input--dark" defaultValue={operationalSettings?.turnover_minutes ?? 5} min={0} max={60} name="turnoverMinutes" type="number" />
+                    </label>
+                    <label className="field-shell">
+                      <span className="field-label field-label--dark">Pistas activas</span>
+                      <input className="field-input field-input--dark" defaultValue={operationalSettings?.venue_count ?? 1} min={1} max={8} name="venueCount" type="number" />
+                    </label>
+                    <label className="field-shell">
+                      <span className="field-label field-label--dark">Inicio / cierre</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input className="field-input field-input--dark" defaultValue={formatTimeInputValue(operationalSettings?.window_start)} name="windowStart" type="time" />
+                        <input className="field-input field-input--dark" defaultValue={formatTimeInputValue(operationalSettings?.window_end)} name="windowEnd" type="time" />
+                      </div>
+                    </label>
+                  </div>
+                  <button className="admin-btn admin-btn--secondary" type="submit">
+                    <Save className="h-4 w-4" />
+                    Guardar ajustes
+                  </button>
+                </form>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -287,14 +467,98 @@ export function AdminPartidosTab({
             </div>
           </div>
 
+          <AdminModal
+            isOpen={modalPreview}
+            onClose={() => setModalPreview(false)}
+            title="Previsualización de jornada"
+          >
+            {previewPlan ? (
+              <div className="grid gap-4">
+                <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-white/[0.03] p-4 text-sm text-[var(--app-muted)]">
+                  <p className="font-semibold text-white">{previewPlan.formatLabel}</p>
+                  <p className="mt-2">
+                    {presentTeams.length} equipos presentes · {previewPlan.totalMatchesPlanned} partidos previstos · mínimo {previewPlan.minimumMatchesPerTeam} por equipo.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                    <p className="app-metric__label">Capacidad estimada</p>
+                    <p className="mt-3 text-2xl font-semibold text-white">{previewPlan.capacity.maxMatches} partidos</p>
+                    <p className="mt-2 text-sm text-[var(--app-muted)]">
+                      {previewPlan.capacity.venueCount} pistas · {previewPlan.capacity.slotsPerVenue} turnos
+                    </p>
+                  </div>
+                  <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                    <p className="app-metric__label">Fase inicial</p>
+                    <p className="mt-3 text-2xl font-semibold text-white">
+                      {previewPlan.initialStage === "group"
+                        ? "Grupos"
+                        : previewPlan.initialStage === "league"
+                          ? "Liga"
+                          : "Eliminatoria"}
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--app-muted)]">
+                      {previewPlan.officialPlacement ? "Incluye colocación oficial" : "Sin colocación completa"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                  <p className="app-metric__label">Equipos incluidos</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {presentTeams.map((team) => (
+                      <span key={team.id} className="inline-flex rounded-full border border-[var(--app-line)] bg-white/[0.04] px-3 py-1.5 text-xs text-white">
+                        {team.team_name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+                  <p className="app-metric__label">Partidos a crear</p>
+                  <div className="mt-3 grid gap-2">
+                    {previewPlan.generatedMatches.slice(0, 10).map((match) => (
+                      <p key={`${match.phase}:${match.matchOrder}:${match.homeTeamId}`} className="text-sm text-[var(--app-muted)]">
+                        <span className="font-semibold text-white">{match.roundLabel ?? getPhaseLabel(match.phase)}</span>
+                        {" · "}
+                        {category.teams.find((team) => team.id === match.homeTeamId)?.team_name ?? "Pendiente"}
+                        {" vs "}
+                        {category.teams.find((team) => team.id === match.awayTeamId)?.team_name ?? "Pendiente"}
+                      </p>
+                    ))}
+                    {previewPlan.generatedMatches.length > 10 ? (
+                      <p className="text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">
+                        + {previewPlan.generatedMatches.length - 10} partidos más
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {previewPlan.warnings.length ? (
+                  <div className="grid gap-2 rounded-[1.1rem] border border-[rgba(245,205,118,0.16)] bg-[rgba(245,205,118,0.08)] p-4 text-sm text-[#f6e7b0]">
+                    {previewPlan.warnings.map((warning) => (
+                      <p key={warning}>{warning}</p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-[1.1rem] border border-[var(--app-line)] bg-white/[0.03] p-4 text-sm text-[var(--app-muted)]">
+                Necesitas al menos 4 equipos presentes para calcular la jornada.
+              </div>
+            )}
+          </AdminModal>
+
           <div className="grid gap-4">
-            <h3 className="app-kicker">Partidos de fase de grupos</h3>
+            <h3 className="app-kicker">Partidos oficiales</h3>
             {category.matches.length ? (
               category.matches.map((match) => (
                 <div key={match.id} className="admin-card">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="app-metric__label">{match.round_label || "Partido"}</p>
+                      <p className="app-metric__label">
+                        {match.round_label || "Partido"} · {getPhaseLabel(match.phase)}
+                      </p>
                       <p className="mt-2 font-display text-[1.7rem] font-semibold tracking-[-0.04em] text-white">
                         {match.home_team.team_name} <span className="text-[var(--app-muted)]">vs</span> {match.away_team.team_name}
                       </p>
@@ -348,7 +612,7 @@ export function AdminPartidosTab({
                       </div>
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-[var(--app-info)]" />
-                        Organizacion: {renderAssignmentLabel(match.assistant_assignment)}
+                        Organización: {renderAssignmentLabel(match.assistant_assignment)}
                       </div>
                     </div>
 
@@ -468,7 +732,7 @@ export function AdminPartidosTab({
               ))
             ) : (
               <div className="admin-empty-state">
-                Aun no hay partidos creados.
+                Aún no hay partidos creados.
               </div>
             )}
           </div>
@@ -539,7 +803,7 @@ export function AdminPartidosTab({
                             </div>
                             <div className="flex items-center gap-2">
                               <Users className="h-4 w-4 text-[var(--app-info)]" />
-                              Organizacion: {renderAssignmentLabel(match.assistant_assignment)}
+                              Organización: {renderAssignmentLabel(match.assistant_assignment)}
                             </div>
                           </div>
 
@@ -655,58 +919,38 @@ export function AdminPartidosTab({
             </div>
           ) : (
             <div className="admin-empty-state">
-              Todavia no hay cuadro generado para esta categoria.
+              Todavía no hay cuadro generado para esta categoría.
             </div>
           )}
 
-          {/* Adjustments list */}
-          {category.adjustments.length > 0 && (
-            <div className="grid gap-3">
-              <h3 className="app-kicker">Ajustes de puntos</h3>
-              {category.adjustments.map((adj) => (
-                <div key={adj.id} className="admin-card flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {adj.team.team_name}: {adj.points_delta > 0 ? "+" : ""}{adj.points_delta} pts
-                    </p>
-                    <p className="text-xs text-[var(--app-muted)]">{adj.note}</p>
-                  </div>
-                  <form action={deleteAdjustmentAction}>
-                    <input name="adjustmentId" type="hidden" value={adj.id} />
-                    <input name="categoryId" type="hidden" value={category.category.id} />
-                    <input name="redirectTo" type="hidden" value={surfacePath} />
-                    <button className="admin-btn admin-btn--danger text-xs" type="submit">
-                      Eliminar
-                    </button>
-                  </form>
-                </div>
-              ))}
+          <div className="admin-card">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="app-kicker">Herramientas manuales</p>
+                <p className="mt-2 text-sm text-[var(--app-muted)]">
+                  Úsalas solo como respaldo. El flujo principal de esta pantalla es llegadas QR → jornada → fase final.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="admin-btn admin-btn--secondary"
+                  onClick={() => setModalCreateMatch(true)}
+                  type="button"
+                >
+                  Crear partido manual
+                </button>
+                <button
+                  className="admin-btn admin-btn--secondary"
+                  onClick={() => setModalBracket(true)}
+                  type="button"
+                >
+                  Generar cuadro manual
+                </button>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* ---- MODALS ---- */}
-
-          {/* Scoring Rule Modal */}
-          <AdminModal isOpen={modalScoringRule} onClose={() => setModalScoringRule(false)} title="Regla de puntos">
-            <form action={saveScoringRuleAction} className="grid gap-3">
-              <input name="categoryId" type="hidden" value={category.category.id} />
-              <label className="field-shell">
-                <span className="field-label field-label--dark">Victoria</span>
-                <input className="field-input field-input--dark" defaultValue={category.scoringRule?.points_win ?? 3} name="pointsWin" type="number" />
-              </label>
-              <label className="field-shell">
-                <span className="field-label field-label--dark">Empate</span>
-                <input className="field-input field-input--dark" defaultValue={category.scoringRule?.points_draw ?? 1} name="pointsDraw" type="number" />
-              </label>
-              <label className="field-shell">
-                <span className="field-label field-label--dark">Derrota</span>
-                <input className="field-input field-input--dark" defaultValue={category.scoringRule?.points_loss ?? 0} name="pointsLoss" type="number" />
-              </label>
-              <button className="admin-btn admin-btn--primary mt-2" type="submit">
-                Guardar regla
-              </button>
-            </form>
-          </AdminModal>
 
           {/* Create Match Modal */}
           <AdminModal isOpen={modalCreateMatch} onClose={() => setModalCreateMatch(false)} title="Crear partido">
@@ -736,33 +980,6 @@ export function AdminPartidosTab({
               </label>
               <button className="admin-btn admin-btn--primary mt-2" type="submit">
                 Crear partido
-              </button>
-            </form>
-          </AdminModal>
-
-          {/* Adjustment Modal */}
-          <AdminModal isOpen={modalAdjustment} onClose={() => setModalAdjustment(false)} title="Ajuste manual de puntos">
-            <form action={addAdjustmentAction} className="grid gap-3">
-              <input name="categoryId" type="hidden" value={category.category.id} />
-              <label className="field-shell">
-                <span className="field-label field-label--dark">Equipo</span>
-                <select className="field-input field-input--dark" defaultValue="" name="teamId" required>
-                  <option disabled value="">Selecciona equipo</option>
-                  {category.teams.map((team) => (
-                    <option key={team.id} value={team.id}>{team.team_name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field-shell">
-                <span className="field-label field-label--dark">Puntos</span>
-                <input className="field-input field-input--dark" defaultValue="0" name="pointsDelta" type="number" />
-              </label>
-              <label className="field-shell">
-                <span className="field-label field-label--dark">Motivo</span>
-                <textarea className="field-input field-input--dark min-h-20" name="note" required />
-              </label>
-              <button className="admin-btn admin-btn--primary mt-2" type="submit">
-                Guardar ajuste
               </button>
             </form>
           </AdminModal>

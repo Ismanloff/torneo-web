@@ -1,16 +1,18 @@
-import Link from "next/link";
 import { ClipboardList, Settings2, Users } from "lucide-react";
 
 import { requireAdminSession } from "@/lib/admin-auth";
+import { TOURNAMENT_NAME } from "@/lib/branding";
 import { getAdminScoreboardData } from "@/lib/supabase/queries";
 
 import { AdminTabs } from "@/components/admin-tabs-shell";
 
 type AdminControlCenterProps = {
+  manualLookupError?: string;
   surfacePath?: string;
 };
 
 export async function AdminControlCenter({
+  manualLookupError,
   surfacePath = "/app/admin",
 }: AdminControlCenterProps = {}) {
   await requireAdminSession();
@@ -22,12 +24,12 @@ export async function AdminControlCenter({
       <section className="app-hero">
         <div className="app-hero__content grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <article>
-            <p className="app-kicker">Gestion de torneo</p>
+            <p className="app-kicker">Gestión del torneo</p>
             <h1 className="app-title mt-3 text-5xl text-white lg:text-6xl">
-              Backoffice movil
+              Panel de gestión
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--app-muted)]">
-              Configura calendario, estructura competitiva, staff y recursos del torneo {data.tournament.name}. La operativa en vivo se ejecuta desde Inicio, Partidos y Scan.
+              Configura calendario, estructura competitiva, staff y recursos del torneo {TOURNAMENT_NAME}. La operativa en vivo se ejecuta desde Partidos, Equipos y Escáner.
             </p>
           </article>
 
@@ -69,34 +71,19 @@ export async function AdminControlCenter({
               <Settings2 className="h-4 w-4" />
               <p className="app-kicker text-[var(--app-accent)]">Recursos</p>
             </div>
-            <p className="mt-3 text-sm text-[var(--app-muted)]">QR por equipo, resumen del torneo y cierre de sesion.</p>
+            <p className="mt-3 text-sm text-[var(--app-muted)]">QR por equipo, resumen del torneo y cierre de sesión.</p>
           </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Link className="app-link-pill" href="/app/partidos">
-            Volver a operativa
-          </Link>
-          <Link className="app-link-pill" href="/">
-            Portal publico
-          </Link>
-          <Link className="app-link-pill" href="/app">
-            Inicio
-          </Link>
-          <Link className="app-link-pill" href="/app/scan">
-            Scan
-          </Link>
-          <Link className="app-link-pill" href="/app/partidos">
-            Partidos vivos
-          </Link>
         </div>
       </section>
 
       <section>
-        <AdminTabs
-          categories={data.categories}
-          staffProfiles={data.staffProfiles}
-          tournament={data.tournament}
+          <AdminTabs
+            categories={data.categories}
+            staffProfiles={data.staffProfiles}
+            manualLookupError={manualLookupError}
+            recentArrivals={data.recentArrivals}
+            recentMatchCheckins={data.recentMatchCheckins}
+            tournament={data.tournament}
           totalTeams={data.totalTeams}
           totalMatches={data.totalMatches}
           activeStaffCount={activeStaff.length}

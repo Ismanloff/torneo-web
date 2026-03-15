@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { ChevronLeft, Trophy } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+
+import { PublicBrandLockup } from "@/components/public-brand-lockup";
+import { PublicSiteNav } from "@/components/public-site-nav";
 
 type PublicPageShellProps = {
   eyebrow: string;
@@ -28,27 +31,9 @@ export function PublicPageShell({
         <header className="public-topbar">
           <div className="public-wrap">
             <div className="public-topbar__inner">
-              <div className="public-brand">
-                <span className="public-brand__mark">
-                  <Trophy className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="public-kicker text-[0.66rem]">Torneo Escolar</p>
-                  <p className="text-sm font-semibold text-white">Seguimiento y clasificacion</p>
-                </div>
-              </div>
+              <PublicBrandLockup />
 
-              <nav className="public-nav">
-                <Link className="public-nav__link" href="/">
-                  Inicio
-                </Link>
-                <Link className="public-nav__link" href="/login">
-                  Staff
-                </Link>
-                <Link className="public-nav__link" href="/admin/login">
-                  Admin
-                </Link>
-              </nav>
+              <PublicSiteNav />
             </div>
           </div>
         </header>

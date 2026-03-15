@@ -9,7 +9,7 @@ export function BracketTree({ category }: BracketTreeProps) {
   if (!category.bracket) {
     return (
       <div className="public-soft px-4 py-6 text-sm text-[#8fa1c2]">
-        Todavia no hay cuadro eliminatorio generado para esta categoria.
+        Todavía no hay cuadro eliminatorio generado para esta categoría.
       </div>
     );
   }

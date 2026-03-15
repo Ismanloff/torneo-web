@@ -31,11 +31,11 @@ export default async function StaffAppLayout({
 
             <div className="flex items-center gap-2 self-center">
               <Link className="app-link-pill" href="/">
-                Portal publico
+                Portal público
                 <ChevronRight className="h-4 w-4" />
               </Link>
               <form action={logoutAdminAction}>
-                <button className="app-action app-action--ghost" type="submit">
+                <button className="app-action app-action--ghost app-action--danger" type="submit">
                   Salir
                 </button>
               </form>

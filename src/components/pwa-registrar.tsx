@@ -112,6 +112,36 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       return;
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      void (async () => {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+
+        if ("caches" in window) {
+          const cacheKeys = await window.caches.keys();
+          await Promise.all(
+            cacheKeys
+              .filter((key) => key.startsWith("torneo-"))
+              .map((key) => window.caches.delete(key)),
+          );
+        }
+
+        const devResetKey = "torneo-dev-sw-reset";
+        if (
+          registrations.length > 0 &&
+          window.sessionStorage.getItem(devResetKey) !== "1"
+        ) {
+          window.sessionStorage.setItem(devResetKey, "1");
+          window.location.reload();
+          return;
+        }
+
+        window.sessionStorage.removeItem(devResetKey);
+      })();
+
+      return;
+    }
+
     let registrationCleanup: (() => void) | undefined;
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ChevronLeft, Trophy } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
+import { PublicBrandLockup } from "@/components/public-brand-lockup";
+import { PublicSiteNav } from "@/components/public-site-nav";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { TeamRegistrationForm } from "@/components/team-registration-form";
 import type { CategoryRow } from "@/lib/types";
@@ -22,7 +24,7 @@ export async function generateMetadata({ params }: CategoryRegistrationPageProps
     .maybeSingle<Pick<CategoryRow, "name" | "sport">>();
 
   return {
-    title: category ? `Inscripcion - ${category.name}` : "Inscripcion",
+    title: category ? `Inscripción - ${category.name}` : "Inscripción",
   };
 }
 
@@ -62,24 +64,9 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
         <header className="public-topbar">
           <div className="public-wrap">
             <div className="public-topbar__inner">
-              <div className="public-brand">
-                <span className="public-brand__mark">
-                  <Trophy className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="public-kicker text-[0.66rem]">Torneo Escolar</p>
-                  <p className="text-sm font-semibold text-white">Inscripcion</p>
-                </div>
-              </div>
+              <PublicBrandLockup />
 
-              <nav className="public-nav">
-                <Link className="public-nav__link" href="/">
-                  Inicio
-                </Link>
-                <Link className="public-nav__link" href="/inscripcion">
-                  Categorias
-                </Link>
-              </nav>
+              <PublicSiteNav />
             </div>
           </div>
         </header>
@@ -90,7 +77,7 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
             <article className="public-glass p-6 lg:p-8 max-w-2xl mx-auto">
               <Link className="public-tag" href="/inscripcion">
                 <ChevronLeft className="h-4 w-4" />
-                Volver a categorias
+                Volver a categorías
               </Link>
               <p className="public-kicker mt-8">{category.sport} &middot; {category.age_group}</p>
               <h1 className="public-title mt-4 text-4xl sm:text-5xl">

@@ -2,6 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
 
 import { PwaRegistrar } from "@/components/pwa-registrar";
+import {
+  TOURNAMENT_DESCRIPTION,
+  TOURNAMENT_NAME,
+  TOURNAMENT_SHORT_NAME,
+} from "@/lib/branding";
 
 import "./globals.css";
 
@@ -24,9 +29,9 @@ const monoFont = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Torneo Escolar 2026",
-  description: "Portal de clasificacion, partidos y puntuacion del torneo.",
-  applicationName: "Torneo Escolar 2026",
+  title: TOURNAMENT_NAME,
+  description: TOURNAMENT_DESCRIPTION,
+  applicationName: TOURNAMENT_NAME,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -37,13 +42,14 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "Torneo 2026",
+    statusBarStyle: "black-translucent",
+    title: TOURNAMENT_SHORT_NAME,
   },
 };
 
 export const viewport: Viewport = {
   themeColor: "#050816",
+  viewportFit: "cover",
 };
 
 const appVersion =

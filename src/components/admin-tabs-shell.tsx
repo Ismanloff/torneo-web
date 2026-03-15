@@ -6,13 +6,22 @@ import { AdminPartidosTab } from "@/components/admin-partidos-tab";
 import { AdminStaffTab } from "@/components/admin-staff-tab";
 import { AdminConfigTab } from "@/components/admin-config-tab";
 
-import type { ScoreboardCategory, StaffProfileRow, TournamentRow } from "@/lib/types";
+import type {
+  AdminArrivalLogEntry,
+  AdminMatchCheckinLogEntry,
+  ScoreboardCategory,
+  StaffProfileRow,
+  TournamentRow,
+} from "@/lib/types";
 
 type Tab = "partidos" | "staff" | "config";
 
 type AdminTabsProps = {
   categories: ScoreboardCategory[];
   staffProfiles: StaffProfileRow[];
+  manualLookupError?: string;
+  recentArrivals: AdminArrivalLogEntry[];
+  recentMatchCheckins: AdminMatchCheckinLogEntry[];
   tournament: TournamentRow;
   totalTeams: number;
   totalMatches: number;
@@ -29,13 +38,16 @@ const TABS: { key: Tab; label: string }[] = [
 export function AdminTabs({
   categories,
   staffProfiles,
+  manualLookupError,
+  recentArrivals,
+  recentMatchCheckins,
   tournament,
   totalTeams,
   totalMatches,
   activeStaffCount,
   surfacePath,
 }: AdminTabsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("partidos");
+  const [activeTab, setActiveTab] = useState<Tab>(manualLookupError ? "config" : "partidos");
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleTabKeyDown = useCallback(
@@ -62,9 +74,9 @@ export function AdminTabs({
   return (
     <div>
       <div
-        className="admin-tabs sticky top-[5.75rem] z-10"
+        className="admin-tabs sticky top-[5.75rem] z-20"
         role="tablist"
-        aria-label="Administracion"
+        aria-label="Administración"
       >
         {TABS.map((tab, index) => {
           const isActive = activeTab === tab.key;
@@ -99,6 +111,7 @@ export function AdminTabs({
             categories={categories}
             staffProfiles={staffProfiles}
             tournamentId={tournament.id}
+            tournamentStartDate={tournament.start_date}
             surfacePath={surfacePath}
           />
         )}
@@ -108,8 +121,10 @@ export function AdminTabs({
         {activeTab === "config" && (
           <AdminConfigTab
             categories={categories}
-            tournament={tournament}
             activeStaffCount={activeStaffCount}
+            manualLookupError={manualLookupError}
+            recentArrivals={recentArrivals}
+            recentMatchCheckins={recentMatchCheckins}
             totalTeams={totalTeams}
             totalMatches={totalMatches}
           />

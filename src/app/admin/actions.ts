@@ -17,12 +17,22 @@ import {
 } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
+  buildFinalStagePlan,
+  buildInitialMetaFromPlan,
+  buildInitialOperationalPlan,
+  getDefaultOperationalSettings,
+} from "@/lib/operational-scheduling";
+import { sendPushToStaff } from "@/lib/push-notify";
+import {
+  getAdminScoreboardData,
   getOperationalMatchById,
   getTeamByRegistrationCode,
 } from "@/lib/supabase/queries";
-import { sendPushToStaff } from "@/lib/push-notify";
 import type {
+  CategoryScheduleRunRow,
+  GroupLabel,
   MatchScope,
+  ScoreboardCategory,
   StaffProfileRow,
   StaffRole,
   TeamCheckinRow,
@@ -72,6 +82,32 @@ const bracketSchema = z.object({
   categoryId: z.uuid(),
   qualifiedTeamCount: z.coerce.number().int().refine((value) => [2, 4, 8, 16, 32].includes(value)),
   bracketName: z.string().trim().min(3).max(120),
+});
+
+const operationalSettingsSchema = z.object({
+  categoryId: z.uuid(),
+  matchMinutes: z.coerce.number().int().min(5).max(120),
+  turnoverMinutes: z.coerce.number().int().min(0).max(60),
+  venueCount: z.coerce.number().int().min(1).max(8),
+  windowStart: z.string().trim().regex(/^\d{2}:\d{2}(?::\d{2})?$/),
+  windowEnd: z.string().trim().regex(/^\d{2}:\d{2}(?::\d{2})?$/),
+});
+
+const generateOperationalScheduleSchema = z.object({
+  categoryId: z.uuid(),
+  redirectTo: z.string().trim().optional().or(z.literal("")),
+});
+
+const generateFinalStageSchema = z.object({
+  categoryId: z.uuid(),
+  runId: z.uuid().optional().or(z.literal("")),
+  redirectTo: z.string().trim().optional().or(z.literal("")),
+});
+
+const generateThirdPlaceSchema = z.object({
+  categoryId: z.uuid(),
+  bracketId: z.uuid(),
+  redirectTo: z.string().trim().optional().or(z.literal("")),
 });
 
 const updateBracketMatchSchema = z.object({
@@ -131,6 +167,7 @@ const checkinSchema = z.object({
 
 const teamLookupSchema = z.object({
   registrationCode: z.string().trim().min(3).max(32),
+  redirectTo: z.string().trim().optional().or(z.literal("")),
 });
 
 function buildSeedOrder(size: number): number[] {
@@ -165,6 +202,285 @@ function safeRedirect(pathname: string | undefined, fallback: string) {
   }
 
   return pathname;
+}
+
+function normalizeTimeValue(value: string) {
+  return value.length === 5 ? `${value}:00` : value;
+}
+
+function getEventDate(startDate: string) {
+  return startDate.slice(0, 10);
+}
+
+function isManagedOperationalMatch(categoryMatch: {
+  schedule_run_id: string | null;
+}) {
+  return Boolean(categoryMatch.schedule_run_id);
+}
+
+async function loadAdminCategory(categoryId: string) {
+  const adminData = await getAdminScoreboardData();
+  const category = adminData.categories.find((entry) => entry.category.id === categoryId) ?? null;
+
+  return {
+    adminData,
+    category,
+  };
+}
+
+function getPresentTeams(category: ScoreboardCategory) {
+  return category.teams
+    .filter((team) => Boolean(team.checked_in_at))
+    .sort((left, right) => {
+      const leftTime = new Date(left.checked_in_at ?? left.created_at).getTime();
+      const rightTime = new Date(right.checked_in_at ?? right.created_at).getTime();
+
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+
+      return left.team_name.localeCompare(right.team_name, "es");
+    });
+}
+
+function getLatestGeneratedRun(category: ScoreboardCategory, stage: "initial" | "final") {
+  return category.scheduleRuns.find((run) => run.stage === stage && run.status === "generated") ?? null;
+}
+
+function ensureOperationalGenerationAllowed(category: ScoreboardCategory) {
+  const hasManagedMatches = category.matches.some((match) => isManagedOperationalMatch(match));
+  const hasManagedBracket = Boolean(category.bracket);
+
+  if (hasManagedMatches || hasManagedBracket || category.scheduleRuns.length > 0) {
+    throw new Error("La jornada ya fue generada para esta categoría.");
+  }
+}
+
+function getStandingsByGroupIds(category: ScoreboardCategory): Partial<Record<GroupLabel, string[]>> {
+  return Object.fromEntries(
+    category.groupStandings.map((group) => [group.groupLabel, group.standings.map((row) => row.team_id)]),
+  ) as Partial<Record<GroupLabel, string[]>>;
+}
+
+async function insertScheduleRun(input: {
+  categoryId: string;
+  stage: "initial" | "final";
+  formatKey: string;
+  formatLabel: string;
+  snapshotCutoff: string;
+  presentTeamIds: string[];
+  minimumMatchesPerTeam: number;
+  totalMatchesPlanned: number;
+  officialPlacement: boolean;
+  capacitySummary: Record<string, unknown>;
+  warnings: string[];
+  meta: Record<string, unknown>;
+  generatedFromRunId?: string | null;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("category_schedule_runs")
+    .insert({
+      category_id: input.categoryId,
+      stage: input.stage,
+      format_key: input.formatKey,
+      format_label: input.formatLabel,
+      status: "generated",
+      snapshot_cutoff: input.snapshotCutoff,
+      present_team_ids: input.presentTeamIds,
+      minimum_matches_per_team: input.minimumMatchesPerTeam,
+      total_matches_planned: input.totalMatchesPlanned,
+      official_placement: input.officialPlacement,
+      capacity_summary: input.capacitySummary,
+      warnings: input.warnings,
+      meta: input.meta,
+      generated_from_run_id: input.generatedFromRunId ?? null,
+    })
+    .select("*")
+    .single<CategoryScheduleRunRow>();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "No se pudo registrar la jornada.");
+  }
+
+  return data;
+}
+
+async function insertManagedCategoryMatches(input: {
+  categoryId: string;
+  scheduleRunId: string;
+  drafts: Array<{
+    homeTeamId: string;
+    awayTeamId: string;
+    phase: "group" | "league" | "placement" | "friendly";
+    groupLabel: GroupLabel | null;
+    countsForStandings: boolean;
+    roundLabel: string | null;
+    matchOrder: number;
+    scheduledAt: string | null;
+    location: string | null;
+    notes: string | null;
+  }>;
+}) {
+  if (!input.drafts.length) {
+    return;
+  }
+
+  const payload = input.drafts.map((draft) => ({
+    category_id: input.categoryId,
+    home_team_id: draft.homeTeamId,
+    away_team_id: draft.awayTeamId,
+    phase: draft.phase,
+    group_label: draft.groupLabel,
+    counts_for_standings: draft.countsForStandings,
+    schedule_run_id: input.scheduleRunId,
+    round_label: draft.roundLabel,
+    match_order: draft.matchOrder,
+    scheduled_at: draft.scheduledAt,
+    location: draft.location,
+    notes: draft.notes,
+    status: "scheduled" as const,
+  }));
+
+  const { error } = await supabaseAdmin.from("category_matches").insert(payload);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+function getRoundName(roundNumber: number, roundCount: number, thirdPlaceLabel: string | null) {
+  const effectiveRoundCount = thirdPlaceLabel && roundCount >= 2 ? roundCount : roundCount;
+
+  if (roundNumber === effectiveRoundCount) {
+    return "Final";
+  }
+
+  if (roundNumber === effectiveRoundCount - 1) {
+    return "Semifinal";
+  }
+
+  if (roundNumber === effectiveRoundCount - 2) {
+    return "Cuartos";
+  }
+
+  return `Ronda ${roundNumber}`;
+}
+
+async function createBracketStructure(input: {
+  categoryId: string;
+  bracketName: string;
+  qualifiedTeamCount: number;
+  seededTeamIds: Array<string | null>;
+}) {
+  const roundCount = Math.log2(input.qualifiedTeamCount);
+
+  const { data: bracket, error: bracketError } = await supabaseAdmin
+    .from("category_brackets")
+    .insert({
+      category_id: input.categoryId,
+      name: input.bracketName,
+      qualified_team_count: input.qualifiedTeamCount,
+      format: "single_elimination",
+      status: "active",
+    })
+    .select("*")
+    .single<{ id: string }>();
+
+  if (bracketError || !bracket) {
+    throw new Error(bracketError?.message ?? "No se pudo crear el cuadro.");
+  }
+
+  const roundsToInsert = Array.from({ length: roundCount }, (_, index) => ({
+    bracket_id: bracket.id,
+    round_number: index + 1,
+    name: getRoundName(index + 1, roundCount, null),
+  }));
+
+  const { data: roundRows, error: roundsError } = await supabaseAdmin
+    .from("bracket_rounds")
+    .insert(roundsToInsert)
+    .select("*");
+
+  if (roundsError || !roundRows) {
+    throw new Error(roundsError?.message ?? "No se pudieron crear las rondas.");
+  }
+
+  const roundsByNumber = new Map(roundRows.map((round) => [round.round_number, round.id]));
+  const previousRoundMatchIds = new Map<number, string[]>();
+
+  for (let roundNumber = 1; roundNumber <= roundCount; roundNumber += 1) {
+    const matchCount = input.qualifiedTeamCount / 2 ** roundNumber;
+    const matchesToInsert = Array.from({ length: matchCount }, (_, index) => {
+      if (roundNumber === 1) {
+        const homeTeamId = input.seededTeamIds[index * 2] ?? null;
+        const awayTeamId = input.seededTeamIds[index * 2 + 1] ?? null;
+        const isBye = Boolean(homeTeamId) !== Boolean(awayTeamId);
+
+        return {
+          bracket_id: bracket.id,
+          round_id: roundsByNumber.get(roundNumber)!,
+          round_number: roundNumber,
+          match_number: index + 1,
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId,
+          status: isBye ? ("completed" as const) : ("scheduled" as const),
+        };
+      }
+
+      const sourceMatches = previousRoundMatchIds.get(roundNumber - 1) ?? [];
+
+      return {
+        bracket_id: bracket.id,
+        round_id: roundsByNumber.get(roundNumber)!,
+        round_number: roundNumber,
+        match_number: index + 1,
+        home_source_match_id: sourceMatches[index * 2] ?? null,
+        away_source_match_id: sourceMatches[index * 2 + 1] ?? null,
+        status: "scheduled" as const,
+      };
+    });
+
+    const { data: insertedMatches, error: matchesError } = await supabaseAdmin
+      .from("bracket_matches")
+      .insert(matchesToInsert)
+      .select("id, round_number, match_number");
+
+    if (matchesError || !insertedMatches) {
+      throw new Error(matchesError?.message ?? "No se pudieron crear los cruces.");
+    }
+
+    previousRoundMatchIds.set(
+      roundNumber,
+      insertedMatches
+        .sort((left, right) => left.match_number - right.match_number)
+        .map((match) => match.id),
+    );
+  }
+
+  return bracket.id;
+}
+
+function getBracketLosersForThirdPlace(category: ScoreboardCategory, bracketId: string) {
+  const rounds = category.bracket?.bracket.id === bracketId ? category.bracket.rounds : [];
+  const semifinalRound = rounds.find((round) => round.round.round_number === 1);
+
+  if (!semifinalRound || semifinalRound.matches.length !== 2) {
+    return null;
+  }
+
+  const losers = semifinalRound.matches.map((match) => {
+    if (match.status !== "completed" || !match.home_team || !match.away_team || !match.winner_team) {
+      return null;
+    }
+
+    return match.home_team.id === match.winner_team.id ? match.away_team : match.home_team;
+  });
+
+  if (losers.some((entry) => !entry)) {
+    return null;
+  }
+
+  return losers as [NonNullable<(typeof semifinalRound.matches)[number]["home_team"]>, NonNullable<(typeof semifinalRound.matches)[number]["home_team"]>];
 }
 
 function notifyStaffOfResultUpdate(
@@ -610,23 +926,15 @@ export async function generateBracketAction(formData: FormData) {
     redirect("/app/admin?error=cuadro");
   }
 
-  const { data: standings, error: standingsError } = await supabaseAdmin
-    .from("category_standings")
-    .select("*")
-    .eq("category_id", parsed.data.categoryId)
-    .order("total_points", { ascending: false })
-    .order("goal_difference", { ascending: false })
-    .order("goals_for", { ascending: false })
-    .order("team_name", { ascending: true });
+  const { category } = await loadAdminCategory(parsed.data.categoryId);
 
-  if (standingsError || !standings || standings.length < parsed.data.qualifiedTeamCount) {
+  if (!category || category.standings.length < parsed.data.qualifiedTeamCount) {
     redirect("/app/admin?error=clasificados");
   }
 
-  const qualified = standings.slice(0, parsed.data.qualifiedTeamCount);
+  const qualified = category.standings.slice(0, parsed.data.qualifiedTeamCount);
   const seedOrder = buildSeedOrder(parsed.data.qualifiedTeamCount);
-  const seededTeams = seedOrder.map((seed) => qualified[seed - 1]);
-  const roundCount = Math.log2(parsed.data.qualifiedTeamCount);
+  const seededTeamIds = seedOrder.map((seed) => qualified[seed - 1]?.team_id ?? null);
 
   const { data: existingBracket } = await supabaseAdmin
     .from("category_brackets")
@@ -639,97 +947,291 @@ export async function generateBracketAction(formData: FormData) {
     await supabaseAdmin.from("category_brackets").delete().eq("id", existingBracket.id);
   }
 
-  const { data: bracket, error: bracketError } = await supabaseAdmin
-    .from("category_brackets")
-    .insert({
-      category_id: parsed.data.categoryId,
-      name: parsed.data.bracketName,
-      qualified_team_count: parsed.data.qualifiedTeamCount,
-      format: "single_elimination",
-      status: "active",
-    })
-    .select("*")
-    .single<{ id: string }>();
-
-  if (bracketError || !bracket) {
-    redirect("/app/admin?error=crear-cuadro");
-  }
-
-  const roundsToInsert = Array.from({ length: roundCount }, (_, index) => ({
-    bracket_id: bracket.id,
-    round_number: index + 1,
-    name:
-      index === roundCount - 1
-        ? "Final"
-        : index === roundCount - 2
-          ? "Semifinal"
-          : index === roundCount - 3
-            ? "Cuartos"
-            : `Ronda ${index + 1}`,
-  }));
-
-  const { data: roundRows, error: roundsError } = await supabaseAdmin
-    .from("bracket_rounds")
-    .insert(roundsToInsert)
-    .select("*");
-
-  if (roundsError || !roundRows) {
-    redirect("/app/admin?error=rondas-cuadro");
-  }
-
-  const roundsByNumber = new Map(roundRows.map((round) => [round.round_number, round.id]));
-  const previousRoundMatchIds = new Map<number, string[]>();
-
-  for (let roundNumber = 1; roundNumber <= roundCount; roundNumber += 1) {
-    const matchCount = parsed.data.qualifiedTeamCount / 2 ** roundNumber;
-    const matchesToInsert = Array.from({ length: matchCount }, (_, index) => {
-      if (roundNumber === 1) {
-        const homeSeed = seededTeams[index * 2] ?? null;
-        const awaySeed = seededTeams[index * 2 + 1] ?? null;
-
-        return {
-          bracket_id: bracket.id,
-          round_id: roundsByNumber.get(roundNumber)!,
-          round_number: roundNumber,
-          match_number: index + 1,
-          home_team_id: homeSeed?.team_id ?? null,
-          away_team_id: awaySeed?.team_id ?? null,
-          status: "scheduled" as const,
-        };
-      }
-
-      const sourceMatches = previousRoundMatchIds.get(roundNumber - 1) ?? [];
-
-      return {
-        bracket_id: bracket.id,
-        round_id: roundsByNumber.get(roundNumber)!,
-        round_number: roundNumber,
-        match_number: index + 1,
-        home_source_match_id: sourceMatches[index * 2] ?? null,
-        away_source_match_id: sourceMatches[index * 2 + 1] ?? null,
-        status: "scheduled" as const,
-      };
+  try {
+    await createBracketStructure({
+      categoryId: parsed.data.categoryId,
+      bracketName: parsed.data.bracketName,
+      qualifiedTeamCount: parsed.data.qualifiedTeamCount,
+      seededTeamIds,
     });
-
-    const { data: insertedMatches, error: matchesError } = await supabaseAdmin
-      .from("bracket_matches")
-      .insert(matchesToInsert)
-      .select("id, round_number, match_number");
-
-    if (matchesError || !insertedMatches) {
-      redirect("/app/admin?error=partidos-cuadro");
-    }
-
-    previousRoundMatchIds.set(
-      roundNumber,
-      insertedMatches
-        .sort((left, right) => left.match_number - right.match_number)
-        .map((match) => match.id),
-    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "crear-cuadro";
+    redirect(`/app/admin?error=${encodeURIComponent(message)}`);
   }
 
   revalidateTournamentSurface(parsed.data.categoryId);
   redirect("/app/admin?saved=cuadro");
+}
+
+export async function saveOperationalSettingsAction(formData: FormData) {
+  await requireAdminSession();
+
+  const parsed = operationalSettingsSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    matchMinutes: formData.get("matchMinutes"),
+    turnoverMinutes: formData.get("turnoverMinutes"),
+    venueCount: formData.get("venueCount"),
+    windowStart: formData.get("windowStart"),
+    windowEnd: formData.get("windowEnd"),
+  });
+
+  if (!parsed.success) {
+    redirect("/app/admin?error=ajustes-jornada");
+  }
+
+  const { error } = await supabaseAdmin.from("category_operational_settings").upsert({
+    category_id: parsed.data.categoryId,
+    match_minutes: parsed.data.matchMinutes,
+    turnover_minutes: parsed.data.turnoverMinutes,
+    venue_count: parsed.data.venueCount,
+    window_start: normalizeTimeValue(parsed.data.windowStart),
+    window_end: normalizeTimeValue(parsed.data.windowEnd),
+  });
+
+  if (error) {
+    redirect(`/app/admin?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidateTournamentSurface(parsed.data.categoryId);
+  redirect("/app/admin?saved=ajustes-jornada");
+}
+
+export async function generateOperationalScheduleAction(formData: FormData) {
+  await requireAdminSession();
+
+  const parsed = generateOperationalScheduleSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    redirectTo: formData.get("redirectTo"),
+  });
+
+  if (!parsed.success) {
+    redirect("/app/admin?error=jornada");
+  }
+
+  try {
+    const { adminData, category } = await loadAdminCategory(parsed.data.categoryId);
+
+    if (!category) {
+      throw new Error("Categoría no encontrada.");
+    }
+
+    ensureOperationalGenerationAllowed(category);
+
+    const presentTeams = getPresentTeams(category);
+
+    if (presentTeams.length < 4) {
+      throw new Error("Necesitas al menos 4 equipos presentes para generar la jornada.");
+    }
+
+    const settings = category.operationalSettings ?? getDefaultOperationalSettings(category.category);
+    const snapshotCutoff = new Date().toISOString();
+    const plan = buildInitialOperationalPlan({
+      category: category.category,
+      eventDate: getEventDate(adminData.tournament.start_date),
+      presentTeams,
+      settings,
+    });
+
+    const scheduleRun = await insertScheduleRun({
+      categoryId: category.category.id,
+      stage: "initial",
+      formatKey: plan.formatKey,
+      formatLabel: plan.formatLabel,
+      snapshotCutoff,
+      presentTeamIds: presentTeams.map((team) => team.id),
+      minimumMatchesPerTeam: plan.minimumMatchesPerTeam,
+      totalMatchesPlanned: plan.totalMatchesPlanned,
+      officialPlacement: plan.officialPlacement,
+      capacitySummary: plan.capacity,
+      warnings: plan.warnings,
+      meta: buildInitialMetaFromPlan(plan),
+    });
+
+    if (plan.generatedMatches.length > 0) {
+      await insertManagedCategoryMatches({
+        categoryId: category.category.id,
+        scheduleRunId: scheduleRun.id,
+        drafts: plan.generatedMatches,
+      });
+    }
+
+    if (plan.bracketPlan) {
+      await createBracketStructure({
+        categoryId: category.category.id,
+        bracketName: plan.bracketPlan.name,
+        qualifiedTeamCount: plan.bracketPlan.qualifiedTeamCount,
+        seededTeamIds: plan.bracketPlan.seededTeamIds,
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "jornada";
+    redirect(`/app/admin?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidateTournamentSurface(parsed.data.categoryId, parsed.data.redirectTo);
+  redirect(safeRedirect(parsed.data.redirectTo, "/app/admin?saved=jornada"));
+}
+
+export async function generateOperationalFinalStageAction(formData: FormData) {
+  await requireAdminSession();
+
+  const parsed = generateFinalStageSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    runId: formData.get("runId"),
+    redirectTo: formData.get("redirectTo"),
+  });
+
+  if (!parsed.success) {
+    redirect("/app/admin?error=fase-final");
+  }
+
+  try {
+    const { adminData, category } = await loadAdminCategory(parsed.data.categoryId);
+
+    if (!category) {
+      throw new Error("Categoría no encontrada.");
+    }
+
+    const initialRun =
+      (parsed.data.runId ? category.scheduleRuns.find((run) => run.id === parsed.data.runId) : null) ??
+      getLatestGeneratedRun(category, "initial");
+
+    if (!initialRun) {
+      throw new Error("No hay una fase inicial generada.");
+    }
+
+    if (getLatestGeneratedRun(category, "final")) {
+      throw new Error("La fase final ya fue generada.");
+    }
+
+    const pendingInitialMatches = category.matches.filter(
+      (match) =>
+        match.schedule_run_id === initialRun.id &&
+        match.counts_for_standings &&
+        match.status !== "completed",
+    );
+
+    if (pendingInitialMatches.length > 0) {
+      throw new Error("Completa primero todos los partidos de la fase inicial.");
+    }
+
+    const settings = category.operationalSettings ?? getDefaultOperationalSettings(category.category);
+    const plan = buildFinalStagePlan({
+      category: category.category,
+      eventDate: getEventDate(adminData.tournament.start_date),
+      settings,
+      teams: category.teams,
+      standingsByGroup: getStandingsByGroupIds(category),
+      overallStandings: category.standings.map((row) => row.team_id),
+      previousRun: initialRun,
+    });
+
+    const finalRun = await insertScheduleRun({
+      categoryId: category.category.id,
+      stage: "final",
+      formatKey: plan.formatKey,
+      formatLabel: `${plan.formatLabel} · Fase final`,
+      snapshotCutoff: new Date().toISOString(),
+      presentTeamIds: initialRun.present_team_ids,
+      minimumMatchesPerTeam: plan.minimumMatchesPerTeam,
+      totalMatchesPlanned: plan.totalMatchesPlanned,
+      officialPlacement: plan.officialPlacement,
+      capacitySummary: plan.capacity,
+      warnings: plan.warnings,
+      meta: buildInitialMetaFromPlan(plan),
+      generatedFromRunId: initialRun.id,
+    });
+
+    if (plan.generatedMatches.length > 0) {
+      await insertManagedCategoryMatches({
+        categoryId: category.category.id,
+        scheduleRunId: finalRun.id,
+        drafts: plan.generatedMatches,
+      });
+    }
+
+    if (plan.bracketPlan) {
+      await createBracketStructure({
+        categoryId: category.category.id,
+        bracketName: plan.bracketPlan.name,
+        qualifiedTeamCount: plan.bracketPlan.qualifiedTeamCount,
+        seededTeamIds: plan.bracketPlan.seededTeamIds,
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "fase-final";
+    redirect(`/app/admin?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidateTournamentSurface(parsed.data.categoryId, parsed.data.redirectTo);
+  redirect(safeRedirect(parsed.data.redirectTo, "/app/admin?saved=fase-final"));
+}
+
+export async function generateThirdPlaceMatchAction(formData: FormData) {
+  await requireAdminSession();
+
+  const parsed = generateThirdPlaceSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    bracketId: formData.get("bracketId"),
+    redirectTo: formData.get("redirectTo"),
+  });
+
+  if (!parsed.success) {
+    redirect("/app/admin?error=tercer-puesto");
+  }
+
+  try {
+    const { category } = await loadAdminCategory(parsed.data.categoryId);
+
+    if (!category || !category.bracket || category.bracket.bracket.id !== parsed.data.bracketId) {
+      throw new Error("No se encontró el cuadro activo.");
+    }
+
+    const existingThirdPlace = category.matches.find(
+      (match) => match.phase === "placement" && match.round_label === "3º/4º",
+    );
+
+    if (existingThirdPlace) {
+      throw new Error("El partido por el tercer puesto ya existe.");
+    }
+
+    const losers = getBracketLosersForThirdPlace(category, parsed.data.bracketId);
+
+    if (!losers) {
+      throw new Error("Las semifinales deben estar completadas para generar el 3º/4º.");
+    }
+
+    const latestFinalRun = getLatestGeneratedRun(category, "final");
+
+    if (!latestFinalRun) {
+      throw new Error("Falta la fase final generada.");
+    }
+
+    await insertManagedCategoryMatches({
+      categoryId: category.category.id,
+      scheduleRunId: latestFinalRun.id,
+      drafts: [
+        {
+          homeTeamId: losers[0].id,
+          awayTeamId: losers[1].id,
+          phase: "placement",
+          groupLabel: null,
+          countsForStandings: false,
+          roundLabel: "3º/4º",
+          matchOrder: category.matches.length + 1,
+          scheduledAt: null,
+          location: null,
+          notes: "Generado desde semifinales",
+        },
+      ],
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "tercer-puesto";
+    redirect(`/app/admin?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidateTournamentSurface(parsed.data.categoryId, parsed.data.redirectTo);
+  redirect(safeRedirect(parsed.data.redirectTo, "/app/admin?saved=tercer-puesto"));
 }
 
 export async function updateBracketMatchAction(formData: FormData) {
@@ -1169,16 +1671,19 @@ export async function lookupTeamByCodeAction(formData: FormData) {
 
   const parsed = teamLookupSchema.safeParse({
     registrationCode: formData.get("registrationCode"),
+    redirectTo: formData.get("redirectTo"),
   });
 
+  const basePath = parsed.success && parsed.data.redirectTo ? parsed.data.redirectTo : "/app/scan";
+
   if (!parsed.success) {
-    redirect("/app/scan?error=codigo");
+    redirect(`${basePath}?error=codigo`);
   }
 
   const team = await getTeamByRegistrationCode(parsed.data.registrationCode);
 
   if (!team) {
-    redirect("/app/scan?error=no-team");
+    redirect(`${basePath}?error=no-team`);
   }
 
   redirect(`/app/equipo/${team.id}`);

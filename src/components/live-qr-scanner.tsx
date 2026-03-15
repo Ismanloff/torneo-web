@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
 
@@ -29,7 +28,6 @@ function normalizeScannedUrl(value: string) {
 export function LiveQrScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<QrScanner | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [state, setState] = useState<ScannerState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hasCamera, setHasCamera] = useState<boolean | null>(null);
@@ -71,10 +69,10 @@ export function LiveQrScanner() {
     }
 
     if (hasCamera === false) {
-      return "Este dispositivo o navegador no expone cámara a la PWA. Usa la cámara nativa o sube una imagen.";
+      return "Este dispositivo o navegador no expone cámara a la app. Registra el equipo manualmente desde Gestión.";
     }
 
-    return "Abre la cámara desde aquí o usa una foto del QR como respaldo.";
+    return "Abre la cámara y apunta al QR del equipo. La ficha se abrirá automáticamente.";
   }, [error, hasCamera, state]);
 
   const stopScanner = () => {
@@ -137,33 +135,6 @@ export function LiveQrScanner() {
     }
   };
 
-  const handleImageSelection = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    setError(null);
-    setState("starting");
-
-    try {
-      const result = await QrScanner.scanImage(file, {
-        returnDetailedScanResult: true,
-      });
-      handleScanValue(result.data);
-    } catch (scanError) {
-      setState("error");
-      setError(
-        scanError instanceof Error
-          ? scanError.message
-          : "No se pudo leer el QR de la imagen seleccionada.",
-      );
-    } finally {
-      event.target.value = "";
-    }
-  };
-
   return (
     <div className="grid gap-4">
       <div className="relative overflow-hidden rounded-[1.6rem] border border-[var(--app-line)] bg-[rgba(4,8,20,0.96)]">
@@ -178,40 +149,25 @@ export function LiveQrScanner() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <button
           className="app-action"
           onClick={startScanner}
           type="button"
         >
-          {state === "active" ? "Escaneando..." : "Abrir camara"}
-        </button>
-        <button
-          className="app-action app-action--ghost"
-          onClick={() => fileInputRef.current?.click()}
-          type="button"
-        >
-          Leer foto del QR
+          {state === "active" ? "Escaneando..." : "Abrir cámara"}
         </button>
       </div>
 
-      <input
-        accept="image/*"
-        className="hidden"
-        onChange={handleImageSelection}
-        ref={fileInputRef}
-        type="file"
-      />
-
       {state === "active" ? (
         <button className="app-link-pill justify-center" onClick={stopScanner} type="button">
-          Cerrar camara
+          Cerrar cámara
         </button>
       ) : null}
 
       {lastScan && state === "error" ? (
         <p className="app-soft-card px-4 py-3 text-sm text-[var(--app-muted)]">
-          Ultimo contenido detectado: <span className="font-mono text-[var(--app-text)]">{lastScan}</span>
+          Último contenido detectado: <span className="font-mono text-[var(--app-text)]">{lastScan}</span>
         </p>
       ) : null}
     </div>

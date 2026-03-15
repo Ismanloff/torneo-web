@@ -9,7 +9,7 @@ type FilterTab = "hoy" | "proximos" | "todos";
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "hoy", label: "Hoy" },
-  { key: "proximos", label: "Proximos" },
+  { key: "proximos", label: "Próximos" },
   { key: "todos", label: "Todos" },
 ];
 
@@ -139,7 +139,7 @@ export function MatchFilters({ matches }: { matches: MatchItem[] }) {
           <div className="flex flex-col items-center gap-3 rounded-[1.6rem] border border-dashed border-[var(--app-line)] bg-white/[0.02] py-10 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--app-muted)]" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
             <p className="text-sm font-medium text-[var(--app-muted)]">No hay partidos en este filtro.</p>
-            <p className="text-xs text-[var(--app-muted)]/60">Los partidos apareceran aqui cuando se programen</p>
+            <p className="text-xs text-[var(--app-muted)]/60">Los partidos aparecerán aquí cuando se programen</p>
           </div>
         )}
       </div>

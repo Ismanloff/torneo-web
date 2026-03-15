@@ -1,6 +1,8 @@
 "use client";
 
 import { Download } from "lucide-react";
+import { TOURNAMENT_NAME } from "@/lib/branding";
+import { getScoreMetricLabel } from "@/lib/score-metric";
 import type { CategoryStandingRow } from "@/lib/types";
 
 type ExportPdfButtonProps = {
@@ -13,6 +15,7 @@ export function ExportPdfButton({ categoryName, sport, standings }: ExportPdfBut
   async function handleExport() {
     const { jsPDF } = await import("jspdf");
     const autoTable = (await import("jspdf-autotable")).default;
+    const scoreMetricLabel = getScoreMetricLabel(sport);
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -25,30 +28,24 @@ export function ExportPdfButton({ categoryName, sport, standings }: ExportPdfBut
     // Title
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
-    doc.text(`Clasificacion — ${categoryName}`, 14, 20);
+    doc.text(`Clasificación — ${categoryName}`, 14, 20);
 
     // Subtitle
     doc.setTextColor(159, 179, 217);
     doc.setFontSize(12);
-    doc.text(`Torneo Escolar 2026 · ${sport}`, 14, 28);
+    doc.text(`${TOURNAMENT_NAME} · ${sport}`, 14, 28);
 
     // Table data
     const tableData = standings.map((row, index) => [
       index + 1,
       row.team_name,
-      row.total_points,
-      row.played,
-      row.wins,
-      row.draws,
-      row.losses,
       row.goals_for,
-      row.goals_against,
-      row.goal_difference,
+      row.played,
     ]);
 
     autoTable(doc, {
       startY: 35,
-      head: [["Pos", "Equipo", "PTS", "PJ", "G", "E", "P", "GF", "GC", "DG"]],
+      head: [["Pos", "Equipo", scoreMetricLabel, "PJ"]],
       body: tableData,
       theme: "grid",
       styles: {
@@ -68,15 +65,9 @@ export function ExportPdfButton({ categoryName, sport, standings }: ExportPdfBut
       },
       columnStyles: {
         0: { halign: "center", cellWidth: 14 },
-        1: { halign: "left", cellWidth: 60 },
-        2: { halign: "center", fontStyle: "bold", textColor: [141, 246, 95] },
-        3: { halign: "center" },
-        4: { halign: "center" },
-        5: { halign: "center" },
-        6: { halign: "center" },
-        7: { halign: "center" },
-        8: { halign: "center" },
-        9: { halign: "center" },
+        1: { halign: "left", cellWidth: 110 },
+        2: { halign: "center", fontStyle: "bold", textColor: [141, 246, 95], cellWidth: 28 },
+        3: { halign: "center", cellWidth: 22 },
       },
       alternateRowStyles: {
         fillColor: [11, 15, 26],
@@ -110,7 +101,7 @@ export function ExportPdfButton({ categoryName, sport, standings }: ExportPdfBut
       onClick={handleExport}
       className="public-tag"
       style={{ cursor: "pointer", transition: "all 0.18s ease" }}
-      title="Descargar clasificacion en PDF"
+      title="Descargar clasificación en PDF"
     >
       <Download className="h-3.5 w-3.5" />
       PDF

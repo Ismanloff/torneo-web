@@ -30,7 +30,7 @@ function getRoleHomeContent(role: string, hasNextMatch: boolean) {
     return {
       eyebrow: "Mesa y llegada",
       title: hasNextMatch ? "Tu siguiente check-in" : "Sin entradas pendientes",
-      copy: "Prioriza escaneo, control de llegada y acceso rapido a equipos desde pista o mesa.",
+      copy: "Prioriza escaneo, control de llegada y acceso rápido a equipos desde pista o mesa.",
       managementCard: null,
     };
   }
@@ -38,7 +38,7 @@ function getRoleHomeContent(role: string, hasNextMatch: boolean) {
   if (role === "referee") {
     return {
       eyebrow: "Arbitraje en pista",
-      title: hasNextMatch ? "Tu proximo arbitraje" : "Sin arbitrajes pendientes",
+      title: hasNextMatch ? "Tu próximo arbitraje" : "Sin arbitrajes pendientes",
       copy: "Prioriza resultado, estado del partido y ritmo de jornada con una interfaz limpia.",
       managementCard: null,
     };
@@ -46,7 +46,7 @@ function getRoleHomeContent(role: string, hasNextMatch: boolean) {
 
   return {
     eyebrow: "Vista operativa",
-    title: hasNextMatch ? "Tu proximo partido" : "Jornada despejada",
+    title: hasNextMatch ? "Tu próximo partido" : "Jornada despejada",
     copy: "Prioriza escaneo, entrada a mesa y seguimiento de agenda sin ruido visual.",
     managementCard: "admin",
   };
@@ -168,7 +168,7 @@ export default async function StaffAppHomePage() {
           <Link className="app-panel group" href="/app/scan">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="app-kicker">{staff.profile.role === "referee" ? "Acceso rapido" : "Entrada rapida"}</p>
+                <p className="app-kicker">{staff.profile.role === "referee" ? "Acceso rápido" : "Entrada rápida"}</p>
                 <p className="mt-3 font-display text-[1.8rem] font-semibold tracking-[-0.04em] text-white">
                   Escanear QR
                 </p>
@@ -191,7 +191,7 @@ export default async function StaffAppHomePage() {
                 <p className="mt-2 text-sm text-[var(--app-muted)]">
                   {staff.profile.role === "assistant"
                     ? "Fichas y codigos para control de llegada y apoyo de mesa."
-                    : "Acceso manual a fichas y codigos sin depender del QR."}
+                    : "Acceso manual a fichas y códigos sin depender del QR."}
                 </p>
               </div>
               <Users className="h-6 w-6 text-[var(--app-info)] transition group-hover:scale-105" />
@@ -201,12 +201,12 @@ export default async function StaffAppHomePage() {
             <Link className="app-panel group" href="/app/admin">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="app-kicker">Gestion</p>
+                  <p className="app-kicker">Gestión</p>
                   <p className="mt-3 font-display text-[1.8rem] font-semibold tracking-[-0.04em] text-white">
-                    Torneo
+                    Panel
                   </p>
                   <p className="mt-2 text-sm text-[var(--app-muted)]">
-                    Calendario, staff, recursos y configuracion fuera del flujo de pista.
+                    Calendario, staff, recursos y configuración fuera del flujo de pista.
                   </p>
                 </div>
                 <Shield className="h-6 w-6 text-[var(--app-accent)] transition group-hover:scale-105" />

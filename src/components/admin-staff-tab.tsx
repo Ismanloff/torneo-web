@@ -27,8 +27,8 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
           <label className="field-shell">
             <span className="field-label field-label--dark">Rol</span>
             <select className="field-input field-input--dark" defaultValue="referee" name="role">
-              <option value="referee">Arbitro</option>
-              <option value="assistant">Organizacion</option>
+              <option value="referee">Árbitro</option>
+              <option value="assistant">Organización</option>
               <option value="admin">Admin</option>
             </select>
           </label>
@@ -73,7 +73,7 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
             ))
           ) : (
             <div className="admin-empty-state">
-              Todavia no hay staff operativo cargado.
+              Todavía no hay staff operativo cargado.
             </div>
           )}
         </div>

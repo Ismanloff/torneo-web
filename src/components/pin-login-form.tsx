@@ -88,7 +88,7 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8fa1c2]">
-          PIN de 6 digitos
+          PIN de 6 dígitos
         </p>
         <p className="font-mono text-xs text-[#8fa1c2]">{filledCount}/6</p>
       </div>
@@ -111,7 +111,7 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
               ref={(el) => {
                 refs.current[i] = el;
               }}
-              aria-label={`Digito ${i + 1} de 6`}
+              aria-label={`Dígito ${i + 1} de 6`}
               autoComplete="one-time-code"
               className={[
                 "h-14 w-12 sm:h-16 sm:w-[3.4rem]",
@@ -156,11 +156,11 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
           </p>
         ) : error ? (
           <p className="text-sm font-medium text-[#fca5a5]">
-            PIN incorrecto. Intentalo de nuevo.
+            PIN incorrecto. Inténtalo de nuevo.
           </p>
         ) : (
           <p className="text-sm text-[var(--app-muted)]">
-            Introduce tu PIN de 6 digitos
+            Introduce tu PIN de 6 dígitos
           </p>
         )}
       </div>

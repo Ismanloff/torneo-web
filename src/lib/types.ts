@@ -2,6 +2,11 @@ export type StaffRole = "admin" | "referee" | "assistant";
 export type StaffDuty = "referee" | "assistant";
 export type MatchScope = "category_match" | "bracket_match";
 export type CheckinStatus = "pendiente" | "presentado" | "incidencia" | "no_presentado";
+export type CategoryMatchPhase = "group" | "league" | "placement" | "friendly";
+export type ScheduleRunStage = "initial" | "final";
+export type FinalStageType = "none" | "top2_final" | "top4_bracket";
+export type RankSourceMode = "overall" | "group";
+export type GroupLabel = "A" | "B";
 
 export type TournamentRow = {
   id: string;
@@ -28,6 +33,17 @@ export type CategoryRow = {
   max_teams: number;
   current_teams: number;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CategoryOperationalSettingsRow = {
+  category_id: string;
+  match_minutes: number;
+  turnover_minutes: number;
+  venue_count: number;
+  window_start: string;
+  window_end: string;
   created_at: string;
   updated_at: string;
 };
@@ -94,6 +110,10 @@ export type CategoryMatchRow = {
   category_id: string;
   home_team_id: string;
   away_team_id: string;
+  phase: CategoryMatchPhase;
+  group_label: GroupLabel | null;
+  counts_for_standings: boolean;
+  schedule_run_id: string | null;
   round_label: string | null;
   match_order: number;
   scheduled_at: string | null;
@@ -127,6 +147,63 @@ export type CategoryStandingRow = {
   goal_difference: number;
   adjustment_points: number;
   total_points: number;
+};
+
+export type RankSelector = {
+  mode: RankSourceMode;
+  rank: number;
+  groupLabel?: GroupLabel;
+};
+
+export type PlacementTemplate = {
+  label: string;
+  home: RankSelector;
+  away: RankSelector;
+};
+
+export type BracketTemplate = {
+  name: string;
+  qualifiedTeamCount: number;
+  seedSelectors: RankSelector[];
+  thirdPlaceLabel: string | null;
+};
+
+export type ScheduleRunMeta = {
+  initialStage: "league" | "group" | "bracket";
+  finalStage: FinalStageType;
+  groupLabels: GroupLabel[];
+  finalMatches: PlacementTemplate[];
+  bracketTemplate: BracketTemplate | null;
+  directBracket: boolean;
+};
+
+export type OperationalCapacitySummary = {
+  slotMinutes: number;
+  totalWindowMinutes: number;
+  slotsPerVenue: number;
+  venueCount: number;
+  maxMatches: number;
+};
+
+export type CategoryScheduleRunRow = {
+  id: string;
+  category_id: string;
+  stage: ScheduleRunStage;
+  format_key: string;
+  format_label: string;
+  status: "generated" | "cancelled";
+  snapshot_at: string;
+  snapshot_cutoff: string;
+  present_team_ids: string[];
+  minimum_matches_per_team: number;
+  total_matches_planned: number;
+  official_placement: boolean;
+  capacity_summary: OperationalCapacitySummary;
+  warnings: string[];
+  meta: ScheduleRunMeta;
+  generated_from_run_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type TeamScoreAdjustmentRow = {
@@ -302,8 +379,14 @@ export type ScoreboardCategory = {
   category: CategoryRow;
   category_referee_assignment: StaffSummary | null;
   category_assistant_assignment: StaffSummary | null;
+  operationalSettings: CategoryOperationalSettingsRow | null;
+  scheduleRuns: CategoryScheduleRunRow[];
   teams: (TeamRow & { qr_token: MatchQrTokenRow | null })[];
   standings: CategoryStandingRow[];
+  groupStandings: Array<{
+    groupLabel: GroupLabel;
+    standings: CategoryStandingRow[];
+  }>;
   matches: EnrichedCategoryMatch[];
   adjustments: Array<
     TeamScoreAdjustmentRow & {
@@ -353,4 +436,30 @@ export type OperationalDashboardData = {
   staff: StaffProfileRow;
   assignedMatches: OperationalMatchSummary[];
   teams: (TeamRow & { category: CategoryRow })[];
+};
+
+export type AdminArrivalLogEntry = {
+  teamId: string;
+  teamName: string;
+  registrationCode: string;
+  categoryId: string;
+  categoryName: string;
+  sport: string;
+  checkedInAt: string;
+};
+
+export type AdminMatchCheckinLogEntry = {
+  key: string;
+  teamId: string;
+  teamName: string;
+  registrationCode: string;
+  matchId: string;
+  matchScope: MatchScope;
+  matchLabel: string;
+  categoryId: string;
+  categoryName: string;
+  status: CheckinStatus;
+  incidentLabel: string | null;
+  checkedInAt: string;
+  recordedByName: string | null;
 };

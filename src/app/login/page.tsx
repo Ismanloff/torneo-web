@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { loginAdminAction } from "@/app/admin/actions";
 import { PinLoginForm } from "@/components/pin-login-form";
 import { getAdminAccessContext } from "@/lib/admin-auth";
+import { TOURNAMENT_NAME } from "@/lib/branding";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -44,12 +45,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </span>
           </div>
 
-          <p className="public-kicker">Torneo Escolar</p>
+          <p className="public-kicker">{TOURNAMENT_NAME}</p>
           <h1 className="public-title mt-3 text-4xl text-white sm:text-[2.8rem]">
             Acceso Staff
           </h1>
           <p className="mt-3 text-sm leading-7 text-[#a8b7d2]">
-            Entra con PIN para abrir la operativa movil. La experiencia esta optimizada para uso en pista como app instalada.
+            Entra con PIN para abrir la operativa móvil. La experiencia está optimizada para uso en pista como app instalada.
           </p>
 
           {errorLabel ? (

@@ -15,21 +15,21 @@
   --signal: #bb3a1b;
   --signal-soft: #ffd287;
   --shadow: 0 22px 80px rgba(39, 18, 8, 0.1);
-  --app-bg: #050816;
-  --app-bg-soft: #0a1324;
-  --app-surface: rgba(10, 16, 31, 0.72);
-  --app-surface-strong: rgba(7, 12, 24, 0.9);
-  --app-line: rgba(148, 163, 184, 0.15);
+  --app-bg: #07110d;
+  --app-bg-soft: #0f1a17;
+  --app-surface: rgba(12, 21, 19, 0.78);
+  --app-surface-strong: rgba(9, 16, 15, 0.92);
+  --app-line: rgba(188, 197, 176, 0.14);
   --app-line-strong: rgba(255, 255, 255, 0.09);
-  --app-text: #f8fafc;
-  --app-muted: #96aacd;
-  --app-accent: #8df65f;
-  --app-accent-strong: #54d12b;
-  --app-accent-soft: rgba(141, 246, 95, 0.14);
-  --app-info: #61d8ff;
-  --app-info-soft: rgba(97, 216, 255, 0.14);
-  --app-shadow: 0 26px 80px rgba(2, 6, 23, 0.48);
-  --app-shadow-soft: 0 20px 55px rgba(2, 6, 23, 0.28);
+  --app-text: #f7f4eb;
+  --app-muted: #b5c0ad;
+  --app-accent: #c9dd78;
+  --app-accent-strong: #9ab24c;
+  --app-accent-soft: rgba(201, 221, 120, 0.14);
+  --app-info: #d9c48d;
+  --app-info-soft: rgba(217, 196, 141, 0.14);
+  --app-shadow: 0 26px 80px rgba(5, 8, 7, 0.48);
+  --app-shadow-soft: 0 20px 55px rgba(5, 8, 7, 0.28);
 }
 
 * {
@@ -472,6 +472,18 @@ textarea {
   border: 1px solid var(--app-line);
 }
 
+.app-action--danger {
+  border-color: rgba(248, 113, 113, 0.22);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.app-action--danger:hover {
+  box-shadow: none;
+  border-color: rgba(248, 113, 113, 0.34);
+  background: rgba(127, 29, 29, 0.24);
+}
+
 .app-nav {
   position: fixed;
   left: 50%;
@@ -553,6 +565,7 @@ textarea {
     radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.18), transparent 22%),
     linear-gradient(180deg, #030611 0%, #081223 42%, #07101d 100%);
   overflow: clip;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .public-arena::before {
@@ -576,9 +589,11 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 40;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(3, 6, 17, 0.92), rgba(3, 6, 17, 0.72));
+  isolation: isolate;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(11, 18, 16, 0.94), rgba(11, 18, 16, 0.82));
   backdrop-filter: blur(20px);
+  padding-top: env(safe-area-inset-top);
 }
 
 .public-topbar__inner {
@@ -587,13 +602,14 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 4.5rem;
+  min-height: 4.8rem;
+  position: relative;
 }
 
 .public-brand {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.95rem;
 }
 
 .public-brand__mark {
@@ -603,9 +619,52 @@ textarea {
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 0.85rem;
-  background: linear-gradient(135deg, rgba(84, 209, 43, 0.92), rgba(56, 189, 248, 0.88));
-  color: #04101a;
-  box-shadow: 0 12px 30px rgba(84, 209, 43, 0.22);
+  border: 1px solid rgba(235, 224, 192, 0.16);
+  background: linear-gradient(180deg, rgba(244, 237, 218, 0.92), rgba(214, 203, 170, 0.84));
+  color: #233124;
+  box-shadow: 0 12px 30px rgba(8, 12, 10, 0.24);
+}
+
+.public-brand__mark--logo {
+  background: rgba(244, 237, 218, 0.92);
+}
+
+.public-brand__logo {
+  width: 74%;
+  height: 74%;
+  object-fit: contain;
+}
+
+.public-brand__copy {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.public-brand__eyebrow {
+  margin: 0;
+  color: #d7c68f;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+.public-brand__title {
+  margin: 0;
+  color: #f6f2e8;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.08;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.public-brand__subtitle {
+  margin: 0;
+  color: #c5d0bc;
+  font-size: 0.83rem;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
 }
 
 .mobile-nav-btn {
@@ -632,8 +691,42 @@ textarea {
   gap: 0.55rem;
 }
 
+.public-nav--desktop {
+  display: flex;
+}
+
+.public-nav--mobile {
+  display: none;
+}
+
+.public-nav-backdrop {
+  display: none;
+}
+
 @media (max-width: 767px) {
-  .public-nav {
+  .public-nav--desktop {
+    display: none;
+  }
+
+  .public-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    border: 0;
+    background: rgba(3, 6, 17, 0.82);
+    backdrop-filter: blur(12px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+  }
+
+  .public-nav-backdrop--open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .public-nav--mobile {
     display: none;
     position: absolute;
     top: 100%;
@@ -641,10 +734,14 @@ textarea {
     right: 0;
     flex-direction: column;
     gap: 0.25rem;
-    padding: 0.75rem 1rem 1rem;
-    background: linear-gradient(180deg, rgba(3, 6, 17, 0.98), rgba(3, 6, 17, 0.95));
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(20px);
+    z-index: 2;
+    margin: 0.5rem 1rem 0;
+    padding: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.2rem;
+    background: linear-gradient(180deg, rgba(11, 18, 16, 0.985), rgba(11, 18, 16, 0.965));
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(22px);
   }
 
   .public-nav--open {
@@ -676,7 +773,7 @@ textarea {
   min-height: 2.6rem;
   padding: 0.65rem 0.9rem;
   border-radius: 999px;
-  color: #9fb3d9;
+  color: #c6d1bf;
   font-size: 0.76rem;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -688,8 +785,8 @@ textarea {
 }
 
 .public-nav__link:hover {
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.06);
+  color: #f8f4e8;
+  background: rgba(255, 255, 255, 0.05);
   transform: translateY(-1px);
 }
 
@@ -704,6 +801,10 @@ textarea {
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 84% 22%, rgba(202, 221, 120, 0.14), transparent 26%),
+    radial-gradient(circle at 12% 0%, rgba(217, 196, 141, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(7, 14, 12, 0.98), rgba(10, 18, 17, 0.92));
 }
 
 .public-hero--compact .public-glass {
@@ -724,7 +825,7 @@ textarea {
   width: 24rem;
   height: 24rem;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(84, 209, 43, 0.18), transparent 65%);
+  background: radial-gradient(circle, rgba(201, 221, 120, 0.18), transparent 65%);
   filter: blur(10px);
   pointer-events: none;
 }
@@ -732,15 +833,15 @@ textarea {
 .public-glass {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1.8rem;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(8, 13, 26, 0.88));
-  box-shadow: 0 28px 90px rgba(2, 6, 23, 0.36);
+  background: linear-gradient(180deg, rgba(17, 27, 24, 0.76), rgba(11, 18, 16, 0.9));
+  box-shadow: 0 28px 90px rgba(2, 6, 5, 0.34);
   backdrop-filter: blur(22px);
 }
 
 .public-soft {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 1.5rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.035);
   backdrop-filter: blur(18px);
 }
 
@@ -753,17 +854,206 @@ textarea {
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
-  color: #d6e1f3;
+  color: #edf3e8;
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.public-tag--accent {
+.sport-tab {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 3.15rem;
+  padding: 0.8rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d6e1f3;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.sport-tab:hover {
+  transform: translateY(-1px);
+  border-color: rgba(141, 246, 95, 0.18);
+}
+
+.sport-tab--active {
   background: rgba(84, 209, 43, 0.14);
-  border-color: rgba(84, 209, 43, 0.2);
+  border-color: rgba(84, 209, 43, 0.24);
   color: #cbffb8;
+  box-shadow: inset 0 0 0 1px rgba(84, 209, 43, 0.14);
+}
+
+.sport-tab__label {
+  min-width: 0;
+  line-height: 1;
+}
+
+.public-tag--accent {
+  background: rgba(201, 221, 120, 0.14);
+  border-color: rgba(201, 221, 120, 0.2);
+  color: #edf7cb;
+}
+
+.public-tag--soft {
+  background: rgba(217, 196, 141, 0.12);
+  border-color: rgba(217, 196, 141, 0.18);
+  color: #f0e1bb;
+}
+
+.public-hero-panel {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at top right, rgba(201, 221, 120, 0.12), transparent 30%),
+    radial-gradient(circle at left bottom, rgba(217, 196, 141, 0.09), transparent 26%),
+    linear-gradient(180deg, rgba(18, 30, 27, 0.74), rgba(10, 17, 16, 0.58));
+  box-shadow: 0 32px 90px rgba(2, 6, 5, 0.22);
+  padding: 1.1rem;
+}
+
+.public-hero-panel__copy {
+  min-width: 0;
+}
+
+.public-hero-panel__meta {
+  max-width: 34rem;
+  line-height: 1.55;
+}
+
+.public-hero-panel__lead {
+  max-width: 42rem;
+  color: #f1ead6;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.public-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.public-hero-panel__rail {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.public-hero-stats {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.public-hero-stat,
+.public-hero-note,
+.public-sport-cta {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(18px);
+}
+
+.public-hero-stat {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.95rem 1rem;
+}
+
+.public-hero-stat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.95rem;
+  background: rgba(201, 221, 120, 0.12);
+  color: #edf7cb;
+}
+
+.public-hero-stat__label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #c6d1bf;
+}
+
+.public-hero-stat__value {
+  margin-top: 0.18rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.9rem;
+  line-height: 0.94;
+  color: #fff;
+}
+
+.public-hero-note {
+  padding: 1rem 1.05rem;
+}
+
+.public-hero-note__title {
+  color: #f8f4e8;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.55rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.public-section-head {
+  display: grid;
+  gap: 1rem;
+}
+
+.public-sport-cta {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.public-sport-cta__copy {
+  min-width: 0;
+}
+
+.public-sport-cta__actions {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.public-sport-cta__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.public-mini-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: #cfd8cb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .public-kicker {
@@ -771,7 +1061,7 @@ textarea {
   font-weight: 800;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: #9fb3d9;
+  color: #cbb97f;
 }
 
 .public-title {
@@ -787,8 +1077,41 @@ textarea {
   }
 }
 
+@media (min-width: 640px) {
+  .sport-tab {
+    width: auto;
+    padding-inline: 1.15rem;
+    font-size: 0.84rem;
+    letter-spacing: 0.12em;
+  }
+
+  .public-hero-panel {
+    padding: 1.35rem;
+  }
+
+  .public-sport-cta {
+    padding: 1.15rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .public-hero-panel {
+    grid-template-columns: minmax(0, 1.3fr) minmax(18rem, 0.9fr);
+    align-items: start;
+  }
+
+  .public-hero-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .public-section-head {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 30rem);
+    align-items: end;
+  }
+}
+
 .public-copy {
-  color: #a8b7d2;
+  color: #c2cfdf;
   line-height: 1.8;
 }
 
@@ -870,13 +1193,13 @@ textarea {
   gap: 0.7rem;
   border-radius: 999px;
   padding: 0.95rem 1.2rem;
-  background: linear-gradient(135deg, #b8ff79 0%, #54d12b 100%);
-  color: #051006;
+  background: linear-gradient(135deg, #d7e394 0%, #9eb959 100%);
+  color: #172012;
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  box-shadow: 0 22px 60px rgba(84, 209, 43, 0.22);
+  box-shadow: 0 22px 60px rgba(125, 145, 69, 0.2);
 }
 
 .public-action--ghost {
@@ -884,6 +1207,17 @@ textarea {
   color: #f8fafc;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: none;
+}
+
+.public-action--subtle {
+  background: rgba(84, 209, 43, 0.11);
+  color: #d9ffc8;
+  border: 1px solid rgba(84, 209, 43, 0.18);
+  box-shadow: none;
+}
+
+.public-action--subtle:hover {
+  background: rgba(84, 209, 43, 0.17);
 }
 
 .public-scoreboard {
@@ -979,7 +1313,8 @@ textarea {
   padding: 0.35rem;
   border: 1px solid var(--app-line);
   border-radius: 1.35rem;
-  background: rgba(255, 255, 255, 0.035);
+  background: linear-gradient(180deg, rgba(9, 13, 27, 0.98), rgba(9, 13, 27, 0.94));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(18px);
 }
 
@@ -1136,6 +1471,52 @@ input[type="number"] {
 
 /* Mobile: compact scoreboard table cells */
 @media (max-width: 639px) {
+  .public-wrap {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .public-topbar__inner {
+    min-height: 4.35rem;
+  }
+
+  .public-brand {
+    gap: 0.7rem;
+  }
+
+  .public-brand__mark {
+    width: 3.15rem;
+    height: 3.15rem;
+    border-radius: 1rem;
+  }
+
+  .public-title {
+    line-height: 0.92;
+  }
+
+  .public-copy {
+    line-height: 1.65;
+  }
+
+  .public-hero-panel {
+    padding: 0.95rem;
+    border-radius: 1.55rem;
+  }
+
+  .public-inline-actions .public-action {
+    width: 100%;
+  }
+
+  .public-sport-cta,
+  .public-hero-note,
+  .public-hero-stat {
+    border-radius: 1.35rem;
+  }
+
+  .public-sport-cta {
+    padding: 0.95rem;
+  }
+
   .app-hero--compact .app-hero__content {
     padding: 1rem;
   }

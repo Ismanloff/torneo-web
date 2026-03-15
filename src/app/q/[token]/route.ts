@@ -21,10 +21,13 @@ export async function GET(request: Request, { params }: QrRouteProps) {
 
   await touchQrToken(token);
 
-  const appDestination =
-    qrTarget.resource_type === "team"
-      ? `${buildQrTargetPath(qrTarget)}?entry=1`
-      : buildQrTargetPath(qrTarget);
+  const appTargetUrl = new URL(buildQrTargetPath(qrTarget), origin);
+
+  if (qrTarget.resource_type === "team") {
+    appTargetUrl.searchParams.set("entry", "1");
+  }
+
+  appTargetUrl.searchParams.set("from", "scan");
   const publicDestination = buildPublicQrTargetPath({
     ...qrTarget,
     token,
@@ -36,5 +39,5 @@ export async function GET(request: Request, { params }: QrRouteProps) {
     return NextResponse.redirect(`${origin}${publicDestination}`);
   }
 
-  return NextResponse.redirect(`${origin}${appDestination}`);
+  return NextResponse.redirect(appTargetUrl);
 }

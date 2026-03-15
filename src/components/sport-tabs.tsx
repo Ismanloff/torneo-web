@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Calendar, Trophy } from "lucide-react";
+import { ArrowUpRight, Calendar, Trophy } from "lucide-react";
 
 import { BracketTree } from "@/components/bracket-tree";
 import { ScoreboardTable } from "@/components/scoreboard-table";
@@ -74,6 +74,11 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
   const bracketCategories = filteredCategories.filter((c) => c.bracket);
   const hasTeamsInSport = filteredCategories.some((category) => category.teams.length > 0);
   const hasAnyMatchesInSport = filteredCategories.some((category) => category.matches.length > 0);
+  const totalTeamsInSport = filteredCategories.reduce((sum, category) => sum + category.teams.length, 0);
+  const totalSlotsLeft = filteredCategories.reduce(
+    (sum, category) => sum + Math.max(category.category.max_teams - category.teams.length, 0),
+    0,
+  );
 
   return (
     <div>
@@ -87,7 +92,11 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
         }}
       >
         <div className="public-wrap">
-          <div className="flex gap-2 overflow-x-auto py-3" role="tablist" aria-label="Deportes" style={{ scrollbarWidth: "none" }}>
+          <div
+            className="grid grid-cols-3 gap-2 py-3 sm:flex sm:flex-wrap"
+            role="tablist"
+            aria-label="Deportes"
+          >
             {sports.map((sport, index) => {
               const isActive =
                 sport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() ===
@@ -108,11 +117,10 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                   type="button"
                   onClick={() => setActiveSport(sport)}
                   onKeyDown={(e) => handleTabKeyDown(e, index)}
-                  className={isActive ? "public-tag public-tag--accent" : "public-tag"}
-                  style={{ cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.18s ease" }}
+                  className={isActive ? "sport-tab sport-tab--active" : "sport-tab"}
                 >
                   <SportIcon sport={sport} />
-                  {sport}
+                  <span className="sport-tab__label">{sport}</span>
                 </button>
               );
             })}
@@ -135,22 +143,52 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
       {/* Clasificacion section */}
       <section className="public-section" id="clasificacion">
         <div className="public-wrap grid gap-8">
-          <div className="space-y-3">
-            <p className="public-kicker">Clasificacion</p>
-            <h2 className="public-title text-5xl sm:text-6xl">Tabla publica</h2>
+          <div className="public-section-head">
+            <div className="space-y-3">
+              <p className="public-kicker">Clasificación</p>
+              <h2 className="public-title text-[clamp(2.8rem,11vw,5.6rem)]">Tabla pública</h2>
+            </div>
+
+            {filteredCategories.length > 0 ? (
+              <div className="public-sport-cta">
+                <div className="public-sport-cta__copy">
+                  <p className="public-kicker">{activeSport}</p>
+                  <p className="mt-3 text-lg font-semibold text-white">
+                    {hasTeamsInSport
+                      ? "Las inscripciones siguen abiertas."
+                      : `Las inscripciones están abiertas para ${activeSport}.`}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-[#a8b7d2]">
+                    {filteredCategories.length} categorías · {totalTeamsInSport} equipos registrados ·{" "}
+                    {totalSlotsLeft} plazas disponibles.
+                  </p>
+                </div>
+                <div className="public-sport-cta__actions">
+                  <Link className="public-action public-action--subtle" href="/inscripcion">
+                    Inscribir equipo
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                  <div className="public-sport-cta__meta">
+                    {filteredCategories.map((category) => (
+                      <span key={category.category.id} className="public-mini-chip">
+                        {category.category.name} ·{" "}
+                        {Math.max(category.category.max_teams - category.teams.length, 0)} libres
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {!hasTeamsInSport && filteredCategories.length > 0 ? (
-            <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:px-5">
               <div>
-                <p className="text-sm font-semibold text-white">Las inscripciones estan abiertas para {activeSport}.</p>
+                <p className="text-sm font-semibold text-white">Todavía no hay equipos visibles en {activeSport}.</p>
                 <p className="mt-1 text-sm text-[#9fb3d9]">
-                  Los equipos apareceran aqui en cuanto completen su registro.
+                  La primera inscripción activará la tabla pública y el seguimiento del deporte.
                 </p>
               </div>
-              <Link className="public-action public-action--ghost" href="/inscripcion">
-                Ir a inscripcion
-              </Link>
             </div>
           ) : null}
 
@@ -163,10 +201,10 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
               <div className="public-soft flex flex-col items-center gap-3 py-10 text-center xl:col-span-2">
                 <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
                 <p className="text-sm font-medium text-[#8fa1c2]">
-                  No hay categorias publicadas para este deporte todavia.
+                  No hay categorías publicadas para este deporte todavía.
                 </p>
                 <p className="text-xs text-[#8fa1c2]/60">
-                  La clasificacion aparecera aqui cuando organizacion configure la estructura
+                  La clasificación aparecerá aquí cuando la organización configure la estructura.
                 </p>
               </div>
             )}
@@ -179,19 +217,19 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
         <div className="public-wrap grid gap-8">
           <div className="space-y-3">
             <p className="public-kicker">Partidos</p>
-            <h2 className="public-title text-5xl sm:text-6xl">Proximos encuentros</h2>
+            <h2 className="public-title text-[clamp(2.8rem,11vw,5.6rem)]">Próximos encuentros</h2>
           </div>
 
           {!hasAnyMatchesInSport && filteredCategories.length > 0 ? (
             <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
-                <p className="text-sm font-semibold text-white">Todavia no hay partidos programados para {activeSport}.</p>
+                <p className="text-sm font-semibold text-white">Todavía no hay partidos programados para {activeSport}.</p>
                 <p className="mt-1 text-sm text-[#9fb3d9]">
-                  El calendario aparecera aqui cuando organizacion prepare los encuentros.
+                  El calendario aparecerá aquí cuando la organización prepare los encuentros.
                 </p>
               </div>
               <a className="public-action public-action--ghost" href="#clasificacion">
-                Ver categorias
+                Ver categorías
               </a>
             </div>
           ) : null}
@@ -273,10 +311,10 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
               <div className="public-soft flex flex-col items-center gap-3 py-10 text-center lg:col-span-2 xl:col-span-3">
                 <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
                 <p className="text-sm font-medium text-[#8fa1c2]">
-                  Todavia no hay partidos programados para este deporte.
+                  Todavía no hay partidos programados para este deporte.
                 </p>
                 <p className="text-xs text-[#8fa1c2]/60">
-                  El calendario aparecera aqui cuando organizacion cree los encuentros
+                  El calendario aparecerá aquí cuando la organización cree los encuentros.
                 </p>
               </div>
             )}
@@ -289,7 +327,7 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
         <div className="public-wrap grid gap-8">
           <div className="space-y-3">
             <p className="public-kicker">Eliminatorias</p>
-            <h2 className="public-title text-5xl sm:text-6xl">Cruces y cuadro</h2>
+            <h2 className="public-title text-[clamp(2.8rem,11vw,5.6rem)]">Cruces y cuadro</h2>
           </div>
 
           {bracketCategories.length > 0 ? (
@@ -318,10 +356,10 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             <div className="public-soft flex flex-col items-center gap-3 py-10 text-center">
               <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
               <p className="text-sm font-medium text-[#8fa1c2]">
-                Todavia no hay cuadro eliminatorio para este deporte.
+                Todavía no hay cuadro eliminatorio para este deporte.
               </p>
               <p className="text-xs text-[#8fa1c2]/60">
-                Aparecera cuando organizacion genere las eliminatorias
+                Aparecerá cuando la organización genere las eliminatorias.
               </p>
             </div>
           )}

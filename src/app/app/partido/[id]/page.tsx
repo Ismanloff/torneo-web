@@ -15,6 +15,7 @@ type MatchDetailPageProps = {
   }>;
   searchParams: Promise<{
     scope?: "category_match" | "bracket_match";
+    from?: string;
   }>;
 };
 
@@ -54,7 +55,8 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
     notFound();
   }
 
-  const redirectTo = `/app/partido/${id}?scope=${scope}`;
+  const fromScan = query.from === "scan";
+  const redirectTo = `/app/partido/${id}?scope=${scope}${fromScan ? "&from=scan" : ""}`;
   const qrPath = detail.match.qr_token ? buildQrShareUrl(detail.match.qr_token.token) : null;
   const operationLabel = getOperationLabel(detail.canSubmitResult, detail.canCheckIn);
   const teamsSection = (
@@ -174,16 +176,27 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
+            {fromScan ? (
+              <Link className="app-link-pill" href="/app/scan">
+                Volver a escanear
+              </Link>
+            ) : null}
             <Link className="app-link-pill" href="/app/partidos">
               Volver a partidos
             </Link>
             {detail.match.home_team ? (
-              <Link className="app-link-pill" href={`/app/equipo/${detail.match.home_team.id}`}>
+              <Link
+                className="app-link-pill"
+                href={`/app/equipo/${detail.match.home_team.id}${fromScan ? "?from=scan" : ""}`}
+              >
                 Equipo local
               </Link>
             ) : null}
             {detail.match.away_team ? (
-              <Link className="app-link-pill" href={`/app/equipo/${detail.match.away_team.id}`}>
+              <Link
+                className="app-link-pill"
+                href={`/app/equipo/${detail.match.away_team.id}${fromScan ? "?from=scan" : ""}`}
+              >
                 Equipo visitante
               </Link>
             ) : null}

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CircleCheckBig, Clock3, Home, ShieldAlert } from "lucide-react";
+import { Clock3, Home, QrCode, Sparkles } from "lucide-react";
 
 import { PublicPageShell } from "@/components/public-page-shell";
+import { QrTile } from "@/components/qr-tile";
 import { getTeamByRegistrationCode } from "@/lib/supabase/queries";
-import { formatDateTime } from "@/lib/utils";
+import { buildQrShareUrl, formatDateTime } from "@/lib/utils";
 
 type TeamStatusPageProps = {
   params: Promise<{ code: string }>;
@@ -25,9 +26,9 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
   if (!team) {
     return (
       <PublicPageShell
-        eyebrow="Codigo no encontrado"
-        title="No hay ningun equipo con ese codigo"
-        description="Revisa el codigo de registro o vuelve al inicio para navegar desde el portal."
+        eyebrow="Código no encontrado"
+        title="No hay ningún equipo con ese código"
+        description="Revisa el código de registro o vuelve al inicio para navegar desde el portal."
       >
         <div className="public-glass p-6">
           <Link className="public-action public-action--ghost" href="/">
@@ -38,13 +39,13 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
     );
   }
 
-  const parentalConfirmed = Boolean(team.parental_confirmed_at);
+  const teamQrPath = team.qr_token ? buildQrShareUrl(team.qr_token.token) : null;
 
   return (
     <PublicPageShell
-      eyebrow="Codigo de seguimiento"
+      eyebrow="Código de seguimiento"
       title={team.registration_code}
-      description="Este codigo identifica la inscripcion del equipo y sirve para consultar su estado."
+      description="Este código identifica la inscripción del equipo y sirve para consultar su estado."
       backHref="/"
       backLabel="Volver al portal"
       actions={
@@ -67,7 +68,7 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
           <div className="flex items-start gap-4">
             <Clock3 className="mt-1 h-5 w-5 text-[var(--app-accent)]" />
             <div>
-              <p className="text-lg font-semibold text-white">Inscripcion registrada</p>
+              <p className="text-lg font-semibold text-white">Inscripción registrada</p>
               <p className="mt-3 text-sm leading-6 text-[#a8b7d2]">
                 Alta creada el {formatDateTime(team.created_at)}. Estado interno:{" "}
                 <strong className="text-white">{team.status}</strong>.
@@ -77,31 +78,29 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
         </article>
 
         <article className="public-glass p-5">
-          <div className="flex items-start gap-4">
-            {team.parental_confirmation_required ? (
-              parentalConfirmed ? (
-                <CircleCheckBig className="mt-1 h-5 w-5 text-[var(--app-accent)]" />
-              ) : (
-                <ShieldAlert className="mt-1 h-5 w-5 text-[var(--app-accent)]" />
-              )
-            ) : (
-              <CircleCheckBig className="mt-1 h-5 w-5 text-[var(--app-accent)]" />
-            )}
-            <div>
-              <p className="text-lg font-semibold text-white">Confirmacion parental</p>
-              <p className="mt-3 text-sm leading-6 text-[#a8b7d2]">
-                {team.parental_confirmation_required
-                  ? parentalConfirmed
-                    ? `Confirmada el ${formatDateTime(team.parental_confirmed_at!)}.`
-                    : "Pendiente. Hace falta completar el enlace de autorizacion enviado tras la inscripcion."
-                  : "No requerida para este equipo."}
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <QrCode className="h-4 w-4 text-[var(--app-accent)]" />
+            <p className="public-kicker">QR de acceso</p>
           </div>
+          {teamQrPath ? (
+            <QrTile
+              href={teamQrPath}
+              label="QR del equipo"
+              note="Este es el acceso único del equipo para entrada y validación rápida."
+              variant="public"
+            />
+          ) : (
+            <div className="public-soft mt-4 p-5 text-sm leading-6 text-[#a8b7d2]">
+              El QR todavía no está disponible para este equipo.
+            </div>
+          )}
         </article>
 
         <article className="public-glass p-5">
-          <p className="public-kicker">Categoria</p>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[var(--app-accent)]" />
+            <p className="public-kicker">Categoría</p>
+          </div>
           <p className="mt-3 text-2xl font-semibold text-white">
             {team.category.sport} · {team.category.age_group}
           </p>

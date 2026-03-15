@@ -1,4 +1,4 @@
-// Torneo Escolar 2026 — Service Worker
+// Mater et Fátima — Service Worker
 // Cache-first shell, network-first data, offline fallback, background sync, push notifications
 
 const SW_VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
@@ -310,7 +310,7 @@ self.addEventListener("push", (event) => {
     payload = event.data.json();
   } catch {
     payload = {
-      title: "Torneo Escolar 2026",
+      title: "Mater et Fátima",
       body: event.data.text(),
       url: "/",
     };
@@ -319,7 +319,7 @@ self.addEventListener("push", (event) => {
   const { title, body, url, icon } = payload;
 
   event.waitUntil(
-    self.registration.showNotification(title || "Torneo Escolar 2026", {
+    self.registration.showNotification(title || "Mater et Fátima", {
       body: body || "",
       icon: icon || "/icon-192.png",
       badge: "/icon-192.png",

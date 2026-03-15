@@ -44,16 +44,6 @@ export default async function StaffMatchesPage() {
       </section>
 
       <section className="app-panel">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="app-chip app-chip--accent">
-            <CalendarClock className="h-4 w-4" />
-            Partidos asignados
-          </span>
-          <span className="app-chip">
-            <ShieldCheck className="h-4 w-4" />
-            {data.assignedMatches.length} total
-          </span>
-        </div>
         <div className="mt-4">
           <MatchFilters matches={matchItems} />
         </div>

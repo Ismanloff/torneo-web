@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { ExportPdfButton } from "@/components/export-pdf-button";
-import type { ScoreboardCategory } from "@/lib/types";
+import type { CategoryStandingRow, ScoreboardCategory } from "@/lib/types";
 
 type ScoreboardTableProps = {
   category: ScoreboardCategory;
@@ -9,8 +9,66 @@ type ScoreboardTableProps = {
   showHeader?: boolean;
 };
 
-export function ScoreboardTable({ category, compact = false, showHeader = true }: ScoreboardTableProps) {
-  const rows = compact ? category.standings.slice(0, 5) : category.standings;
+function StandingsTable({
+  rows,
+  compact,
+}: {
+  rows: CategoryStandingRow[];
+  compact: boolean;
+}) {
+  const visibleRows = compact ? rows.slice(0, 5) : rows;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="text-left text-[0.72rem] uppercase tracking-[0.18em] text-[#8fa1c2]">
+          <tr>
+            <th className="px-4 py-3">Pos</th>
+            <th className="px-4 py-3">Equipo</th>
+            <th className="px-4 py-3 text-center">Pts</th>
+            <th className="px-4 py-3 text-center">Dif</th>
+            <th className="px-4 py-3 text-center">PJ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleRows.length ? (
+            visibleRows.map((row, index) => (
+              <tr key={row.team_id} className="border-t border-white/8">
+                <td className="px-4 py-3 font-semibold text-white">{index + 1}</td>
+                <td className="px-4 py-3">
+                  <p className="font-semibold text-white">{row.team_name}</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#8fa1c2]">
+                    {row.registration_code}
+                  </p>
+                </td>
+                <td className="px-4 py-3 text-center font-semibold text-[var(--app-accent)]">
+                  {row.total_points}
+                </td>
+                <td className="px-4 py-3 text-center text-[#d6e1f3]">
+                  {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
+                </td>
+                <td className="px-4 py-3 text-center text-[#d6e1f3]">{row.played}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td className="px-4 py-6 text-[#8fa1c2]" colSpan={5}>
+                Las inscripciones están abiertas. Los equipos aparecerán aquí en cuanto se registren.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function ScoreboardTable({
+  category,
+  compact = false,
+  showHeader = true,
+}: ScoreboardTableProps) {
+  const hasGroups = category.groupStandings.length > 0;
 
   return (
     <div className="public-scoreboard">
@@ -23,11 +81,13 @@ export function ScoreboardTable({ category, compact = false, showHeader = true }
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <ExportPdfButton
-              categoryName={category.category.name}
-              sport={category.category.sport}
-              standings={category.standings}
-            />
+            {!hasGroups ? (
+              <ExportPdfButton
+                categoryName={category.category.name}
+                sport={category.category.sport}
+                standings={category.standings}
+              />
+            ) : null}
             <Link
               className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--app-accent)]"
               href={`/clasificacion/${category.category.id}`}
@@ -38,49 +98,25 @@ export function ScoreboardTable({ category, compact = false, showHeader = true }
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="text-left text-[0.72rem] uppercase tracking-[0.18em] text-[#8fa1c2]">
-            <tr>
-              <th className="px-4 py-3">Pos</th>
-              <th className="px-4 py-3">Equipo</th>
-              <th className="px-4 py-3 text-center">Pts</th>
-              <th className="px-4 py-3 text-center">PJ</th>
-              <th className="px-4 py-3 text-center">G</th>
-              <th className="px-4 py-3 text-center">E</th>
-              <th className="px-4 py-3 text-center">P</th>
-              <th className="px-4 py-3 text-center">DG</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length ? (
-              rows.map((row, index) => (
-                <tr key={row.team_id} className="border-t border-white/8">
-                  <td className="px-4 py-3 font-semibold text-white">{index + 1}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-white">{row.team_name}</p>
-                    <p className="text-xs uppercase tracking-[0.16em] text-[#8fa1c2]">
-                      {row.registration_code}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-center font-semibold text-[var(--app-accent)]">{row.total_points}</td>
-                  <td className="px-4 py-3 text-center text-[#d6e1f3]">{row.played}</td>
-                  <td className="px-4 py-3 text-center text-[#d6e1f3]">{row.wins}</td>
-                  <td className="px-4 py-3 text-center text-[#d6e1f3]">{row.draws}</td>
-                  <td className="px-4 py-3 text-center text-[#d6e1f3]">{row.losses}</td>
-                  <td className="px-4 py-3 text-center text-[#d6e1f3]">{row.goal_difference}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td className="px-4 py-6 text-[#8fa1c2]" colSpan={8}>
-                  Las inscripciones estan abiertas. Los equipos apareceran aqui en cuanto se registren.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {hasGroups ? (
+        <div className="grid gap-5 p-4 sm:p-5">
+          {category.groupStandings.map((group) => (
+            <section
+              key={group.groupLabel}
+              className="rounded-[1.2rem] border border-white/8 bg-white/[0.02]"
+            >
+              <div className="border-b border-white/8 px-4 py-3">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--app-accent)]">
+                  Grupo {group.groupLabel}
+                </p>
+              </div>
+              <StandingsTable compact={compact} rows={group.standings} />
+            </section>
+          ))}
+        </div>
+      ) : (
+        <StandingsTable compact={compact} rows={category.standings} />
+      )}
     </div>
   );
 }

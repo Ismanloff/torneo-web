@@ -1,10 +1,15 @@
 import type { MetadataRoute } from "next";
+import {
+  TOURNAMENT_DESCRIPTION,
+  TOURNAMENT_NAME,
+  TOURNAMENT_SHORT_NAME,
+} from "@/lib/branding";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Torneo Escolar 2026",
-    short_name: "Torneo 2026",
-    description: "Portal de clasificacion, partidos y puntuacion del torneo.",
+    name: TOURNAMENT_NAME,
+    short_name: TOURNAMENT_SHORT_NAME,
+    description: TOURNAMENT_DESCRIPTION,
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

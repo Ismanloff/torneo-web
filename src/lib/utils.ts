@@ -3,6 +3,9 @@ import type { MatchQrTokenRow } from "@/lib/types";
 export const TOURNAMENT_PUBLIC_URL =
   process.env.TOURNAMENT_PUBLIC_URL?.trim() ||
   process.env.NEXT_PUBLIC_TOURNAMENT_PUBLIC_URL?.trim() ||
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : process.env.NEXT_PUBLIC_SITE_URL?.trim()) ||
   "https://torneo.eloos.es";
 
 export function formatLongDate(value: string) {
@@ -72,13 +75,19 @@ export function buildPublicQrTargetPath(
   return `/seguimiento/partido/${token.resource_id}?scope=${token.resource_type}&token=${token.token}`;
 }
 
+export function buildPublicQrTargetUrl(
+  token: Pick<MatchQrTokenRow, "resource_id" | "resource_type" | "token">,
+) {
+  return new URL(buildPublicQrTargetPath(token), TOURNAMENT_PUBLIC_URL).toString();
+}
+
 export function buildQrShareUrl(token: string) {
   return new URL(`/q/${token}`, TOURNAMENT_PUBLIC_URL).toString();
 }
 
 export function formatStaffRoleLabel(role: string) {
   if (role === "admin") return "Admin";
-  if (role === "referee") return "Arbitro";
-  if (role === "assistant") return "Organizacion";
+  if (role === "referee") return "Árbitro";
+  if (role === "assistant") return "Organización";
   return role;
 }

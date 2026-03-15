@@ -15,6 +15,7 @@ type TeamDetailPageProps = {
   }>;
   searchParams: Promise<{
     entry?: string;
+    from?: string;
   }>;
 };
 
@@ -94,8 +95,13 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
   const nextCheckin = nextOpenMatch ? getTeamCheckin(nextOpenMatch, detail.team.id) : null;
   const nextCheckinAllowed = nextOpenMatch ? canQuickCheckIn(staff, nextOpenMatch) : false;
   const entryMode = query.entry === "1";
+  const fromScan = query.from === "scan";
   const canSeeContacts = staff.profile.role === "admin" || staff.profile.role === "assistant";
   const canHandleArrival = canManageArrival(staff);
+  const teamEntryPath = `/app/equipo/${detail.team.id}?entry=1${fromScan ? "&from=scan" : ""}`;
+  const nextMatchPath = nextOpenMatch
+    ? `/app/partido/${nextOpenMatch.id}?scope=${nextOpenMatch.scope}${fromScan ? "&from=scan" : ""}`
+    : null;
 
   return (
     <main className="grid gap-6">
@@ -112,6 +118,18 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
           <p className="app-copy mt-4 text-base">
             {detail.team.registration_code} · {detail.team.total_players} jugadores
           </p>
+          {fromScan ? (
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link className="app-link-pill" href="/app/scan">
+                Volver a escanear
+              </Link>
+              {nextMatchPath ? (
+                <Link className="app-link-pill" href={nextMatchPath}>
+                  Abrir partido
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -134,7 +152,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             ) : (
               <form action={checkInTeamAction}>
                 <input name="teamId" type="hidden" value={detail.team.id} />
-                <input name="redirectTo" type="hidden" value={`/app/equipo/${detail.team.id}?entry=1`} />
+                <input name="redirectTo" type="hidden" value={teamEntryPath} />
                 <button className="app-action w-full" type="submit">
                   Marcar llegada al torneo
                 </button>
@@ -157,19 +175,12 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             Datos rapidos
           </p>
           <div className="mt-4 grid gap-3 text-sm text-[var(--app-muted)]">
-            <p>Capitan: {detail.team.captain_name}</p>
+            <p>Capitán: {detail.team.captain_name}</p>
             {canSeeContacts ? <p>Email: {detail.team.captain_email}</p> : null}
-            {canSeeContacts ? <p>Telefono: {detail.team.captain_phone}</p> : null}
+            {canSeeContacts ? <p>Teléfono: {detail.team.captain_phone}</p> : null}
             {!canSeeContacts ? <p>Contacto directo reservado a mesa y administración.</p> : null}
             <p>Estado: {detail.team.status}</p>
-            <p>
-              Autorizacion parental:{" "}
-              {detail.team.parental_confirmation_required
-                ? detail.team.parental_confirmed_at
-                  ? "Confirmada"
-                  : "Pendiente"
-                : "No requerida"}
-            </p>
+            <p>QR activo: {detail.team.qr_token ? "Disponible" : "Pendiente"}</p>
             <p>
               Llegada al torneo:{" "}
               {detail.team.checked_in_at
@@ -206,8 +217,8 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             </p>
             <h2 className="app-section-title mt-3 text-[2.4rem]">Siguiente paso</h2>
           </div>
-          {nextOpenMatch ? (
-            <Link className="app-link-pill" href={`/app/partido/${nextOpenMatch.id}?scope=${nextOpenMatch.scope}`}>
+          {nextMatchPath ? (
+            <Link className="app-link-pill" href={nextMatchPath}>
               Abrir partido
             </Link>
           ) : null}
@@ -241,7 +252,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                     <input name="status" type="hidden" value="presentado" />
                     <input name="incidentLabel" type="hidden" value="" />
                     <input name="notes" type="hidden" value="" />
-                    <input name="redirectTo" type="hidden" value={`/app/equipo/${detail.team.id}?entry=1`} />
+                    <input name="redirectTo" type="hidden" value={teamEntryPath} />
                     <button className="app-action w-full" type="submit">
                       Marcar presentado
                     </button>
@@ -254,7 +265,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                     <input name="status" type="hidden" value="incidencia" />
                     <input name="incidentLabel" type="hidden" value="Revisar en mesa" />
                     <input name="notes" type="hidden" value="" />
-                    <input name="redirectTo" type="hidden" value={`/app/equipo/${detail.team.id}?entry=1`} />
+                    <input name="redirectTo" type="hidden" value={teamEntryPath} />
                     <button className="app-action app-action--ghost w-full" type="submit">
                       Marcar incidencia
                     </button>
@@ -298,7 +309,10 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                       {match.location ?? "Sin pista"} · {checkinLabel(getTeamCheckin({ ...match, scope: "category_match" }, detail.team.id)?.status)}
                     </p>
                   </div>
-                  <Link className="app-link-pill" href={`/app/partido/${match.id}?scope=category_match`}>
+                  <Link
+                    className="app-link-pill"
+                    href={`/app/partido/${match.id}?scope=category_match${fromScan ? "&from=scan" : ""}`}
+                  >
                     <span className="inline-flex items-center gap-2">
                       Abrir
                       <ArrowUpRight className="h-4 w-4" />
@@ -309,7 +323,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             ))
           ) : (
             <div className="app-soft-card text-sm text-[var(--app-muted)]">
-              Este equipo todavia no tiene partidos de categoria cargados.
+              Este equipo todavía no tiene partidos de categoría cargados.
             </div>
           )}
         </div>
@@ -337,7 +351,10 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                       {match.location ?? "Sin pista"} · {checkinLabel(getTeamCheckin({ ...match, scope: "bracket_match" }, detail.team.id)?.status)}
                     </p>
                   </div>
-                  <Link className="app-link-pill" href={`/app/partido/${match.id}?scope=bracket_match`}>
+                  <Link
+                    className="app-link-pill"
+                    href={`/app/partido/${match.id}?scope=bracket_match${fromScan ? "&from=scan" : ""}`}
+                  >
                     <span className="inline-flex items-center gap-2">
                       Abrir
                       <ArrowUpRight className="h-4 w-4" />
@@ -348,7 +365,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             ))
           ) : (
             <div className="app-soft-card text-sm text-[var(--app-muted)]">
-              No hay cruces de eliminatoria asignados a este equipo todavia.
+              No hay cruces de eliminatoria asignados a este equipo todavía.
             </div>
           )}
         </div>

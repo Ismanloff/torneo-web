@@ -1,18 +1,26 @@
 import Link from "next/link";
 import {
+  ArrowUpRight,
   CalendarDays,
+  Landmark,
   Sparkles,
   Swords,
   Trophy,
 } from "lucide-react";
 
 import { MatchCountdown } from "@/components/match-countdown";
-import { MobileNavToggle } from "@/components/mobile-nav-toggle";
+import { PublicBrandLockup } from "@/components/public-brand-lockup";
+import { PublicSiteNav } from "@/components/public-site-nav";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { SportTabs } from "@/components/sport-tabs";
 import { ALLOWED_SPORT_LABELS } from "@/lib/allowed-sports";
+import {
+  TOURNAMENT_EDITION_LABEL,
+  TOURNAMENT_EVENT_DATE_LABEL,
+  TOURNAMENT_NAME,
+  TOURNAMENT_ORGANIZERS_SHORT,
+} from "@/lib/branding";
 import { getScoreboardHomeData } from "@/lib/supabase/queries";
-import { formatLongDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -54,90 +62,95 @@ export default async function Home() {
         <header className="public-topbar">
           <div className="public-wrap">
             <div className="public-topbar__inner">
-              <div className="public-brand">
-                <span className="public-brand__mark">
-                  <Trophy className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="public-kicker text-[0.66rem]">Torneo Escolar</p>
-                  <p className="text-sm font-semibold text-white">{data.tournament.name}</p>
-                </div>
-              </div>
+              <PublicBrandLockup />
 
-              <MobileNavToggle>
-                <a className="public-nav__link" href="#clasificacion">
-                  Clasificacion
-                </a>
-                <a className="public-nav__link" href="#partidos">
-                  Partidos
-                </a>
-                <a className="public-nav__link" href="#cruces">
-                  Cruces
-                </a>
-                <Link className="public-nav__link" href="/inscripcion">
-                  Inscripcion
-                </Link>
-                <Link className="public-nav__link" href="/login">
-                  Staff
-                </Link>
-              </MobileNavToggle>
+              <PublicSiteNav />
             </div>
           </div>
         </header>
 
         {/* Compact hero */}
         <section className="public-hero">
-          <div className="public-wrap py-5 sm:py-6 lg:py-8 max-w-5xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="max-w-4xl">
-                <div className="flex flex-wrap gap-2 mb-2">
+          <div className="public-wrap mx-auto max-w-6xl py-5 sm:py-6 lg:py-8">
+            <div className="public-hero-panel">
+              <div className="public-hero-panel__copy">
+                <div className="mb-3 flex flex-wrap gap-2">
                   <span className="public-tag public-tag--accent">
                     <Sparkles className="h-3.5 w-3.5" />
-                    En directo
+                    {TOURNAMENT_EDITION_LABEL}
+                  </span>
+                  <span className="public-tag public-tag--soft">
+                    <Landmark className="h-3.5 w-3.5" />
+                    Torneo parroquial
                   </span>
                 </div>
-                <h1 className="public-title text-3xl sm:text-5xl lg:text-6xl">
-                  {data.tournament.name}
+                <h1 className="public-title text-[clamp(2.8rem,11vw,5.9rem)]">
+                  {TOURNAMENT_NAME}
                 </h1>
-                <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-[#9fb3d9]">
-                  {formatLongDate(data.tournament.start_date)} &mdash;{" "}
-                  {formatLongDate(data.tournament.end_date)} &middot;{" "}
+                <p className="public-hero-panel__meta mt-3 text-sm text-[#9fb3d9] sm:mt-4">
+                  {TOURNAMENT_EVENT_DATE_LABEL} &middot;{" "}
                   {ALLOWED_SPORT_LABELS.join(" · ")}
                 </p>
+
+                <div className="public-inline-actions mt-5">
+                  <a className="public-action public-action--ghost" href="#clasificacion">
+                    Ver clasificación
+                  </a>
+                  <Link className="public-action public-action--subtle" href="/inscripcion">
+                    Inscribir equipo
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
 
-              <div className="flex gap-5 sm:gap-4">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-3.5 w-3.5 text-[var(--app-accent)]" />
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#8fa1c2]">Categorias</p>
-                    <p className="text-base sm:text-lg font-semibold text-white">{data.categories.length}</p>
+              <div className="public-hero-panel__rail">
+                <div className="public-hero-stats">
+                  <div className="public-hero-stat">
+                    <div className="public-hero-stat__icon">
+                      <Trophy className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="public-hero-stat__label">Categorías</p>
+                      <p className="public-hero-stat__value">{data.categories.length}</p>
+                    </div>
+                  </div>
+                  <div className="public-hero-stat">
+                    <div className="public-hero-stat__icon">
+                      <CalendarDays className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="public-hero-stat__label">Equipos</p>
+                      <p className="public-hero-stat__value">{data.totalTeams}</p>
+                    </div>
+                  </div>
+                  <div className="public-hero-stat">
+                    <div className="public-hero-stat__icon">
+                      <Swords className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="public-hero-stat__label">Partidos</p>
+                      <p className="public-hero-stat__value">{data.totalMatches}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-3.5 w-3.5 text-[var(--app-accent)]" />
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#8fa1c2]">Equipos</p>
-                    <p className="text-base sm:text-lg font-semibold text-white">{data.totalTeams}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Swords className="h-3.5 w-3.5 text-[var(--app-accent)]" />
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#8fa1c2]">Partidos</p>
-                    <p className="text-base sm:text-lg font-semibold text-white">{data.totalMatches}</p>
-                  </div>
+
+                <div className="public-hero-note">
+                  <p className="public-kicker">Organización</p>
+                  <p className="public-hero-note__title mt-3">{TOURNAMENT_ORGANIZERS_SHORT}</p>
+                  <p className="mt-3 text-sm leading-7 text-[#c2cfdf]">
+                    Cuarta edición del torneo. Sigue resultados, consulta cruces y mantén la inscripción abierta sin perder el pulso de la jornada.
+                  </p>
                 </div>
               </div>
             </div>
 
             {isTournamentEmpty ? (
-              <div className="mt-6 sm:mt-7 public-soft px-4 py-4 sm:px-5">
+              <div className="mt-5 public-soft px-4 py-4 sm:mt-6 sm:px-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-white">Las inscripciones ya estan abiertas.</p>
+                    <p className="text-sm font-semibold text-white">Las inscripciones ya están abiertas.</p>
                     <p className="mt-1 text-sm text-[#9fb3d9]">
-                      Los equipos y partidos apareceran aqui en cuanto organizacion reciba las primeras altas.
+                      Los equipos y partidos aparecerán aquí en cuanto la organización reciba las primeras altas.
                     </p>
                   </div>
                   <Link className="public-action public-action--primary" href="/inscripcion">
