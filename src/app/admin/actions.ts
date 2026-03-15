@@ -105,6 +105,13 @@ const assignStaffSchema = z.object({
   staffUserId: z.string().trim().optional().or(z.literal("")),
 });
 
+const assignCategoryStaffSchema = z.object({
+  tournamentId: z.uuid(),
+  categoryId: z.uuid(),
+  duty: z.enum(["referee", "assistant"]),
+  staffUserId: z.string().trim().optional().or(z.literal("")),
+});
+
 const qrSchema = z.object({
   resourceType: z.enum(["category_match", "bracket_match", "team"]),
   resourceId: z.uuid(),
@@ -915,6 +922,47 @@ export async function assignStaffToMatchAction(formData: FormData) {
   }
 
   revalidateTournamentSurface(parsed.data.categoryId || undefined);
+  redirect("/app/admin?saved=asignacion");
+}
+
+export async function assignStaffToCategoryAction(formData: FormData) {
+  await requireAdminSession();
+
+  const parsed = assignCategoryStaffSchema.safeParse({
+    tournamentId: formData.get("tournamentId"),
+    categoryId: formData.get("categoryId"),
+    duty: formData.get("duty"),
+    staffUserId: formData.get("staffUserId"),
+  });
+
+  if (!parsed.success) {
+    redirect("/app/admin?error=asignacion");
+  }
+
+  await supabaseAdmin
+    .from("staff_assignments")
+    .delete()
+    .eq("category_id", parsed.data.categoryId)
+    .eq("duty", parsed.data.duty)
+    .is("category_match_id", null)
+    .is("bracket_match_id", null);
+
+  if (parsed.data.staffUserId) {
+    const { error } = await supabaseAdmin.from("staff_assignments").insert({
+      staff_user_id: parsed.data.staffUserId,
+      tournament_id: parsed.data.tournamentId,
+      duty: parsed.data.duty,
+      category_id: parsed.data.categoryId,
+      category_match_id: null,
+      bracket_match_id: null,
+    });
+
+    if (error) {
+      redirect(`/app/admin?error=${encodeURIComponent(error.message)}`);
+    }
+  }
+
+  revalidateTournamentSurface(parsed.data.categoryId);
   redirect("/app/admin?saved=asignacion");
 }
 

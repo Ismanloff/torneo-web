@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getAdminAccessContext } from "@/lib/admin-auth";
+import { getOperationalMatchById } from "@/lib/supabase/queries";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -13,37 +15,6 @@ const syncScoreSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    // Auth check — require a valid Supabase session
-    const supabase = await createSupabaseServerClient();
-    const claimsResult = await supabase.auth.getClaims();
-    const userId = claimsResult.data?.claims?.sub ?? null;
-
-    // Also check legacy admin cookie as fallback
-    const { cookies } = await import("next/headers");
-    const cookieStore = await cookies();
-    const adminCookie = cookieStore.get("torneo_admin_session")?.value;
-    const hasAdminSession = !!adminCookie;
-
-    if (!userId && !hasAdminSession) {
-      return NextResponse.json(
-        { error: "No autorizado. Inicia sesion primero." },
-        { status: 401 },
-      );
-    }
-
-    // Derive actor role from session, not from request body
-    let actorRole = "referee";
-    if (userId) {
-      const { data: profile } = await supabaseAdmin
-        .from("staff_profiles")
-        .select("role")
-        .eq("auth_user_id", userId)
-        .maybeSingle<{ role: string }>();
-      if (profile) actorRole = profile.role;
-    } else if (hasAdminSession) {
-      actorRole = "admin";
-    }
-
     const body = await request.json();
     const parsed = syncScoreSchema.safeParse(body);
 
@@ -58,6 +29,70 @@ export async function POST(request: Request) {
     }
 
     const { matchId, matchScope, homeScore, awayScore } = parsed.data;
+    const accessContext = await getAdminAccessContext();
+    let staffContext = null;
+
+    if (accessContext?.mode === "staff") {
+      staffContext = {
+        authUserId: accessContext.authUserId,
+        profile: accessContext.profile,
+      };
+    } else if (accessContext?.mode === "legacy") {
+      staffContext = {
+        authUserId: null,
+        profile: {
+          id: "legacy-admin",
+          auth_user_id: null,
+          email: "legacy-admin@local",
+          full_name: "Admin temporal",
+          role: "admin" as const,
+          pin: null,
+          is_active: true,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      };
+    } else {
+      const supabase = await createSupabaseServerClient();
+      const claimsResult = await supabase.auth.getClaims();
+      const userId = claimsResult.data?.claims?.sub ?? null;
+
+      if (userId) {
+        const { data: profile } = await supabaseAdmin
+          .from("staff_profiles")
+          .select("*")
+          .eq("auth_user_id", userId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (profile) {
+          staffContext = {
+            authUserId: userId,
+            profile,
+          };
+        }
+      }
+    }
+
+    if (!staffContext) {
+      return NextResponse.json(
+        { error: "No autorizado. Inicia sesion primero." },
+        { status: 401 },
+      );
+    }
+
+    const detail = await getOperationalMatchById(staffContext, {
+      matchId,
+      scope: matchScope,
+    });
+
+    if (!detail || !detail.canSubmitResult) {
+      return NextResponse.json(
+        { error: "No tienes permiso para registrar el resultado de este partido." },
+        { status: 403 },
+      );
+    }
+
     const table = matchScope === "category_match" ? "category_matches" : "bracket_matches";
 
     const { data: previousMatch } = await supabaseAdmin
@@ -96,8 +131,8 @@ export async function POST(request: Request) {
     await supabaseAdmin.from("match_result_audit").insert({
       match_scope: matchScope,
       match_id: matchId,
-      actor_user_id: userId,
-      actor_role: actorRole,
+      actor_user_id: staffContext.authUserId,
+      actor_role: staffContext.profile.role,
       previous_status: previousMatch.status,
       new_status: "completed",
       previous_home_score: previousMatch.home_score,

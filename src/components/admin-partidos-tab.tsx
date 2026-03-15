@@ -6,6 +6,7 @@ import { CalendarClock, MapPin, PencilLine, QrCode, Trash2, UserRound, Users } f
 
 import {
   addAdjustmentAction,
+  assignStaffToCategoryAction,
   assignStaffToMatchAction,
   createMatchAction,
   deleteAdjustmentAction,
@@ -95,6 +96,56 @@ function StaffSelect({
       </label>
       <button className="admin-btn admin-btn--secondary" type="submit">
         Guardar
+      </button>
+    </form>
+  );
+}
+
+function CategoryStaffSelect({
+  categoryId,
+  duty,
+  staffProfiles,
+  tournamentId,
+  value,
+}: {
+  categoryId: string;
+  duty: "referee" | "assistant";
+  staffProfiles: StaffProfileRow[];
+  tournamentId: string;
+  value?: string | null;
+}) {
+  const availableStaff = staffProfiles.filter(
+    (profile) =>
+      profile.is_active &&
+      profile.auth_user_id &&
+      (duty === "referee"
+        ? profile.role === "admin" || profile.role === "referee"
+        : profile.role === "admin" || profile.role === "assistant" || profile.role === "referee"),
+  );
+
+  return (
+    <form action={assignStaffToCategoryAction} className="grid gap-2 rounded-xl border border-[var(--app-line)] bg-white/[0.03] p-3">
+      <input name="tournamentId" type="hidden" value={tournamentId} />
+      <input name="categoryId" type="hidden" value={categoryId} />
+      <input name="duty" type="hidden" value={duty} />
+      <label className="field-shell">
+        <span className="field-label field-label--dark">
+          {duty === "referee" ? "Arbitraje de categoria" : "Organizacion de categoria"}
+        </span>
+        <select className="field-input field-input--dark" defaultValue={value ?? ""} name="staffUserId">
+          <option value="">Sin asignar</option>
+          {availableStaff.map((profile) => (
+            <option key={profile.id} value={profile.auth_user_id ?? ""}>
+              {profile.full_name} · {formatStaffRoleLabel(profile.role)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="text-xs leading-5 text-[var(--app-muted)]">
+        Se aplicara a todos los partidos y cruces de esta categoria salvo que un partido tenga una asignacion propia.
+      </p>
+      <button className="admin-btn admin-btn--secondary" type="submit">
+        Guardar categoria
       </button>
     </form>
   );
@@ -216,6 +267,23 @@ export function AdminPartidosTab({
               <Link className="admin-btn admin-btn--secondary" href="/app/partidos">
                 Ir a operativa
               </Link>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <CategoryStaffSelect
+                categoryId={category.category.id}
+                duty="referee"
+                staffProfiles={staffProfiles}
+                tournamentId={tournamentId}
+                value={category.category_referee_assignment?.auth_user_id ?? ""}
+              />
+              <CategoryStaffSelect
+                categoryId={category.category.id}
+                duty="assistant"
+                staffProfiles={staffProfiles}
+                tournamentId={tournamentId}
+                value={category.category_assistant_assignment?.auth_user_id ?? ""}
+              />
             </div>
           </div>
 

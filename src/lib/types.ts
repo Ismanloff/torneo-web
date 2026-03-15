@@ -300,6 +300,8 @@ export type EnrichedBracketMatch = BracketMatchRow & {
 
 export type ScoreboardCategory = {
   category: CategoryRow;
+  category_referee_assignment: StaffSummary | null;
+  category_assistant_assignment: StaffSummary | null;
   teams: (TeamRow & { qr_token: MatchQrTokenRow | null })[];
   standings: CategoryStandingRow[];
   matches: EnrichedCategoryMatch[];

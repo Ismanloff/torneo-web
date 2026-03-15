@@ -139,7 +139,16 @@ as $$
       join public.staff_profiles sp
         on sp.auth_user_id = sa.staff_user_id
        and sp.is_active = true
-      where sa.category_match_id = target_match_id
+      left join public.category_matches cm
+        on cm.id = target_match_id
+      where (
+          sa.category_match_id = target_match_id
+          or (
+            sa.category_id = cm.category_id
+            and sa.category_match_id is null
+            and sa.bracket_match_id is null
+          )
+        )
         and sa.staff_user_id = auth.uid()
         and (required_duty is null or sa.duty = required_duty)
     );
@@ -160,7 +169,18 @@ as $$
       join public.staff_profiles sp
         on sp.auth_user_id = sa.staff_user_id
        and sp.is_active = true
-      where sa.bracket_match_id = target_match_id
+      left join public.bracket_matches bm
+        on bm.id = target_match_id
+      left join public.category_brackets cb
+        on cb.id = bm.bracket_id
+      where (
+          sa.bracket_match_id = target_match_id
+          or (
+            sa.category_id = cb.category_id
+            and sa.category_match_id is null
+            and sa.bracket_match_id is null
+          )
+        )
         and sa.staff_user_id = auth.uid()
         and (required_duty is null or sa.duty = required_duty)
     );
@@ -182,12 +202,24 @@ as $$
         on cm.id = sa.category_match_id
       left join public.bracket_matches bm
         on bm.id = sa.bracket_match_id
+      left join public.category_matches category_matches_by_category
+        on category_matches_by_category.category_id = sa.category_id
+      left join public.bracket_matches bracket_matches_by_category
+        on bracket_matches_by_category.bracket_id in (
+          select cb.id
+          from public.category_brackets cb
+          where cb.category_id = sa.category_id
+        )
       where sa.staff_user_id = auth.uid()
         and (
           cm.home_team_id = target_team_id
           or cm.away_team_id = target_team_id
           or bm.home_team_id = target_team_id
           or bm.away_team_id = target_team_id
+          or category_matches_by_category.home_team_id = target_team_id
+          or category_matches_by_category.away_team_id = target_team_id
+          or bracket_matches_by_category.home_team_id = target_team_id
+          or bracket_matches_by_category.away_team_id = target_team_id
         )
     );
 $$;

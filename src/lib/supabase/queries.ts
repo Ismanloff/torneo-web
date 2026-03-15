@@ -66,6 +66,7 @@ function buildAssignmentMaps(assignments: StaffAssignmentRow[], staffProfiles: S
   );
   const byCategoryMatchId = new Map<string, Map<string, StaffProfileRow>>();
   const byBracketMatchId = new Map<string, Map<string, StaffProfileRow>>();
+  const byCategoryId = new Map<string, Map<string, StaffProfileRow>>();
 
   for (const assignment of assignments) {
     const profile = staffLookup.get(assignment.staff_user_id);
@@ -85,11 +86,22 @@ function buildAssignmentMaps(assignments: StaffAssignmentRow[], staffProfiles: S
       current.set(assignment.duty, profile);
       byBracketMatchId.set(assignment.bracket_match_id, current);
     }
+
+    if (
+      assignment.category_id &&
+      !assignment.category_match_id &&
+      !assignment.bracket_match_id
+    ) {
+      const current = byCategoryId.get(assignment.category_id) ?? new Map();
+      current.set(assignment.duty, profile);
+      byCategoryId.set(assignment.category_id, current);
+    }
   }
 
   return {
     byCategoryMatchId,
     byBracketMatchId,
+    byCategoryId,
   };
 }
 
@@ -151,7 +163,7 @@ function enrichCategories(input: {
   const bracketsByCategory = new Map(input.brackets.map((bracket) => [bracket.category_id, bracket]));
   const roundsByBracket = new Map<string, BracketRoundRow[]>();
   const matchesByBracket = new Map<string, BracketMatchRow[]>();
-  const { byCategoryMatchId, byBracketMatchId } = buildAssignmentMaps(
+  const { byCategoryMatchId, byBracketMatchId, byCategoryId } = buildAssignmentMaps(
     input.assignments,
     input.staffProfiles,
   );
@@ -189,6 +201,7 @@ function enrichCategories(input: {
   }
 
   return input.categories.map((category) => {
+    const categoryAssignmentMap = byCategoryId.get(category.id);
     const teams = input.teams
       .filter((team) => team.category_id === category.id)
       .sort((left, right) => left.team_name.localeCompare(right.team_name, "es"))
@@ -218,8 +231,10 @@ function enrichCategories(input: {
             team_name: teamLookup.get(match.away_team_id)?.team_name ?? "Equipo desconocido",
             registration_code: teamLookup.get(match.away_team_id)?.registration_code ?? "",
           },
-          referee_assignment: assignmentMap?.get("referee") ?? null,
-          assistant_assignment: assignmentMap?.get("assistant") ?? null,
+          referee_assignment:
+            assignmentMap?.get("referee") ?? categoryAssignmentMap?.get("referee") ?? null,
+          assistant_assignment:
+            assignmentMap?.get("assistant") ?? categoryAssignmentMap?.get("assistant") ?? null,
           home_checkin: homeCheckin,
           away_checkin: awayCheckin,
           qr_token: qrTokensByKey.get(`category_match:${match.id}`) ?? null,
@@ -293,8 +308,10 @@ function enrichCategories(input: {
                           teamLookup.get(match.winner_team_id)?.registration_code ?? "",
                       }
                     : null,
-                  referee_assignment: assignmentMap?.get("referee") ?? null,
-                  assistant_assignment: assignmentMap?.get("assistant") ?? null,
+                  referee_assignment:
+                    assignmentMap?.get("referee") ?? categoryAssignmentMap?.get("referee") ?? null,
+                  assistant_assignment:
+                    assignmentMap?.get("assistant") ?? categoryAssignmentMap?.get("assistant") ?? null,
                   home_checkin: homeCheckin,
                   away_checkin: awayCheckin,
                   qr_token: qrTokensByKey.get(`bracket_match:${match.id}`) ?? null,
@@ -306,6 +323,8 @@ function enrichCategories(input: {
 
     return {
       category,
+      category_referee_assignment: categoryAssignmentMap?.get("referee") ?? null,
+      category_assistant_assignment: categoryAssignmentMap?.get("assistant") ?? null,
       teams,
       standings,
       matches,
