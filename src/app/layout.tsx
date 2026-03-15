@@ -46,6 +46,12 @@ export const viewport: Viewport = {
   themeColor: "#050816",
 };
 
+const appVersion =
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) ??
+  process.env.VERCEL_DEPLOYMENT_ID ??
+  process.env.npm_package_version ??
+  "dev";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -53,14 +59,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}>
+      <body
+        className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}
+        data-app-version={appVersion}
+      >
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-green-600 focus:px-4 focus:py-2 focus:text-white"
         >
           Saltar al contenido
         </a>
-        <PwaRegistrar />
+        <PwaRegistrar appVersion={appVersion} />
         <div id="main-content">{children}</div>
       </body>
     </html>

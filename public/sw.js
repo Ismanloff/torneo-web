@@ -1,10 +1,8 @@
-// Torneo Escolar 2026 — Service Worker v2
+// Torneo Escolar 2026 — Service Worker
 // Cache-first shell, network-first data, offline fallback, background sync, push notifications
 
-// TODO: For production deployments, inject CACHE_VERSION at build time
-// (e.g. via a build script or CI env var) so each deploy busts the cache
-// automatically. Example: const CACHE_VERSION = "torneo-<GIT_SHA>";
-const CACHE_VERSION = "torneo-v2";
+const SW_VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
+const CACHE_VERSION = `torneo-${SW_VERSION}`;
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
