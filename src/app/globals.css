@@ -222,12 +222,21 @@ textarea {
   padding-top: env(safe-area-inset-top);
   background: linear-gradient(180deg, rgba(5, 8, 22, 0.94), rgba(5, 8, 22, 0.72));
   backdrop-filter: blur(28px);
+  transition:
+    transform 0.24s ease,
+    opacity 0.2s ease;
+  will-change: transform;
+}
+
+.app-topbar--hidden {
+  transform: translateY(calc(-100% - env(safe-area-inset-top)));
+  opacity: 0.98;
 }
 
 .app-topbar__inner {
   max-width: 68rem;
   margin: 0 auto;
-  padding: 0.9rem 1rem 1.1rem;
+  padding: 0.7rem 1rem 0.8rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -412,7 +421,7 @@ textarea {
   border: 1px solid var(--app-line);
   background: rgba(255, 255, 255, 0.04);
   color: var(--app-text);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -944,7 +953,7 @@ textarea {
 
 @media (max-width: 767px) {
   .app-topbar__inner {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .app-shell-content {
