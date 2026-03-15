@@ -717,6 +717,7 @@ textarea {
   border-radius: 999px;
   background: radial-gradient(circle, rgba(84, 209, 43, 0.18), transparent 65%);
   filter: blur(10px);
+  pointer-events: none;
 }
 
 .public-glass {
