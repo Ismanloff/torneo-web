@@ -14,7 +14,7 @@ const registrationSchema = z.object({
   categoryId: z.uuid(),
   teamName: z.string().trim().min(3).max(80),
   captainName: z.string().trim().min(2).max(120),
-  captainPhone: z.string().trim().min(6).max(20),
+  captainPhone: z.string().trim().min(6).max(20).regex(/^\+?[\d\s\-\(\)]{6,20}$/, "Teléfono inválido"),
   captainEmail: z.string().trim().email().max(120),
   totalPlayers: z.coerce.number().int().min(1).max(30),
   gdprConsent: z.literal("on"),
@@ -48,66 +48,35 @@ export async function registerTeamAction(formData: FormData) {
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
-  const { count: activeTeamCount, error: teamCountError } = await supabaseAdmin
-    .from("teams")
-    .select("id", { count: "exact", head: true })
-    .eq("category_id", parsed.data.categoryId)
-    .neq("status", "cancelled");
-
-  if (teamCountError) {
-    console.error("registerTeamAction team count error", teamCountError);
-    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
-  }
-
-  if ((activeTeamCount ?? 0) >= category.max_teams) {
-    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
-  }
-
   const suffix = randomBytes(2).toString("hex").toUpperCase();
   const registrationCode = `${slugToCode(parsed.data.teamName)}-${suffix}`;
-
-  const { data: team, error: teamError } = await supabaseAdmin
-    .from("teams")
-    .insert({
-      category_id: parsed.data.categoryId,
-      team_name: parsed.data.teamName,
-      captain_name: parsed.data.captainName,
-      captain_phone: parsed.data.captainPhone,
-      captain_email: parsed.data.captainEmail,
-      total_players: parsed.data.totalPlayers,
-      registration_code: registrationCode,
-      status: "pending",
-      gdpr_consent: true,
-      regulation_accepted: true,
-      parental_confirmation_required: false,
-    })
-    .select("id")
-    .single();
-
-  if (teamError || !team) {
-    console.error("registerTeamAction team insert error", teamError);
-    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
-  }
-
   const qrToken = randomBytes(18).toString("base64url");
 
-  const { error: qrError } = await supabaseAdmin
-    .from("match_qr_tokens")
-    .insert({
-      token: qrToken,
-      resource_type: "team",
-      resource_id: team.id,
-      is_active: true,
-    });
+  // Atomic check-and-insert via DB function to prevent race conditions
+  const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
+    "register_team_atomic",
+    {
+      p_category_id: parsed.data.categoryId,
+      p_team_name: parsed.data.teamName,
+      p_captain_name: parsed.data.captainName,
+      p_captain_phone: parsed.data.captainPhone,
+      p_captain_email: parsed.data.captainEmail,
+      p_total_players: parsed.data.totalPlayers,
+      p_registration_code: registrationCode,
+      p_qr_token: qrToken,
+    },
+  );
 
-  if (qrError) {
-    console.error("registerTeamAction qr insert error", qrError);
+  if (rpcError || !rpcResult?.success) {
+    console.error("registerTeamAction rpc error", rpcError ?? rpcResult?.error);
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
+
+  const teamId = rpcResult.team_id as string;
 
   const emailResult = await sendRegistrationEmail({
     to: parsed.data.captainEmail,
-    teamId: team.id,
+    teamId,
     teamName: parsed.data.teamName,
     categoryName: category.name,
     sport: category.sport,

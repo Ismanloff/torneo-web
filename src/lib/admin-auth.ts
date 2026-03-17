@@ -62,7 +62,7 @@ export async function setLegacyAdminSession() {
     sameSite: "lax",
     secure: true,
     path: "/",
-    maxAge: 60 * 60 * 12,
+    maxAge: 60 * 60 * 4,
   });
 }
 
@@ -89,7 +89,7 @@ export async function setPinSession(staffId: string) {
     sameSite: "lax",
     secure: true,
     path: "/",
-    maxAge: 60 * 60 * 24,
+    maxAge: 60 * 60 * 8,
   });
 }
 
