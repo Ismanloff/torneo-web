@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
+import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
 
 type FilterTab = "hoy" | "proximos" | "todos";
 
@@ -24,6 +25,12 @@ type MatchItem = {
   awayTeamName: string;
   duty: string;
 };
+
+function statusTone(status: string) {
+  if (status === "completed") return "success";
+  if (status === "in_progress") return "accent";
+  return "muted";
+}
 
 export function MatchFilters({ matches }: { matches: MatchItem[] }) {
   const [active, setActive] = useState<FilterTab>("hoy");
@@ -103,10 +110,10 @@ export function MatchFilters({ matches }: { matches: MatchItem[] }) {
           filtered.map((match, index) => (
             <Link
               key={`${match.scope}:${match.matchId}`}
-              className="flex items-center justify-between gap-4 rounded-[1.55rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.05]"
+              className="data-row row-surface app-row-link"
               href={`/app/partido/${match.matchId}?scope=${match.scope}`}
             >
-              <div className="min-w-0 flex-1">
+              <div className="data-row__main">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <p className="app-metric__label">
                     Bloque {String(index + 1).padStart(2, "0")}
@@ -127,20 +134,22 @@ export function MatchFilters({ matches }: { matches: MatchItem[] }) {
                       ? formatDateTime(match.scheduledAt)
                       : "Sin fecha"}
                   </p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">
-                    {match.status}
-                  </p>
+                  <div className="mt-2 flex justify-end">
+                    <StatusPill tone={statusTone(match.status) as "success" | "accent" | "muted"}>
+                      {match.status}
+                    </StatusPill>
+                  </div>
                 </div>
                 <ArrowUpRight className="h-5 w-5 shrink-0 text-[var(--app-muted)]" />
               </div>
             </Link>
           ))
         ) : (
-          <div className="flex flex-col items-center gap-3 rounded-[1.6rem] border border-dashed border-[var(--app-line)] bg-white/[0.02] py-10 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--app-muted)]" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-            <p className="text-sm font-medium text-[var(--app-muted)]">No hay partidos en este filtro.</p>
-            <p className="text-xs text-[var(--app-muted)]/60">Los partidos aparecerán aquí cuando se programen</p>
-          </div>
+          <EmptyStatePanel
+            eyebrow="Agenda"
+            title="No hay partidos en este filtro"
+            description="Los partidos aparecerán aquí en cuanto se programen o entren en tu vista operativa."
+          />
         )}
       </div>
     </>

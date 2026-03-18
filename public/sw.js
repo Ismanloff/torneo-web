@@ -1,5 +1,10 @@
-// Mater et Fátima — Service Worker
-// Cache-first shell, network-first data, offline fallback, background sync, push notifications
+// Mater et Fatima - Service Worker
+// Runtime rules:
+// - documents: network-first with offline fallback on safe routes
+// - versioned Next assets: cache-first
+// - images/icons: stale-while-revalidate with explicit fallback
+// - APIs: network-first only where a cached response is safe
+// - RSC/prefetch/tokenized flows: bypass cache entirely
 
 const SW_VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const CACHE_VERSION = `torneo-${SW_VERSION}`;
@@ -8,6 +13,15 @@ const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
 const OFFLINE_URL = "/offline.html";
+const EMPTY_PIXEL =
+  "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
+
+const SW_MESSAGES = {
+  SKIP_WAITING: "skip-waiting",
+  UPDATE_READY: "update-ready",
+  OFFLINE_SYNC_UPDATE: "offline-sync-update",
+  SYNC_COMPLETE: "sync-complete",
+};
 
 const APP_SHELL = [
   OFFLINE_URL,
@@ -17,10 +31,6 @@ const APP_SHELL = [
   "/apple-touch-icon.png",
 ];
 
-// ──────────────────────────────────────────────
-// Install — precache app shell + offline page
-// ──────────────────────────────────────────────
-
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -29,10 +39,6 @@ self.addEventListener("install", (event) => {
       .then(() => self.skipWaiting()),
   );
 });
-
-// ──────────────────────────────────────────────
-// Activate — purge old caches
-// ──────────────────────────────────────────────
 
 self.addEventListener("activate", (event) => {
   const currentCaches = [SHELL_CACHE, PAGE_CACHE, DATA_CACHE, IMAGE_CACHE];
@@ -47,15 +53,13 @@ self.addEventListener("activate", (event) => {
             .map((key) => caches.delete(key)),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(async () => {
+        await self.clients.claim();
+        await notifyClients({ type: SW_MESSAGES.UPDATE_READY, version: SW_VERSION });
+      }),
   );
 });
 
-// ──────────────────────────────────────────────
-// Fetch strategies
-// ──────────────────────────────────────────────
-
-/** Cache First with network fallback — for app shell assets (CSS, JS, fonts). */
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
@@ -77,7 +81,6 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
-/** Network First with cache fallback — for navigation and API/data requests. */
 async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
 
@@ -96,8 +99,7 @@ async function networkFirst(request, cacheName) {
       return cached;
     }
 
-    // For navigation requests, serve the offline page
-    if (request.mode === "navigate") {
+    if (request.mode === "navigate" || request.destination === "document") {
       return caches.match(OFFLINE_URL);
     }
 
@@ -108,7 +110,6 @@ async function networkFirst(request, cacheName) {
   }
 }
 
-/** Cache First, stale-while-revalidate — for images/icons. */
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
@@ -121,50 +122,98 @@ async function staleWhileRevalidate(request, cacheName) {
 
       return response;
     })
-    .catch(() => cached);
+    .catch(() => null);
 
-  return cached || networkFetch;
+  const response = cached || (await networkFetch);
+
+  if (response) {
+    return response;
+  }
+
+  if (request.destination === "image") {
+    return fetch(EMPTY_PIXEL);
+  }
+
+  return new Response("", { status: 204 });
 }
 
-// ──────────────────────────────────────────────
-// Fetch event router
-// ──────────────────────────────────────────────
+async function networkOnly(request) {
+  return fetch(request);
+}
+
+function isRscOrPrefetchRequest(request, url) {
+  return (
+    url.searchParams.has("_rsc") ||
+    request.headers.has("rsc") ||
+    request.headers.has("next-router-prefetch") ||
+    request.headers.get("purpose") === "prefetch" ||
+    request.headers.get("x-middleware-prefetch") === "1"
+  );
+}
+
+function isSensitiveRequest(url) {
+  return (
+    url.pathname.startsWith("/api/push/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.startsWith("/confirmacion/") ||
+    url.pathname.startsWith("/q/")
+  );
+}
+
+function isSafeOfflineDocument(url) {
+  return (
+    url.pathname === "/" ||
+    url.pathname === "/login" ||
+    url.pathname === "/inscripcion" ||
+    url.pathname.startsWith("/inscripcion/") ||
+    url.pathname.startsWith("/clasificacion/") ||
+    url.pathname.startsWith("/cuadro/") ||
+    url.pathname.startsWith("/equipo/") ||
+    url.pathname.startsWith("/app/") ||
+    url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/seguimiento/")
+  );
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Only handle GET requests in the fetch handler
   if (request.method !== "GET") {
     return;
   }
 
   const url = new URL(request.url);
 
-  // Navigation requests → Network First (with offline.html fallback)
-  if (request.mode === "navigate") {
+  if (isRscOrPrefetchRequest(request, url) || isSensitiveRequest(url)) {
+    event.respondWith(networkOnly(request));
+    return;
+  }
+
+  if (request.mode === "navigate" || request.destination === "document") {
+    if (!isSafeOfflineDocument(url)) {
+      event.respondWith(networkOnly(request));
+      return;
+    }
+
     event.respondWith(networkFirst(request, PAGE_CACHE));
     return;
   }
 
-  // API / data requests → Network First with data cache
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirst(request, DATA_CACHE));
     return;
   }
 
-  // Next.js static assets (JS, CSS chunks) → Cache First
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(cacheFirst(request, SHELL_CACHE));
     return;
   }
 
-  // Other Next.js assets → Stale-while-revalidate
   if (url.pathname.startsWith("/_next/")) {
     event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
     return;
   }
 
-  // Fonts → Cache First (they rarely change)
   if (
     url.pathname.endsWith(".woff2") ||
     url.pathname.endsWith(".woff") ||
@@ -174,7 +223,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Images / icons → Cache First, stale-while-revalidate
   if (
     url.pathname.endsWith(".png") ||
     url.pathname.endsWith(".svg") ||
@@ -187,27 +235,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App pages → Network First
-  if (
-    url.pathname === "/" ||
-    url.pathname.startsWith("/clasificacion/") ||
-    url.pathname.startsWith("/cuadro/") ||
-    url.pathname.startsWith("/equipo/") ||
-    url.pathname.startsWith("/app/") ||
-    url.pathname.startsWith("/admin") ||
-    url.pathname.startsWith("/seguimiento/")
-  ) {
-    event.respondWith(networkFirst(request, PAGE_CACHE));
-    return;
-  }
-
-  // Everything else — stale-while-revalidate with shell cache
   event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
 });
-
-// ──────────────────────────────────────────────
-// Background Sync — offline score submissions
-// ──────────────────────────────────────────────
 
 const IDB_NAME = "torneo-offline";
 const IDB_VERSION = 1;
@@ -255,7 +284,7 @@ function deletePendingScore(db, id) {
 self.addEventListener("message", (event) => {
   const type = event.data?.type;
 
-  if (type === "skip-waiting") {
+  if (type === SW_MESSAGES.SKIP_WAITING) {
     self.skipWaiting();
     return;
   }
@@ -287,18 +316,26 @@ async function syncPendingScores({ source }) {
   try {
     db = await openDB();
   } catch {
-    // IndexedDB not available — nothing to sync
     await notifyClients({
-      type: "offline-sync-update",
+      type: SW_MESSAGES.OFFLINE_SYNC_UPDATE,
       source,
       pendingCount: 0,
       syncedCount: 0,
+      status: "idle",
     });
     return;
   }
 
   const entries = await getAllPendingScores(db);
   let syncedCount = 0;
+
+  await notifyClients({
+    type: SW_MESSAGES.OFFLINE_SYNC_UPDATE,
+    source,
+    pendingCount: entries.length,
+    syncedCount: 0,
+    status: entries.length > 0 ? "syncing" : "idle",
+  });
 
   for (const entry of entries) {
     try {
@@ -318,32 +355,30 @@ async function syncPendingScores({ source }) {
         await deletePendingScore(db, entry.id);
         syncedCount += 1;
       }
-      // If the response is not ok (e.g. 4xx/5xx), leave the entry for the next sync attempt
     } catch {
-      // Network still down or other error — leave entry for next sync
       break;
     }
   }
 
   const remainingCount = Math.max(0, entries.length - syncedCount);
+  const status =
+    syncedCount > 0 ? "synced" : remainingCount > 0 ? "pending" : "idle";
 
   await notifyClients({
-    type: "sync-complete",
+    type: SW_MESSAGES.SYNC_COMPLETE,
     source,
     syncedCount,
     pendingCount: remainingCount,
+    status,
   });
   await notifyClients({
-    type: "offline-sync-update",
+    type: SW_MESSAGES.OFFLINE_SYNC_UPDATE,
     source,
     syncedCount,
     pendingCount: remainingCount,
+    status,
   });
 }
-
-// ──────────────────────────────────────────────
-// Push Notifications
-// ──────────────────────────────────────────────
 
 self.addEventListener("push", (event) => {
   if (!event.data) {
@@ -356,7 +391,7 @@ self.addEventListener("push", (event) => {
     payload = event.data.json();
   } catch {
     payload = {
-      title: "Mater et Fátima",
+      title: "Mater et Fatima",
       body: event.data.text(),
       url: "/",
     };
@@ -365,7 +400,7 @@ self.addEventListener("push", (event) => {
   const { title, body, url, icon } = payload;
 
   event.waitUntil(
-    self.registration.showNotification(title || "Mater et Fátima", {
+    self.registration.showNotification(title || "Mater et Fatima", {
       body: body || "",
       icon: icon || "/icon-192.png",
       badge: "/icon-192.png",
@@ -382,7 +417,6 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // If there's already a window open, focus it and navigate
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && "focus" in client) {
           client.focus();
@@ -391,7 +425,6 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
 
-      // Otherwise open a new window
       return self.clients.openWindow(targetUrl);
     }),
   );

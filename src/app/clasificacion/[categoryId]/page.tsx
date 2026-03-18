@@ -5,6 +5,7 @@ import { BracketTree } from "@/components/bracket-tree";
 import { MatchList } from "@/components/match-list";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { ScoreboardTable } from "@/components/scoreboard-table";
+import { EmptyStatePanel, MetricStrip, StatusPill } from "@/components/surface-primitives";
 import { getScoreboardHomeData } from "@/lib/supabase/queries";
 
 type CategoryPageProps = {
@@ -53,31 +54,34 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
       backLabel="Volver a clasificación"
       compactHero
       actions={
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <div className="public-soft p-4">
-            <p className="public-kicker">Equipos</p>
-            <p className="public-stat-value mt-3 text-[2.5rem]">{category.teams.length}</p>
-          </div>
-          <div className="public-soft p-4">
-            <p className="public-kicker">Partidos</p>
-            <p className="mt-3 text-2xl font-semibold text-white">{category.matches.length}</p>
-            <p className="mt-2 text-sm text-[#a8b7d2]">
+        <div className="grid gap-4">
+          <MetricStrip
+            className="metric-strip--compact"
+            items={[
+              { label: "Equipos", value: category.teams.length, meta: "Registrados", tone: "accent" },
+              { label: "Partidos", value: category.matches.length, meta: "Calendario", tone: "neutral" },
+            ]}
+          />
+          <div className="row-surface p-4">
+            <p className="text-sm leading-7 text-[#b7c2b0]">
               Clasificación ordenada por puntos, diferencia y tantos a favor.
             </p>
+            {category.bracket ? (
+              <div className="mt-4">
+                <Link className="public-action public-action--ghost" href={`/cuadro/${category.category.id}`}>
+                  Ver cuadro eliminatorio
+                </Link>
+              </div>
+            ) : null}
           </div>
-          {category.bracket ? (
-            <Link className="public-action public-action--ghost" href={`/cuadro/${category.category.id}`}>
-              Ver cuadro eliminatorio
-            </Link>
-          ) : null}
         </div>
       }
     >
-      <div className="public-glass p-0">
+      <div className="section-surface overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
           <div>
             <p className="public-kicker">Tabla oficial</p>
-            <p className="mt-2 text-sm text-[#a8b7d2]">
+            <p className="mt-2 text-sm text-[#b7c2b0]">
               Se ordena por puntos, diferencia y tantos a favor. Si hay grupos, cada grupo se muestra por separado.
             </p>
           </div>
@@ -93,41 +97,47 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
       </div>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <article className="public-glass p-5 sm:p-6">
+        <article className="section-surface p-5 sm:p-6">
           <p className="public-kicker">Partidos</p>
           <div className="mt-5">
             <MatchList category={category} />
           </div>
         </article>
 
-        <article className="public-glass p-5 sm:p-6">
+        <article className="section-surface p-5 sm:p-6">
           <p className="public-kicker">Criterio</p>
           <div className="mt-5 grid gap-3">
-            <div className="public-soft p-4">
+            <div className="row-surface p-4">
               <p className="font-semibold text-white">Puntos primero, luego desempates</p>
-              <p className="mt-2 text-sm text-[#a8b7d2]">
+              <p className="mt-2 text-sm text-[#b7c2b0]">
                 La clasificación se resuelve por puntos, después por diferencia y, si sigue el empate, por tantos a favor y orden alfabético.
               </p>
             </div>
-            <div className="public-soft p-4">
+            <div className="row-surface p-4">
               <p className="font-semibold text-white">Puntos totales de la categoría</p>
-              <p className="mt-3 text-3xl font-semibold text-[var(--app-accent)]">{totalPoints}</p>
+              <div className="mt-3">
+                <StatusPill tone="accent">{totalPoints} puntos</StatusPill>
+              </div>
               {leadTeam ? (
-                <p className="mt-2 text-sm text-[#a8b7d2]">
+                <p className="mt-3 text-sm text-[#b7c2b0]">
                   Registro líder: <strong className="text-white">{leadTeam.team_name}</strong> con{" "}
                   {leadTeam.total_points} puntos.
                 </p>
-              ) : null}
+              ) : (
+                <p className="mt-3 text-sm text-[#b7c2b0]">
+                  La categoría todavía no tiene equipos en juego.
+                </p>
+              )}
             </div>
           </div>
         </article>
       </section>
 
-      <section className="public-glass p-5 sm:p-6">
+      <section className="section-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="public-kicker">Cuadro eliminatorio</p>
-            <p className="mt-3 text-sm text-[#a8b7d2]">
+            <p className="mt-3 text-sm text-[#b7c2b0]">
               Vista del cuadro para esta categoria. Si todavia no existe, aparecera en cuanto se
               genere desde el panel interno.
             </p>
@@ -140,7 +150,16 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
         </div>
 
         <div className="mt-6">
-          <BracketTree category={category} />
+          {category.bracket ? (
+            <BracketTree category={category} />
+          ) : (
+            <EmptyStatePanel
+              compact
+              eyebrow="Cuadro eliminatorio"
+              title="Todavía no hay cuadro generado para esta categoría"
+              description="Aparecerá aquí en cuanto la organización publique la eliminatoria."
+            />
+          )}
         </div>
       </section>
     </PublicPageShell>

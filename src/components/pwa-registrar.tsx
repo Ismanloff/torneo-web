@@ -3,21 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Ellipsis, Share2, Smartphone, X } from "lucide-react";
+import { trackPwaEvent } from "@/lib/pwa-telemetry";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
-const INSTALL_DISMISSED_KEY = "torneo-install-dismissed";
+const INSTALL_DISMISSED_KEY = "torneo-install-dismissed-until";
+const HOME_VISIT_COUNT_KEY = "torneo-home-visit-count";
+const INSTALL_INTEREST_KEY = "torneo-install-interest";
+const INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 14;
+const SHORT_INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 3;
+const INSTALL_SCROLL_THRESHOLD = 320;
 
 type Platform = "ios-safari" | "ios-other" | "android" | "other";
 
 function detectPlatform(): Platform {
-  if (typeof window === "undefined") {
-    return "other";
-  }
-
   const userAgent = window.navigator.userAgent.toLowerCase();
   const isIOS = /iphone|ipad|ipod/.test(userAgent);
   const isAndroid = /android/.test(userAgent);
@@ -38,6 +40,39 @@ function detectPlatform(): Platform {
   }
 
   return "other";
+}
+
+function isStandaloneMode() {
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+  );
+}
+
+function readDismissedState() {
+  const rawValue = window.localStorage.getItem(INSTALL_DISMISSED_KEY);
+
+  if (!rawValue) {
+    return false;
+  }
+
+  const until = Number(rawValue);
+
+  if (!Number.isFinite(until) || until <= Date.now()) {
+    window.localStorage.removeItem(INSTALL_DISMISSED_KEY);
+    return false;
+  }
+
+  return true;
+}
+
+function persistInstallDismiss(ttl = INSTALL_DISMISS_TTL) {
+  window.localStorage.setItem(INSTALL_DISMISSED_KEY, String(Date.now() + ttl));
+}
+
+function markInstallInterest() {
+  window.localStorage.setItem(INSTALL_INTEREST_KEY, "1");
+  window.dispatchEvent(new CustomEvent("torneo:pwa-interest"));
 }
 
 /**
@@ -63,7 +98,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 /**
  * Register a Background Sync tag with the active service worker registration.
- * If Background Sync is not supported, resolves silently.
+ * Background Sync is only an enhancement, so foreground sync still runs.
  */
 export async function registerBackgroundSync(tag: string): Promise<void> {
   if (!("serviceWorker" in navigator)) {
@@ -73,7 +108,13 @@ export async function registerBackgroundSync(tag: string): Promise<void> {
   const registration = await navigator.serviceWorker.ready;
 
   if ("sync" in registration) {
-    await (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register(tag);
+    try {
+      await (registration as ServiceWorkerRegistration & {
+        sync: { register: (syncTag: string) => Promise<void> };
+      }).sync.register(tag);
+    } catch {
+      // Foreground retries cover browsers or states where sync registration fails.
+    }
   }
 }
 
@@ -81,34 +122,94 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   const pathname = usePathname();
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const shouldReloadOnControllerChangeRef = useRef(false);
+  const [hasMounted, setHasMounted] = useState(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installDismissed, setInstallDismissed] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.sessionStorage.getItem(INSTALL_DISMISSED_KEY) === "1";
-  });
-  const [isStandaloneMode] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return (
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
-    );
-  });
-  const [isMobileViewport, setIsMobileViewport] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.matchMedia?.("(max-width: 767px)").matches ?? false;
-  });
-  const [platform] = useState<Platform>(() => detectPlatform());
+  const [installDismissed, setInstallDismissed] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [platform, setPlatform] = useState<Platform>("other");
+  const [visitCount, setVisitCount] = useState(0);
+  const [hasInstallInterest, setHasInstallInterest] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+    setInstallDismissed(readDismissedState());
+    setIsStandalone(isStandaloneMode());
+    setIsMobileViewport(window.matchMedia?.("(max-width: 767px)").matches ?? false);
+    setPlatform(detectPlatform());
+    setHasInstallInterest(window.localStorage.getItem(INSTALL_INTEREST_KEY) === "1");
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted || pathname !== "/") {
+      return;
+    }
+
+    const nextCount = Number(window.localStorage.getItem(HOME_VISIT_COUNT_KEY) ?? "0") + 1;
+    window.localStorage.setItem(HOME_VISIT_COUNT_KEY, String(nextCount));
+    setVisitCount(nextCount);
+  }, [hasMounted, pathname]);
+
+  useEffect(() => {
+    if (!hasMounted || !window.matchMedia) {
+      return;
+    }
+
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const updateViewportState = () => {
+      setIsMobileViewport(mobileQuery.matches);
+      setIsStandalone(
+        standaloneQuery.matches ||
+          Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone),
+      );
+    };
+
+    updateViewportState();
+    mobileQuery.addEventListener("change", updateViewportState);
+    standaloneQuery.addEventListener("change", updateViewportState);
+
+    return () => {
+      mobileQuery.removeEventListener("change", updateViewportState);
+      standaloneQuery.removeEventListener("change", updateViewportState);
+    };
+  }, [hasMounted]);
+
+  useEffect(() => {
+    if (!hasMounted || pathname !== "/" || isStandalone) {
+      return;
+    }
+
+    const handleScroll = () => {
+      if (window.scrollY >= INSTALL_SCROLL_THRESHOLD) {
+        markInstallInterest();
+      }
+    };
+
+    const handleClick = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+
+      if (target?.closest("[data-pwa-value-signal]")) {
+        markInstallInterest();
+      }
+    };
+
+    const handleInterest = () => {
+      setHasInstallInterest(true);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    document.addEventListener("click", handleClick);
+    window.addEventListener("torneo:pwa-interest", handleInterest);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      document.removeEventListener("click", handleClick);
+      window.removeEventListener("torneo:pwa-interest", handleInterest);
+    };
+  }, [hasMounted, isStandalone, pathname]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {
@@ -189,6 +290,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
             if (worker.state === "installed" && navigator.serviceWorker.controller) {
               setUpdateReady(true);
               setUpdateDismissed(false);
+              trackPwaEvent("update_ready");
             }
           });
         };
@@ -200,6 +302,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
         if (registration.waiting) {
           setUpdateReady(true);
           setUpdateDismissed(false);
+          trackPwaEvent("update_ready");
         }
 
         const intervalId = window.setInterval(refreshRegistration, 60_000);
@@ -223,29 +326,13 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     };
   }, [appVersion]);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const handleChange = () => {
-      setIsMobileViewport(mediaQuery.matches);
-    };
-
-    handleChange();
-    mediaQuery.addEventListener("change", handleChange);
-
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
-  }, []);
-
   const shouldShowInstallPrompt =
+    hasMounted &&
     pathname === "/" &&
     !installDismissed &&
-    !isStandaloneMode &&
+    !isStandalone &&
     isMobileViewport &&
+    (visitCount >= 2 || hasInstallInterest) &&
     (Boolean(installEvent) || platform === "ios-safari" || platform === "ios-other" || platform === "android");
 
   const isDirectInstall = Boolean(installEvent);
@@ -258,22 +345,30 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       : "Instala la app del torneo";
 
   const description = isDirectInstall
-    ? "Abrela como una app, sin barras del navegador y con acceso rapido desde tu movil."
+    ? "Ábrela como app y entra más rápido a la jornada."
     : platform === "ios-safari"
-      ? "En iPhone o iPad se instala desde Safari. Toca compartir y anadela a la pantalla de inicio."
+      ? "En iPhone o iPad se instala desde Safari."
       : platform === "ios-other"
-        ? "Para instalarla en iPhone o iPad, abre esta pagina en Safari y anadela a la pantalla de inicio."
-        : "Si tu navegador no muestra el boton directo, abre el menu y toca Instalar app o Anadir a pantalla de inicio.";
+        ? "Ábrela en Safari para añadirla a pantalla de inicio."
+        : "Si no ves el botón directo, instálala desde el menú del navegador.";
 
-  const dismissInstallPrompt = () => {
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(INSTALL_DISMISSED_KEY, "1");
+  useEffect(() => {
+    if (shouldShowInstallPrompt) {
+      trackPwaEvent("install_prompt_shown", {
+        platform,
+        direct: Boolean(installEvent),
+      });
     }
+  }, [installEvent, platform, shouldShowInstallPrompt]);
 
+  const dismissInstallPrompt = (ttl = INSTALL_DISMISS_TTL) => {
+    persistInstallDismiss(ttl);
     setInstallDismissed(true);
+    trackPwaEvent("install_prompt_dismissed", { platform, ttl });
   };
 
   const requestUpdate = () => {
+    trackPwaEvent("update_applied");
     const waitingWorker = registrationRef.current?.waiting;
 
     if (!waitingWorker) {
@@ -288,7 +383,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   return (
     <>
       {shouldShowInstallPrompt ? (
-        <div className="fixed inset-x-3 bottom-[max(0.9rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-[22rem] rounded-[1.15rem] border border-[var(--line)] bg-[color:rgba(255,248,236,0.96)] p-2.5 shadow-[var(--shadow)] backdrop-blur">
+        <div className="fixed inset-x-3 bottom-[max(0.8rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-[22rem] rounded-[1.25rem] border border-[var(--line)] bg-[color:rgba(247,239,223,0.96)] p-3 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
@@ -297,7 +392,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
               <p className="mt-1 text-[0.95rem] leading-5 text-[var(--ink)]">
                 {title}
               </p>
-              <p className="mt-1.5 text-[0.88rem] leading-5 text-[var(--muted)]">
+              <p className="mt-1 text-[0.85rem] leading-5 text-[var(--muted)]">
                 {description}
               </p>
             </div>
@@ -305,15 +400,16 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
               aria-label="Cerrar aviso de instalacion"
               className="rounded-full border border-[var(--line)] p-2 text-[var(--muted)] transition hover:text-[var(--ink)]"
               type="button"
-              onClick={dismissInstallPrompt}
+              onClick={() => dismissInstallPrompt()}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
+
           {isDirectInstall ? (
-            <div className="mt-2.5 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2">
               <button
-                className="action-button action-button--signal min-h-10 flex-1 px-4 py-2.5 text-[0.8rem]"
+                className="action-button action-button--signal min-h-10 flex-1 px-4 py-2.5 text-[0.78rem]"
                 type="button"
                 onClick={async () => {
                   if (!installEvent) {
@@ -321,16 +417,22 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
                   }
 
                   await installEvent.prompt();
-                  await installEvent.userChoice.catch(() => {});
+                  const choice = await installEvent.userChoice.catch(() => null);
                   setInstallEvent(null);
+
+                  if (choice?.outcome === "accepted") {
+                    trackPwaEvent("install_prompt_accepted", { platform });
+                  } else {
+                    dismissInstallPrompt(SHORT_INSTALL_DISMISS_TTL);
+                  }
                 }}
               >
                 Instalar app
               </button>
               <button
-                className="rounded-full border border-[var(--line)] px-3 py-2 text-[0.92rem] font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
+                className="rounded-full border border-[var(--line)] px-3 py-2 text-[0.86rem] font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
                 type="button"
-                onClick={dismissInstallPrompt}
+                onClick={() => dismissInstallPrompt(SHORT_INSTALL_DISMISS_TTL)}
               >
                 Ahora no
               </button>
@@ -339,46 +441,37 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
             <div className="mt-3 grid gap-2">
               {platform === "ios-safari" ? (
                 <>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    1. Toca <span className="font-semibold">Compartir</span> <Share2 className="ml-1 inline h-3.5 w-3.5 align-[-2px]" /> en Safari.
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    1. Toca <span className="font-semibold">Compartir</span> <Share2 className="ml-1 inline h-3.5 w-3.5 align-[-2px]" />.
                   </div>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    2. Pulsa <span className="font-semibold">Anadir a pantalla de inicio</span>.
-                  </div>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    3. Confirma con <span className="font-semibold">Anadir</span>.
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    2. Elige <span className="font-semibold">Añadir a pantalla de inicio</span>.
                   </div>
                 </>
               ) : platform === "ios-other" ? (
                 <>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    1. Abre esta pagina en <span className="font-semibold">Safari</span>.
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    1. Abre esta página en <span className="font-semibold">Safari</span>.
                   </div>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    2. Toca <span className="font-semibold">Compartir</span> <Share2 className="ml-1 inline h-3.5 w-3.5 align-[-2px]" />.
-                  </div>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    3. Pulsa <span className="font-semibold">Anadir a pantalla de inicio</span>.
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    2. Usa <span className="font-semibold">Compartir</span> y añade la app al inicio.
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    1. Abre el menu del navegador <Ellipsis className="ml-1 inline h-3.5 w-3.5 align-[-2px]" />.
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    1. Abre el menú del navegador <Ellipsis className="ml-1 inline h-3.5 w-3.5 align-[-2px]" />.
                   </div>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    2. Toca <span className="font-semibold">Instalar app</span> o <span className="font-semibold">Anadir a pantalla de inicio</span>.
-                  </div>
-                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2.5 text-[0.85rem] text-[var(--ink)]">
-                    3. Confirma la instalacion y abre la <span className="font-semibold">app</span> desde tu inicio.
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    2. Toca <span className="font-semibold">Instalar app</span> o <span className="font-semibold">Añadir a pantalla de inicio</span>.
                   </div>
                 </>
               )}
 
               <button
-                className="mt-1 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[var(--line)] px-3 py-2 text-[0.92rem] font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
+                className="mt-1 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[var(--line)] px-3 py-2 text-[0.86rem] font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
                 type="button"
-                onClick={dismissInstallPrompt}
+                onClick={() => dismissInstallPrompt()}
               >
                 <Smartphone className="h-4 w-4" />
                 Entendido
@@ -396,7 +489,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
                 Nueva version disponible
               </p>
               <p className="mt-2 text-sm leading-6 text-white/80">
-                Hay una actualizacion lista. Pulsa actualizar para recargar la app con la ultima version.
+                Hay una actualización lista. Pulsa actualizar para recargar la app con la última versión.
               </p>
             </div>
             <button

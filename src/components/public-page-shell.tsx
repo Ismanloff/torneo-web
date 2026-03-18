@@ -40,8 +40,8 @@ export function PublicPageShell({
 
         <section className={`public-hero ${compactHero ? "public-hero--compact" : ""}`}>
           <div className={`public-wrap ${compactHero ? "py-7 lg:py-9" : "py-10 lg:py-14"}`}>
-            <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-              <article className="public-glass p-6 lg:p-8">
+            <div className="public-editorial-grid">
+              <article className="public-glass hero-surface p-6 lg:p-8">
                 <Link className="public-tag" href={backHref}>
                   <ChevronLeft className="h-4 w-4" />
                   {backLabel}
@@ -51,7 +51,7 @@ export function PublicPageShell({
                 {description ? <p className={`public-copy ${compactHero ? "mt-4 text-sm sm:text-base" : "mt-5 text-base"} max-w-3xl`}>{description}</p> : null}
               </article>
 
-              {actions ? <aside className="public-glass p-6 lg:p-8">{actions}</aside> : null}
+              {actions ? <aside className="section-surface p-5 lg:p-6">{actions}</aside> : null}
             </div>
           </div>
         </section>

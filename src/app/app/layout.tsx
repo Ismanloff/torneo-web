@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 
 import { logoutAdminAction } from "@/app/admin/actions";
 import { AppShellNav } from "@/components/app-shell-nav";
+import { StoragePersistRegistrar } from "@/components/storage-persist-registrar";
 import { AppTopbarShell } from "@/components/app-topbar-shell";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { SyncIndicator } from "@/components/sync-indicator";
@@ -21,6 +22,7 @@ export default async function StaffAppLayout({
         channelName={`staff-app-${staff.authUserId ?? "legacy-admin"}`}
         tables={["category_matches", "bracket_matches", "category_brackets", "team_checkins", "staff_assignments"]}
       />
+      <StoragePersistRegistrar />
       <div className="app-shell">
         <AppTopbarShell>
           <div className="app-topbar__inner">

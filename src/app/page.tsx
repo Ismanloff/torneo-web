@@ -13,14 +13,15 @@ import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { SportTabs } from "@/components/sport-tabs";
+import { MetricStrip } from "@/components/surface-primitives";
 import { ALLOWED_SPORT_LABELS } from "@/lib/allowed-sports";
 import {
   TOURNAMENT_EDITION_LABEL,
   TOURNAMENT_EVENT_DATE_LABEL,
+  TOURNAMENT_EVENT_VENUE,
   TOURNAMENT_NAME,
   TOURNAMENT_ORGANIZERS_SHORT,
-  TOURNAMENT_ORGANIZERS_LABEL,
-  TOURNAMENT_PARTICIPATION_LABEL,
+  TOURNAMENT_VALUE_PROPOSITION,
 } from "@/lib/branding";
 import { getScoreboardHomeData } from "@/lib/supabase/queries";
 
@@ -83,84 +84,85 @@ export default async function Home() {
                   </span>
                   <span className="public-tag public-tag--soft">
                     <Landmark className="h-3.5 w-3.5" />
-                    Sporti y parroquias
+                    {TOURNAMENT_EVENT_VENUE}
                   </span>
                 </div>
                 <h1 className="public-title text-[clamp(2.8rem,11vw,5.9rem)]">
                   {TOURNAMENT_NAME}
                 </h1>
+                <p className="public-hero-panel__lead mt-3">
+                  {TOURNAMENT_VALUE_PROPOSITION}
+                </p>
                 <p className="public-hero-panel__meta mt-3 text-sm text-[#9fb3d9] sm:mt-4">
                   {TOURNAMENT_EVENT_DATE_LABEL} &middot; {ALLOWED_SPORT_LABELS.join(" · ")}
                 </p>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-[#c2cfdf]">
-                  {TOURNAMENT_ORGANIZERS_LABEL}
-                </p>
-                <p className="mt-2 max-w-2xl text-sm leading-7 text-[#c2cfdf]">
-                  {TOURNAMENT_PARTICIPATION_LABEL}
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[#b9c7bc]">
+                  {TOURNAMENT_ORGANIZERS_SHORT}. Inscribe equipos, sigue marcadores y consulta cruces desde la misma experiencia.
                 </p>
 
                 <div className="public-inline-actions mt-5">
-                  <a className="public-action public-action--ghost" href="#clasificacion">
-                    Ver clasificación
-                  </a>
-                  <Link className="public-action public-action--subtle" href="/inscripcion">
+                  <Link
+                    className="public-action public-action--primary"
+                    data-pwa-value-signal="hero-primary"
+                    href="/inscripcion"
+                  >
                     Inscribir equipo
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
+                  <a
+                    className="public-action public-action--ghost"
+                    data-pwa-value-signal="hero-secondary"
+                    href="#clasificacion"
+                  >
+                    Ver clasificación
+                  </a>
                 </div>
               </div>
 
               <div className="public-hero-panel__rail">
-                <div className="public-hero-stats">
-                  <div className="public-hero-stat">
-                    <div className="public-hero-stat__icon">
-                      <Trophy className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="public-hero-stat__label">Categorías</p>
-                      <p className="public-hero-stat__value">{data.categories.length}</p>
-                    </div>
-                  </div>
-                  <div className="public-hero-stat">
-                    <div className="public-hero-stat__icon">
-                      <CalendarDays className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="public-hero-stat__label">Equipos</p>
-                      <p className="public-hero-stat__value">{data.totalTeams}</p>
-                    </div>
-                  </div>
-                  <div className="public-hero-stat">
-                    <div className="public-hero-stat__icon">
-                      <Swords className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="public-hero-stat__label">Partidos</p>
-                      <p className="public-hero-stat__value">{data.totalMatches}</p>
-                    </div>
-                  </div>
-                </div>
+                <MetricStrip
+                  items={[
+                    { label: "Categorías", value: data.categories.length, meta: "Configuradas", tone: "accent" },
+                    { label: "Equipos", value: data.totalTeams, meta: "Registrados", tone: "neutral" },
+                    { label: "Partidos", value: data.totalMatches, meta: "Programados", tone: "info" },
+                  ]}
+                />
 
-                <div className="public-hero-note">
-                  <p className="public-kicker">Organización</p>
-                  <p className="public-hero-note__title mt-3">{TOURNAMENT_ORGANIZERS_SHORT}</p>
-                  <p className="mt-3 text-sm leading-7 text-[#c2cfdf]">
-                    Cuarta edición del torneo. Sigue resultados, consulta cruces y mantén la inscripción abierta sin perder el pulso de la jornada.
-                  </p>
+                <div className="public-hero-note public-hero-note--spotlight">
+                  <p className="public-kicker">Hoy importa</p>
+                  <p className="public-hero-note__title mt-3">Entrar rápido y seguir la jornada</p>
+                  <div className="public-note-list mt-4">
+                    <div className="public-note-item">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d7e5b7]">Inscripción abierta</p>
+                      <p className="mt-1 text-sm leading-6 text-[#d5ddd2]">
+                        Si todavía no hay partidos visibles, la inscripción es el primer paso útil.
+                      </p>
+                    </div>
+                    <div className="public-note-item">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d7e5b7]">Lectura clara</p>
+                      <p className="mt-1 text-sm leading-6 text-[#d5ddd2]">
+                        Clasificación, próximos encuentros y cruces quedan agrupados por deporte con menos ruido móvil.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {isTournamentEmpty ? (
-              <div className="mt-5 public-soft px-4 py-4 sm:mt-6 sm:px-5">
+              <div className="mt-5 public-soft public-soft--warm px-4 py-4 sm:mt-6 sm:px-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-white">Las inscripciones ya están abiertas.</p>
-                    <p className="mt-1 text-sm text-[#9fb3d9]">
-                      Los equipos y partidos aparecerán aquí en cuanto la organización reciba las primeras altas.
+                    <p className="text-sm font-semibold text-white">La jornada empieza por la inscripción.</p>
+                    <p className="mt-1 text-sm text-[#d4decd]">
+                      Registra el primer equipo y esta pantalla activará automáticamente clasificación, seguimiento y cruces del deporte correspondiente.
                     </p>
                   </div>
-                  <Link className="public-action public-action--primary" href="/inscripcion">
+                  <Link
+                    className="public-action public-action--primary"
+                    data-pwa-value-signal="empty-state"
+                    href="/inscripcion"
+                  >
                     Inscribir equipo
                   </Link>
                 </div>

@@ -3,6 +3,8 @@ export const TOURNAMENT_SHORT_NAME = "Mater et Fátima";
 export const TOURNAMENT_DESCRIPTION =
   "IV torneo escolar Mater et Fátima organizado por Sporti, con inscripción de equipos, clasificación y cruces.";
 export const TOURNAMENT_TAGLINE = "Seguimiento y clasificación";
+export const TOURNAMENT_VALUE_PROPOSITION =
+  "Inscripción, clasificación y cruces en una sola app para seguir la jornada sin ruido.";
 export const TOURNAMENT_EDITION_LABEL = "IV torneo";
 export const TOURNAMENT_ORGANIZER_MAIN = "Sporti";
 export const TOURNAMENT_ORGANIZERS_LABEL =
@@ -15,3 +17,6 @@ export const TOURNAMENT_EVENT_DATE_LABEL = "18 de abril de 2026";
 export const TOURNAMENT_EVENT_START_LABEL = "10:00";
 export const TOURNAMENT_EVENT_WINDOW_LABEL = "10:00 a 14:00";
 export const TOURNAMENT_EVENT_VENUE = "Parroquia Nuestra Señora de la Soledad";
+export const TOURNAMENT_THEME_COLOR = "#0b1712";
+export const TOURNAMENT_BACKGROUND_COLOR = "#0b1712";
+export const TOURNAMENT_SURFACE_COLOR = "#12231c";

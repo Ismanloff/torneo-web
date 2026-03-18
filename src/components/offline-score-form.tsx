@@ -34,7 +34,11 @@ async function requestOfflineScoreSync() {
   const registration = await navigator.serviceWorker.ready;
 
   if ("sync" in registration) {
-    return;
+    try {
+      await (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("sync-scores");
+    } catch {
+      // Foreground sync below covers browsers or states where SyncManager fails.
+    }
   }
 
   registration.active?.postMessage({ type: "sync-offline-scores" });
@@ -61,7 +65,7 @@ export function OfflineScoreForm({
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
-  const [offlineSaved, setOfflineSaved] = useState(false);
+  const [syncState, setSyncState] = useState<"idle" | "pending" | "syncing" | "synced">("idle");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [scheduledAtValue, setScheduledAtValue] = useState(currentScheduledAt ?? "");
   const [locationValue, setLocationValue] = useState(currentLocation ?? "");
@@ -89,7 +93,15 @@ export function OfflineScoreForm({
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "sync-complete" || event.data?.type === "offline-sync-update") {
-        setOfflineSaved(false);
+        if (event.data?.status === "syncing") {
+          setSyncState("syncing");
+        } else if (event.data?.status === "synced") {
+          setSyncState("synced");
+        } else if (event.data?.pendingCount > 0) {
+          setSyncState("pending");
+        } else {
+          setSyncState("idle");
+        }
         router.refresh();
       }
     };
@@ -132,7 +144,7 @@ export function OfflineScoreForm({
       const rawAway = formData.get("awayScore") as string;
 
       if (rawHome === "" || rawAway === "") {
-        setOfflineSaved(false);
+        setSyncState("idle");
         alert("Introduce ambos marcadores antes de guardar.");
         return;
       }
@@ -174,8 +186,7 @@ export function OfflineScoreForm({
         }
       }
 
-      setOfflineSaved(true);
-      setTimeout(() => setOfflineSaved(false), 4000);
+      setSyncState("pending");
       return;
     }
 
@@ -310,23 +321,37 @@ export function OfflineScoreForm({
         <input name="location" type="hidden" value={locationValue} />
         <input name="notes" type="hidden" value={notesValue} />
 
-        {offlineSaved ? (
+        {syncState === "pending" ? (
           <div className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-medium text-white">
             <Check className="h-4 w-4" />
-            Resultado guardado offline. Se sincronizara automaticamente.
+            Resultado guardado offline. Se sincronizará automáticamente.
+          </div>
+        ) : null}
+        {syncState === "syncing" ? (
+          <div className="flex items-center gap-2 rounded-xl bg-[rgba(201,221,120,0.14)] px-4 py-3 text-sm font-medium text-[var(--app-text)]">
+            <Wifi className="h-4 w-4" />
+            Enviando los cambios en cuanto la red responde.
+          </div>
+        ) : null}
+        {syncState === "synced" ? (
+          <div className="flex items-center gap-2 rounded-xl bg-[rgba(84,209,43,0.14)] px-4 py-3 text-sm font-medium text-[var(--app-text)]">
+            <Check className="h-4 w-4" />
+            Resultado sincronizado.
           </div>
         ) : null}
 
         <div className="flex flex-wrap gap-3">
           <button
-            className={`app-action ${offlineSaved ? "bg-green-600 text-white" : ""}`}
+            className={`app-action ${syncState === "pending" || syncState === "synced" ? "bg-green-600 text-white" : ""}`}
             disabled={!canSubmit || isPending}
             type="submit"
           >
             {isPending
               ? "Guardando..."
-              : offlineSaved
+              : syncState === "pending"
                 ? "Guardado offline"
+                : syncState === "synced"
+                  ? "Sincronizado"
                 : isOnline
                   ? "Guardar resultado"
                   : "Guardar offline"}

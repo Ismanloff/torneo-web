@@ -1,16 +1,28 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Bell, X } from "lucide-react";
+import { trackPwaEvent } from "@/lib/pwa-telemetry";
 
 const PUSH_DISMISSED_KEY = "torneo-push-dismissed";
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
+function isStandaloneMode() {
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+  );
+}
 
 function getPushBannerVisibility() {
   if (typeof window === "undefined") return false;
+  if (!VAPID_PUBLIC_KEY) return false;
   if (!("serviceWorker" in navigator)) return false;
   if (!("PushManager" in window)) return false;
   if (Notification.permission !== "default") return false;
   if (localStorage.getItem(PUSH_DISMISSED_KEY) === "1") return false;
+  const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  if (isIOS && !isStandaloneMode()) return false;
   return true;
 }
 
@@ -23,6 +35,12 @@ export function PushPermissionBanner() {
   );
   const visible = !dismissed && canShow;
 
+  useEffect(() => {
+    if (visible) {
+      trackPwaEvent("push_prompt_shown");
+    }
+  }, [visible]);
+
   if (!visible) return null;
 
   const handleActivate = async () => {
@@ -30,19 +48,12 @@ export function PushPermissionBanner() {
       const permission = await Notification.requestPermission();
 
       if (permission !== "granted") {
+        trackPwaEvent("push_prompt_denied", { permission });
         setDismissed(true);
         return;
       }
 
       const registration = await navigator.serviceWorker.ready;
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-
-      if (!vapidPublicKey) {
-        console.error("[push] VAPID public key not configured");
-        setDismissed(true);
-        return;
-      }
-
       // Convert VAPID key from base64url to Uint8Array
       const urlBase64ToUint8Array = (base64String: string) => {
         const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -61,12 +72,12 @@ export function PushPermissionBanner() {
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
 
       const subscriptionJson = subscription.toJSON();
 
-      await fetch("/api/push/subscribe", {
+      const response = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -78,9 +89,15 @@ export function PushPermissionBanner() {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error("No se pudo guardar la suscripción.");
+      }
+
+      trackPwaEvent("push_prompt_granted");
       setDismissed(true);
     } catch (error) {
       console.error("[push] Error activating push notifications:", error);
+      trackPwaEvent("push_prompt_denied", { permission: "error" });
       setDismissed(true);
     }
   };
@@ -97,7 +114,10 @@ export function PushPermissionBanner() {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-6 text-[var(--app-text)]">
-          Activa las notificaciones para recibir avisos de tus partidos
+          Activa las notificaciones cuando quieras seguir avisos en tiempo real
+        </p>
+        <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">
+          Solo las pedimos desde la zona staff y cuando la app ya tiene valor operativo.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button

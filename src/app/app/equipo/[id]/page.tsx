@@ -4,6 +4,7 @@ import { ArrowUpRight, QrCode, Users } from "lucide-react";
 
 import { checkInTeamAction, saveCheckinAction } from "@/app/admin/actions";
 import { QrTile } from "@/components/qr-tile";
+import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalTeamById } from "@/lib/supabase/queries";
 import type { EnrichedBracketMatch, EnrichedCategoryMatch, StaffContext } from "@/lib/types";
@@ -226,7 +227,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
 
         {nextOpenMatch ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="app-soft-card">
+            <div className="row-surface p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-[var(--app-muted)]">Proximo partido</p>
               <p className="mt-2 text-xl font-semibold">
                 {nextOpenMatch.home_team?.team_name ?? "Pendiente"} vs {nextOpenMatch.away_team?.team_name ?? "Pendiente"}
@@ -241,7 +242,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
               </p>
             </div>
 
-            <div className="app-soft-card">
+            <div className="row-surface p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-[var(--app-muted)]">Acciones de mesa</p>
               {nextCheckinAllowed ? (
                 <div className="mt-3 grid gap-3">
@@ -279,9 +280,12 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
             </div>
           </div>
         ) : (
-          <div className="app-soft-card mt-5 text-sm text-[var(--app-muted)]">
-            Este equipo no tiene partidos abiertos ahora mismo. El QR sigue sirviendo para identificarlo en entrada.
-          </div>
+          <EmptyStatePanel
+            compact
+            eyebrow="Entrada rápida"
+            title="Este equipo no tiene partidos abiertos ahora mismo"
+            description="El QR sigue sirviendo para identificarlo en entrada y revisar su ficha operativa."
+          />
         )}
       </section>
 
@@ -295,10 +299,10 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-5 data-list">
           {detail.categoryMatches.length ? (
             detail.categoryMatches.map((match) => (
-              <div key={match.id} className="app-soft-card">
+              <div key={match.id} className="data-row row-surface">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">
@@ -322,9 +326,12 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
               </div>
             ))
           ) : (
-            <div className="app-soft-card text-sm text-[var(--app-muted)]">
-              Este equipo todavía no tiene partidos de categoría cargados.
-            </div>
+            <EmptyStatePanel
+              compact
+              eyebrow="Fase regular"
+              title="Este equipo todavía no tiene partidos de categoría cargados"
+              description="La fase regular aparecerá aquí en cuanto la organización publique el calendario."
+            />
           )}
         </div>
       </section>
@@ -337,10 +344,10 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
           <h2 className="app-section-title mt-3 text-[2.4rem]">Cruces</h2>
         </div>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-5 data-list">
           {detail.bracketMatches.length ? (
             detail.bracketMatches.map((match) => (
-              <div key={match.id} className="app-soft-card">
+              <div key={match.id} className="data-row row-surface">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">
@@ -364,9 +371,12 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
               </div>
             ))
           ) : (
-            <div className="app-soft-card text-sm text-[var(--app-muted)]">
-              No hay cruces de eliminatoria asignados a este equipo todavía.
-            </div>
+            <EmptyStatePanel
+              compact
+              eyebrow="Cruces"
+              title="No hay eliminatorias asignadas a este equipo todavía"
+              description="Cuando entre en cuadro aparecerán aquí con acceso directo al partido."
+            />
           )}
         </div>
       </section>

@@ -6,6 +6,7 @@ import { ArrowUpRight, Calendar, Trophy } from "lucide-react";
 
 import { BracketTree } from "@/components/bracket-tree";
 import { ScoreboardTable } from "@/components/scoreboard-table";
+import { EmptyStatePanel, SectionHeader, StatusPill } from "@/components/surface-primitives";
 import type { ScoreboardCategory } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
@@ -84,19 +85,20 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
     <div>
       {/* Sticky sport tabs */}
       <div
-        className="sticky z-30 border-b border-white/8"
+        className="public-ticker"
         style={{
-          top: "4.5rem",
-          background: "linear-gradient(180deg, rgba(3, 6, 17, 0.94), rgba(3, 6, 17, 0.78))",
-          backdropFilter: "blur(20px)",
+          top: "3.9rem",
         }}
       >
         <div className="public-wrap">
           <div
+            className="public-ticker__inner"
+          >
+            <div
             className="grid grid-cols-3 gap-2 py-3 sm:flex sm:flex-wrap"
             role="tablist"
             aria-label="Deportes"
-          >
+            >
             {sports.map((sport, index) => {
               const isActive =
                 sport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() ===
@@ -122,8 +124,9 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                   <SportIcon sport={sport} />
                   <span className="sport-tab__label">{sport}</span>
                 </button>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -143,14 +146,12 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
       {/* Clasificacion section */}
       <section className="public-section" id="clasificacion">
         <div className="public-wrap grid gap-8">
-          <div className="public-section-head">
-            <div className="space-y-3">
-              <p className="public-kicker">Clasificación</p>
-              <h2 className="public-title text-[clamp(2.8rem,11vw,5.6rem)]">Tabla pública</h2>
-            </div>
-
-            {filteredCategories.length > 0 ? (
-              <div className="public-sport-cta">
+          <SectionHeader
+            eyebrow="Clasificación"
+            title="Tabla pública"
+            description="Una lectura más directa del deporte activo: menos cajas, más tabla, y acceso rápido a la inscripción cuando todavía hay plazas."
+            action={filteredCategories.length > 0 ? (
+              <div className="section-surface public-sport-cta">
                 <div className="public-sport-cta__copy">
                   <p className="public-kicker">{activeSport}</p>
                   <p className="mt-3 text-lg font-semibold text-white">
@@ -158,7 +159,7 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                       ? "Las inscripciones siguen abiertas."
                       : `Las inscripciones están abiertas para ${activeSport}.`}
                   </p>
-                  <p className="mt-2 text-sm leading-7 text-[#a8b7d2]">
+                  <p className="mt-2 text-sm leading-7 text-[#b7c2b0]">
                     {filteredCategories.length} categorías · {totalTeamsInSport} equipos registrados ·{" "}
                     {totalSlotsLeft} plazas disponibles.
                   </p>
@@ -179,17 +180,14 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                 </div>
               </div>
             ) : null}
-          </div>
+          />
 
           {!hasTeamsInSport && filteredCategories.length > 0 ? (
-            <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:px-5">
-              <div>
-                <p className="text-sm font-semibold text-white">Todavía no hay equipos visibles en {activeSport}.</p>
-                <p className="mt-1 text-sm text-[#9fb3d9]">
-                  La primera inscripción activará la tabla pública y el seguimiento del deporte.
-                </p>
-              </div>
-            </div>
+            <EmptyStatePanel
+              eyebrow={activeSport}
+              title={`Todavía no hay equipos visibles en ${activeSport}`}
+              description="La primera inscripción activará la tabla pública y el seguimiento del deporte."
+            />
           ) : null}
 
           <div className="grid gap-6 xl:grid-cols-2">
@@ -198,14 +196,12 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                 <ScoreboardTable key={category.category.id} category={category} compact />
               ))
             ) : (
-              <div className="public-soft flex flex-col items-center gap-3 py-10 text-center xl:col-span-2">
-                <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
-                <p className="text-sm font-medium text-[#8fa1c2]">
-                  No hay categorías publicadas para este deporte todavía.
-                </p>
-                <p className="text-xs text-[#8fa1c2]/60">
-                  La clasificación aparecerá aquí cuando la organización configure la estructura.
-                </p>
+              <div className="xl:col-span-2">
+                <EmptyStatePanel
+                  eyebrow="Clasificación"
+                  title="No hay categorías publicadas para este deporte"
+                  description="La clasificación aparecerá aquí cuando la organización configure la estructura."
+                />
               </div>
             )}
           </div>
@@ -215,58 +211,59 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
       {/* Partidos section */}
       <section className="public-section" id="partidos">
         <div className="public-wrap grid gap-8">
-          <div className="space-y-3">
-            <p className="public-kicker">Partidos</p>
-            <h2 className="public-title text-[clamp(2.8rem,11vw,5.6rem)]">Próximos encuentros</h2>
-          </div>
+          <SectionHeader
+            align="start"
+            eyebrow="Partidos"
+            title="Próximos encuentros"
+            description="Las jornadas ahora se leen como un calendario editorial: categoría arriba y enfrentamientos en filas compactas."
+          />
 
           {!hasAnyMatchesInSport && filteredCategories.length > 0 ? (
-            <div className="public-soft flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div>
-                <p className="text-sm font-semibold text-white">Todavía no hay partidos programados para {activeSport}.</p>
-                <p className="mt-1 text-sm text-[#9fb3d9]">
-                  El calendario aparecerá aquí cuando la organización prepare los encuentros.
-                </p>
-              </div>
-              <a className="public-action public-action--ghost" href="#clasificacion">
-                Ver categorías
-              </a>
-            </div>
+            <EmptyStatePanel
+              eyebrow={activeSport}
+              title={`Todavía no hay partidos programados para ${activeSport}`}
+              description="El calendario aparecerá aquí cuando la organización prepare los encuentros."
+              action={
+                <a className="public-action public-action--ghost" href="#clasificacion">
+                  Ver categorías
+                </a>
+              }
+            />
           ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             {categoriesWithMatches.length > 0 ? (
               categoriesWithMatches.map((category) => {
                 const previewMatches = category.matches.slice(0, 3);
                 const hasMore = category.matches.length > 3;
 
                 return (
-                  <div key={category.category.id} className="public-glass p-5 sm:p-6">
+                  <div key={category.category.id} className="section-surface p-5 sm:p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="public-kicker">{category.category.name}</p>
-                        <p className="mt-2 text-sm text-[#9fb3d9]">
+                        <p className="mt-2 text-sm text-[#b7c2b0]">
                           {category.category.sport} &middot; {category.category.age_group} &middot;{" "}
                           {category.category.school}
                         </p>
                       </div>
-                      <span className="public-tag">{category.matches.length} partidos</span>
+                      <StatusPill tone="accent">{category.matches.length} partidos</StatusPill>
                     </div>
 
-                    <div className="mt-5 grid gap-3">
+                    <div className="mt-5 data-list">
                       {previewMatches.map((match) => (
-                        <article key={match.id} className="public-soft px-4 py-4">
+                        <article key={match.id} className="row-surface px-4 py-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
-                              <p className="text-xs uppercase tracking-[0.22em] text-[#8fa1c2]">
+                              <p className="text-xs uppercase tracking-[0.22em] text-[#b8c3b2]">
                                 {match.round_label || "Partido"}
                               </p>
-                              <p className="mt-1 text-sm text-[#9fb3d9]">
+                              <p className="mt-1 text-sm text-[#b7c2b0]">
                                 {match.scheduled_at ? formatDateTime(match.scheduled_at) : "Sin fecha"}{" "}
                                 &middot; {match.location || "Sin pista"}
                               </p>
                             </div>
-                            <span className={`rounded-full border border-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusColor(match.status)}`}>
+                            <span className={`status-pill ${match.status === "completed" ? "status-pill--success" : match.status === "cancelled" ? "status-pill--warning" : "status-pill--muted"}`}>
                               {getStatusLabel(match.status)}
                             </span>
                           </div>
@@ -308,15 +305,11 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                 );
               })
             ) : (
-              <div className="public-soft flex flex-col items-center gap-3 py-10 text-center lg:col-span-2 xl:col-span-3">
-                <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
-                <p className="text-sm font-medium text-[#8fa1c2]">
-                  Todavía no hay partidos programados para este deporte.
-                </p>
-                <p className="text-xs text-[#8fa1c2]/60">
-                  El calendario aparecerá aquí cuando la organización cree los encuentros.
-                </p>
-              </div>
+              <EmptyStatePanel
+                eyebrow="Calendario"
+                title="Todavía no hay partidos programados para este deporte"
+                description="El calendario aparecerá aquí cuando la organización cree los encuentros."
+              />
             )}
           </div>
         </div>
@@ -325,19 +318,21 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
       {/* Cruces section */}
       <section className="public-section" id="cruces">
         <div className="public-wrap grid gap-8">
-          <div className="space-y-3">
-            <p className="public-kicker">Eliminatorias</p>
-            <h2 className="public-title text-[clamp(2.8rem,11vw,5.6rem)]">Cruces y cuadro</h2>
-          </div>
+          <SectionHeader
+            align="start"
+            eyebrow="Eliminatorias"
+            title="Cruces y cuadro"
+            description="El cuadro ya no compite con tarjetas ajenas: se apoya en un único contenedor estructural por categoría."
+          />
 
           {bracketCategories.length > 0 ? (
             <div className="grid gap-6">
               {bracketCategories.map((category) => (
-                <div key={category.category.id} className="public-glass p-5 sm:p-6">
+                <div key={category.category.id} className="section-surface p-5 sm:p-6">
                   <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="public-kicker">{category.category.name}</p>
-                      <p className="mt-2 text-sm text-[#9fb3d9]">
+                      <p className="mt-2 text-sm text-[#b7c2b0]">
                         {category.bracket?.bracket.name || "Cuadro eliminatorio"}
                       </p>
                     </div>
@@ -353,15 +348,11 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
               ))}
             </div>
           ) : (
-            <div className="public-soft flex flex-col items-center gap-3 py-10 text-center">
-              <Calendar className="h-7 w-7 text-[var(--app-accent)]" aria-hidden="true" />
-              <p className="text-sm font-medium text-[#8fa1c2]">
-                Todavía no hay cuadro eliminatorio para este deporte.
-              </p>
-              <p className="text-xs text-[#8fa1c2]/60">
-                Aparecerá cuando la organización genere las eliminatorias.
-              </p>
-            </div>
+            <EmptyStatePanel
+              eyebrow="Cruces"
+              title="Todavía no hay cuadro eliminatorio para este deporte"
+              description="Aparecerá cuando la organización genere las eliminatorias."
+            />
           )}
         </div>
       </section>

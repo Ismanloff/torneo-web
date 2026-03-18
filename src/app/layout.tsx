@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
+import { Bebas_Neue, Inter, JetBrains_Mono } from "next/font/google";
 
 import { PwaRegistrar } from "@/components/pwa-registrar";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import {
+  TOURNAMENT_THEME_COLOR,
   TOURNAMENT_DESCRIPTION,
   TOURNAMENT_NAME,
   TOURNAMENT_SHORT_NAME,
@@ -11,8 +12,8 @@ import {
 
 import "./globals.css";
 
-const displayFont = Outfit({
-  subsets: ["latin"],
+const displayFont = Bebas_Neue({
+  weight: "400",
   variable: "--font-display",
   display: "swap",
 });
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#050816",
+  themeColor: TOURNAMENT_THEME_COLOR,
   viewportFit: "cover",
 };
 

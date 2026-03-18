@@ -1,6 +1,7 @@
 import { CalendarClock, ShieldCheck } from "lucide-react";
 
 import { MatchFilters } from "@/components/match-filters";
+import { MetricStrip } from "@/components/surface-primitives";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalDashboardData } from "@/lib/supabase/queries";
 
@@ -24,22 +25,31 @@ export default async function StaffMatchesPage() {
   return (
     <main className="grid gap-6">
       <section className="app-hero">
-        <div className="app-hero__content">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="app-chip app-chip--accent">
-              <CalendarClock className="h-4 w-4" />
-              Partidos asignados
-            </span>
-            <span className="app-chip">
-              <ShieldCheck className="h-4 w-4" />
-              {data.assignedMatches.length} total
-            </span>
+        <div className="app-hero__content grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="app-chip app-chip--accent">
+                <CalendarClock className="h-4 w-4" />
+                Partidos asignados
+              </span>
+              <span className="app-chip">
+                <ShieldCheck className="h-4 w-4" />
+                {data.assignedMatches.length} total
+              </span>
+            </div>
+            <p className="app-kicker mt-5">Agenda personal</p>
+            <h1 className="app-section-title mt-3 text-white">Mis partidos</h1>
+            <p className="app-copy mt-4 max-w-2xl text-sm">
+              Cambia entre hoy, próximos y todo el histórico sin perder contexto de hora, pista y estado.
+            </p>
           </div>
-          <p className="app-kicker mt-5">Agenda personal</p>
-          <h1 className="app-section-title mt-3 text-white">Mis partidos</h1>
-          <p className="app-copy mt-4 max-w-2xl text-sm">
-            Cambia entre hoy, próximos y todo el histórico sin perder contexto de hora, pista y estado.
-          </p>
+          <MetricStrip
+            items={[
+              { label: "Hoy", value: matchItems.filter((match) => match.scheduledAt && new Date(match.scheduledAt).toDateString() === new Date().toDateString()).length, meta: "Programados", tone: "accent" },
+              { label: "Abiertos", value: matchItems.filter((match) => match.status !== "completed").length, meta: "Pendientes", tone: "neutral" },
+              { label: "Rol", value: staff.profile.role === "assistant" ? "Mesa" : staff.profile.role === "referee" ? "Arbitraje" : "Control", meta: "Tu foco", tone: "info" },
+            ]}
+          />
         </div>
       </section>
 

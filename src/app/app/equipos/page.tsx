@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, Search, Users } from "lucide-react";
 
 import { requireStaffSession } from "@/lib/admin-auth";
+import { EmptyStatePanel, MetricStrip } from "@/components/surface-primitives";
 import { getOperationalDashboardData } from "@/lib/supabase/queries";
 
 export default async function StaffTeamsPage() {
@@ -33,18 +34,13 @@ export default async function StaffTeamsPage() {
             </div>
           </div>
 
-          <article className="app-soft-card">
-            <p className="app-metric__label">Atajo recomendado</p>
-            <p className="mt-3 text-lg font-semibold text-white">Escanear si tienes el QR, buscar si no</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link className="app-action" href="/app/scan">
-                Abrir escáner
-              </Link>
-              <Link className="app-link-pill" href="/app/scan">
-                Buscar por código
-              </Link>
-            </div>
-          </article>
+          <MetricStrip
+            items={[
+              { label: "Equipos", value: data.teams.length, meta: "Visibles en tu rol", tone: "accent" },
+              { label: "Acceso", value: "QR", meta: "Más rápido si lo tienes", tone: "neutral" },
+              { label: "Fallback", value: "Búsqueda", meta: "Si no hay código", tone: "info" },
+            ]}
+          />
         </div>
       </section>
 
@@ -62,15 +58,15 @@ export default async function StaffTeamsPage() {
           </Link>
         </div>
 
-        <div className="mt-5 grid gap-2">
+        <div className="mt-5 data-list">
           {data.teams.length ? (
             data.teams.map((team) => (
               <Link
                 key={team.id}
-                className="flex items-center justify-between gap-4 rounded-[1.45rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.05]"
+                className="data-row row-surface app-row-link"
                 href={`/app/equipo/${team.id}`}
               >
-                <div className="min-w-0">
+                <div className="data-row__main">
                   <p className="app-metric__label">{team.category.name}</p>
                   <p className="mt-2 truncate text-lg font-semibold text-white">{team.team_name}</p>
                   <p className="mt-2 font-mono text-sm text-[var(--app-muted)]">{team.registration_code}</p>
@@ -82,9 +78,12 @@ export default async function StaffTeamsPage() {
               </Link>
             ))
           ) : (
-            <div className="app-soft-card text-sm text-[var(--app-muted)]">
-              No hay equipos visibles para esta cuenta.
-            </div>
+            <EmptyStatePanel
+              compact
+              eyebrow="Equipos"
+              title="No hay equipos visibles para esta cuenta"
+              description="Cuando la organización te asigne categorías o equipos aparecerán aquí."
+            />
           )}
         </div>
       </section>

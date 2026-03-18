@@ -4,6 +4,7 @@ import { ArrowRight, CalendarClock, QrCode, Shield, Sparkles, Users } from "luci
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalDashboardData } from "@/lib/supabase/queries";
 import { PushPermissionBanner } from "@/components/push-permission-banner";
+import { EmptyStatePanel, MetricStrip, StatusPill } from "@/components/surface-primitives";
 import { isManagementRole } from "@/lib/utils";
 
 function formatTime(value: string) {
@@ -143,21 +144,13 @@ export default async function StaffAppHomePage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div className="app-soft-card">
-              <p className="app-metric__label">Asignados</p>
-              <p className="app-metric__value mt-3 text-white">{data.assignedMatches.length}</p>
-              <p className="mt-2 text-sm text-[var(--app-muted)]">Partidos visibles para tu perfil</p>
-            </div>
-            <div className="app-soft-card">
-              <p className="app-metric__label">Equipos</p>
-              <p className="app-metric__value mt-3 text-white">{data.teams.length}</p>
-              <p className="mt-2 text-sm text-[var(--app-muted)]">Consultables desde pista</p>
-            </div>
-            <div className="app-soft-card">
-              <p className="app-metric__label">Live</p>
-              <p className="app-metric__value mt-3 text-white">{liveMatches}</p>
-              <p className="mt-2 text-sm text-[var(--app-muted)]">Marcadores activos ahora</p>
-            </div>
+            <MetricStrip
+              items={[
+                { label: "Asignados", value: data.assignedMatches.length, meta: "Partidos visibles", tone: "accent" },
+                { label: "Equipos", value: data.teams.length, meta: "Consultables desde pista", tone: "neutral" },
+                { label: "Live", value: liveMatches, meta: "Marcadores activos", tone: "info" },
+              ]}
+            />
           </div>
         </div>
       </section>
@@ -165,8 +158,8 @@ export default async function StaffAppHomePage() {
       <PushPermissionBanner />
 
       <div className="grid gap-5 lg:grid-cols-[0.92fr_1.08fr]">
-        <section className={`grid gap-3 ${isManagementRole(staff.profile.role) ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          <Link className="app-panel group" href="/app/scan">
+        <section className={`app-action-grid ${isManagementRole(staff.profile.role) ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          <Link className="row-surface app-row-link group p-5" href="/app/scan">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="app-kicker">{staff.profile.role === "referee" ? "Acceso rápido" : "Entrada rápida"}</p>
@@ -182,7 +175,7 @@ export default async function StaffAppHomePage() {
               <QrCode className="h-6 w-6 text-[var(--app-accent)] transition group-hover:scale-105" />
             </div>
           </Link>
-          <Link className="app-panel group" href="/app/equipos">
+          <Link className="row-surface app-row-link group p-5" href="/app/equipos">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="app-kicker">{staff.profile.role === "assistant" ? "Apoyo" : "Consulta"}</p>
@@ -199,7 +192,7 @@ export default async function StaffAppHomePage() {
             </div>
           </Link>
           {roleContent.managementCard === "admin" ? (
-            <Link className="app-panel group" href="/app/admin">
+            <Link className="row-surface app-row-link group p-5" href="/app/admin">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="app-kicker">Gestión</p>
@@ -227,15 +220,15 @@ export default async function StaffAppHomePage() {
             </Link>
           </div>
 
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 data-list">
             {todayMatches.length ? (
               todayMatches.map((match) => (
                 <Link
                   key={`${match.scope}:${match.matchId}`}
-                  className="flex items-center justify-between gap-3 rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3 transition hover:bg-white/[0.05]"
+                  className="data-row row-surface app-row-link"
                   href={`/app/partido/${match.matchId}?scope=${match.scope}`}
                 >
-                  <div className="min-w-0 flex-1">
+                  <div className="data-row__main">
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-sm font-semibold tabular-nums text-white">
                         {match.scheduledAt ? formatTime(match.scheduledAt) : "--:--"}
@@ -248,17 +241,18 @@ export default async function StaffAppHomePage() {
                       {match.location ?? "Sin pista"} · {match.sport} · {match.ageGroup}
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full border px-3 py-1 text-[0.68rem] font-semibold ${statusChipClass(match.status)}`}
-                  >
+                  <span className={`shrink-0 ${statusChipClass(match.status)} rounded-full border px-3 py-1 text-[0.68rem] font-semibold`}>
                     {statusLabel(match.status)}
                   </span>
                 </Link>
               ))
             ) : (
-              <div className="rounded-[1.4rem] border border-dashed border-[var(--app-line)] px-4 py-6 text-sm text-[var(--app-muted)]">
-                No tienes partidos programados para hoy.
-              </div>
+              <EmptyStatePanel
+                compact
+                eyebrow="Agenda"
+                title="No tienes partidos programados para hoy"
+                description="Cuando te asignen encuentros aparecerán aquí con acceso directo al flujo operativo."
+              />
             )}
           </div>
         </section>

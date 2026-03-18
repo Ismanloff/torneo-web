@@ -5,6 +5,7 @@ import { TOURNAMENT_NAME } from "@/lib/branding";
 import { getAdminScoreboardData } from "@/lib/supabase/queries";
 
 import { AdminTabs } from "@/components/admin-tabs-shell";
+import { MetricStrip } from "@/components/surface-primitives";
 
 type AdminControlCenterProps = {
   manualLookupError?: string;
@@ -33,40 +34,33 @@ export async function AdminControlCenter({
             </p>
           </article>
 
-          <article className="grid gap-3 sm:grid-cols-3">
-            <div className="app-soft-card text-center">
-              <p className="app-metric__value text-2xl text-white">{data.totalTeams}</p>
-              <p className="app-metric__label mt-1">Equipos</p>
-            </div>
-            <div className="app-soft-card text-center">
-              <p className="app-metric__value text-2xl text-white">{data.totalMatches}</p>
-              <p className="app-metric__label mt-1">Partidos</p>
-            </div>
-            <div className="app-soft-card text-center">
-              <p className="app-metric__value text-2xl text-white">{activeStaff.length}</p>
-              <p className="app-metric__label mt-1">Staff</p>
-            </div>
-          </article>
+          <MetricStrip
+            items={[
+              { label: "Equipos", value: data.totalTeams, meta: "Registrados", tone: "accent" },
+              { label: "Partidos", value: data.totalMatches, meta: "Calendario activo", tone: "neutral" },
+              { label: "Staff", value: activeStaff.length, meta: "Perfiles activos", tone: "info" },
+            ]}
+          />
         </div>
       </section>
 
       <section className="app-panel">
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[1.4rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+          <div className="row-surface p-4">
             <div className="flex items-center gap-2 text-[var(--app-accent)]">
               <ClipboardList className="h-4 w-4" />
               <p className="app-kicker text-[var(--app-accent)]">Calendario</p>
             </div>
             <p className="mt-3 text-sm text-[var(--app-muted)]">Altas de partidos, reglas, ajustes y cuadro.</p>
           </div>
-          <div className="rounded-[1.4rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+          <div className="row-surface p-4">
             <div className="flex items-center gap-2 text-[var(--app-info)]">
               <Users className="h-4 w-4" />
               <p className="app-kicker text-[var(--app-info)]">Staff</p>
             </div>
             <p className="mt-3 text-sm text-[var(--app-muted)]">Altas, desactivaciones y reparto de roles operativos.</p>
           </div>
-          <div className="rounded-[1.4rem] border border-[var(--app-line)] bg-white/[0.03] p-4">
+          <div className="row-surface p-4">
             <div className="flex items-center gap-2 text-[var(--app-accent)]">
               <Settings2 className="h-4 w-4" />
               <p className="app-kicker text-[var(--app-accent)]">Recursos</p>
@@ -77,9 +71,9 @@ export async function AdminControlCenter({
       </section>
 
       <section>
-          <AdminTabs
-            categories={data.categories}
-            staffProfiles={data.staffProfiles}
+        <AdminTabs
+          categories={data.categories}
+          staffProfiles={data.staffProfiles}
           manualLookupError={manualLookupError}
           recentArrivals={data.recentArrivals}
           recentMatchCheckins={data.recentMatchCheckins}

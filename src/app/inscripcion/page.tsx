@@ -4,6 +4,7 @@ import { ChevronLeft, Landmark, Users } from "lucide-react";
 
 import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
+import { MetricStrip } from "@/components/surface-primitives";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ALLOWED_SPORT_LABELS, isAllowedSport, normalizeSportName } from "@/lib/allowed-sports";
 import {
@@ -97,6 +98,8 @@ export default async function RegistroPage() {
     }
   }
 
+  const totalRemainingSlots = categoryData.reduce((sum, category) => sum + category.remaining, 0);
+
   return (
     <main className="public-arena">
       <div className="public-shell">
@@ -114,35 +117,44 @@ export default async function RegistroPage() {
         {/* Hero */}
         <section className="public-hero">
           <div className="public-wrap py-10 lg:py-14">
-            <article className="public-glass p-6 lg:p-8 max-w-2xl mx-auto">
-              <Link className="public-tag" href="/">
-                <ChevronLeft className="h-4 w-4" />
-                Volver al portal
-              </Link>
-              <div className="mt-8 flex flex-wrap gap-2">
-                <span className="public-tag public-tag--accent">{TOURNAMENT_EDITION_LABEL}</span>
-                <span className="public-tag public-tag--soft">
-                  <Landmark className="h-3.5 w-3.5" />
-                  Inscripción oficial
-                </span>
-              </div>
-              <h1 className="public-title mt-4 text-5xl sm:text-6xl">
-                Equipos al torneo
-              </h1>
-              <p className="public-copy mt-5 max-w-xl text-base">
-                Selecciona la categoría en la que quieres inscribir tu equipo. Una vez registrado,
-                recibirás un código de seguimiento y un QR de acceso al torneo.
-              </p>
-              <p className="public-hero-panel__lead mt-4">
-                {TOURNAMENT_ORGANIZERS_LABEL}
-              </p>
-              <p className="mt-2 max-w-xl text-sm leading-7 text-[#c2cfdf]">
-                {TOURNAMENT_PARTICIPATION_LABEL}
-              </p>
-              <p className="public-hero-panel__meta mt-4 text-sm text-[#c2cfdf]">
-                {TOURNAMENT_NAME} celebra su cuarta edición con inscripciones por categoría y seguimiento en tiempo real durante toda la jornada.
-              </p>
-            </article>
+            <div className="public-editorial-grid">
+              <article className="public-glass hero-surface p-6 lg:p-8">
+                <Link className="public-tag" href="/">
+                  <ChevronLeft className="h-4 w-4" />
+                  Volver al portal
+                </Link>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <span className="public-tag public-tag--accent">{TOURNAMENT_EDITION_LABEL}</span>
+                  <span className="public-tag public-tag--soft">
+                    <Landmark className="h-3.5 w-3.5" />
+                    Inscripción oficial
+                  </span>
+                </div>
+                <h1 className="public-title mt-4 text-5xl sm:text-6xl">
+                  Equipos al torneo
+                </h1>
+                <p className="public-copy mt-4 max-w-xl text-base">
+                  Elige categoría, completa el registro y sal con código de seguimiento y QR listos para la jornada.
+                </p>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[#c2cfdf]">
+                  {TOURNAMENT_ORGANIZERS_LABEL}
+                </p>
+                <p className="mt-2 max-w-2xl text-sm leading-7 text-[#b7c2b0]">
+                  {TOURNAMENT_PARTICIPATION_LABEL}
+                </p>
+              </article>
+
+              <aside className="section-surface p-5 lg:p-6">
+                <MetricStrip
+                  className="metric-strip--compact"
+                  items={[
+                    { label: "Deportes", value: sportGroups.length, meta: "Disponibles", tone: "accent" },
+                    { label: "Categorías", value: categoryData.length, meta: "Abiertas", tone: "neutral" },
+                    { label: "Plazas", value: totalRemainingSlots, meta: "Todavía libres", tone: "info" },
+                  ]}
+                />
+              </aside>
+            </div>
           </div>
         </section>
 
@@ -150,21 +162,21 @@ export default async function RegistroPage() {
         <section className="public-section pt-8 pb-20">
           <div className="public-wrap max-w-2xl mx-auto grid gap-10">
             {sportGroups.map((group) => (
-              <div key={group.sport}>
+              <div key={group.sport} className="section-surface p-4 sm:p-5">
                 <h2 className="public-kicker mb-4">{group.sport}</h2>
-                <div className="grid gap-3">
+                <div className="data-list">
                   {group.items.map((cat) => {
                     const isFull = cat.remaining === 0;
 
                     const cardContent = (
                       <div
-                        className={`public-glass p-5 transition-all ${
+                        className={`data-row row-surface transition-all ${
                           isFull
                             ? "opacity-60"
                             : "hover:border-[rgba(141,246,95,0.22)] hover:-translate-y-0.5"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex w-full items-start justify-between gap-4">
                           <div className="flex-1">
                             <p className="text-lg font-semibold text-white">{cat.name}</p>
                             <p className="mt-1 text-sm text-[#a8b7d2]">
@@ -207,7 +219,7 @@ export default async function RegistroPage() {
             ))}
 
             {sportGroups.length === 0 ? (
-              <div className="public-glass p-8 text-center">
+              <div className="section-surface p-8 text-center">
                 <p className="text-[#a8b7d2]">No hay categorías disponibles para inscripción.</p>
               </div>
             ) : null}

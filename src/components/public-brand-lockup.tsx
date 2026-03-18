@@ -3,7 +3,6 @@ import { Trophy } from "lucide-react";
 
 import {
   TOURNAMENT_EDITION_LABEL,
-  TOURNAMENT_NAME,
   TOURNAMENT_TAGLINE,
   TOURNAMENT_ORGANIZER_MAIN,
 } from "@/lib/branding";
@@ -26,9 +25,6 @@ export function PublicBrandLockup() {
         <p className="public-brand__eyebrow">{TOURNAMENT_EDITION_LABEL}</p>
         <p className="public-brand__title">{TOURNAMENT_ORGANIZER_MAIN}</p>
         <p className="public-brand__subtitle">{TOURNAMENT_TAGLINE}</p>
-        <p className="mt-1 text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[#8fa1c2]">
-          {TOURNAMENT_NAME}
-        </p>
       </div>
     </div>
   );

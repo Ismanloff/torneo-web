@@ -1,4 +1,5 @@
 import { formatDateTime } from "@/lib/utils";
+import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
 import type { ScoreboardCategory } from "@/lib/types";
 
 type MatchListProps = {
@@ -13,26 +14,26 @@ function getStatusLabel(status: string) {
 
 export function MatchList({ category }: MatchListProps) {
   return (
-    <div className="grid gap-3">
+    <div className="data-list">
       {category.matches.length ? (
         category.matches.map((match) => (
           <article
             key={match.id}
-            className="public-soft px-4 py-4"
+            className="row-surface public-row-link px-4 py-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-[#8fa1c2]">
+                <p className="text-xs uppercase tracking-[0.22em] text-[#b8c3b2]">
                   {match.round_label || "Partido"}
                 </p>
-                <p className="mt-1 text-sm text-[#9fb3d9]">
+                <p className="mt-1 text-sm text-[#b7c2b0]">
                   {match.scheduled_at ? formatDateTime(match.scheduled_at) : "Sin fecha"} ·{" "}
                   {match.location || "Sin pista"}
                 </p>
               </div>
-              <span className="rounded-full border border-white/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#d6e1f3]">
+              <StatusPill tone={match.status === "completed" ? "success" : "muted"}>
                 {getStatusLabel(match.status)}
-              </span>
+              </StatusPill>
             </div>
 
             <div className="mt-4 grid items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
@@ -56,14 +57,17 @@ export function MatchList({ category }: MatchListProps) {
             </div>
 
             {match.notes ? (
-              <p className="mt-3 text-sm leading-6 text-[#a8b7d2]">{match.notes}</p>
+              <p className="mt-3 text-sm leading-6 text-[#b7c2b0]">{match.notes}</p>
             ) : null}
           </article>
         ))
       ) : (
-        <div className="public-soft px-4 py-6 text-sm text-[#8fa1c2]">
-          Todavia no hay partidos programados para esta categoria.
-        </div>
+        <EmptyStatePanel
+          compact
+          eyebrow="Calendario"
+          title="Todavía no hay partidos programados"
+          description="La categoría aparecerá aquí en cuanto la organización publique el calendario."
+        />
       )}
     </div>
   );

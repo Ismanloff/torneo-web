@@ -64,19 +64,15 @@ export function MatchCountdown({ matches }: MatchCountdownProps) {
 
   return (
     <div
-      className={`
-        sticky z-20 border-b border-[rgba(141,246,95,0.2)]
-        ${isUrgent ? "animate-pulse" : ""}
-      `}
-      style={{
-        top: "4.5rem",
-        background: hasStarted
-          ? "linear-gradient(135deg, rgba(246,185,59,0.12) 0%, rgba(246,185,59,0.04) 100%)"
-          : "linear-gradient(135deg, rgba(141,246,95,0.1) 0%, rgba(84,209,43,0.04) 100%)",
-      }}
+      className={`public-ticker ${isUrgent ? "animate-pulse" : ""}`}
     >
       <div className="public-wrap">
-        <div className="flex flex-wrap items-center gap-3 py-3 sm:gap-4">
+        <div
+          className="public-ticker__inner"
+          style={{
+            color: hasStarted ? "#f8e5ab" : undefined,
+          }}
+        >
           <Zap
             className={`h-4 w-4 shrink-0 ${hasStarted ? "text-yellow-400" : "text-[var(--app-accent)]"}`}
           />

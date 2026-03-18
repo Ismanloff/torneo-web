@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ExportPdfButton } from "@/components/export-pdf-button";
+import { StatusPill } from "@/components/surface-primitives";
 import type { CategoryStandingRow, ScoreboardCategory } from "@/lib/types";
 
 type ScoreboardTableProps = {
@@ -26,7 +27,7 @@ function StandingsTable({
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
-        <thead className="text-left text-[0.72rem] uppercase tracking-[0.18em] text-[#8fa1c2]">
+        <thead className="text-left text-[0.72rem] uppercase tracking-[0.18em] text-[#b8c3b2]">
           <tr>
             <th className="px-4 py-3">Pos</th>
             <th className="px-4 py-3">Equipo</th>
@@ -39,22 +40,16 @@ function StandingsTable({
           {visibleRows.length ? (
             visibleRows.map((row, index) => (
               <tr key={row.team_id} className="border-t border-white/8">
-                <td className="px-4 py-3 font-semibold text-white">{index + 1}</td>
+                <td className="px-4 py-4 font-semibold text-white">{index + 1}</td>
                 <td className="px-4 py-3">
                   <p className="font-semibold text-white">{row.team_name}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <p className="text-xs uppercase tracking-[0.16em] text-[#8fa1c2]">
+                    <p className="text-xs uppercase tracking-[0.16em] text-[#aeb9aa]">
                       {row.registration_code}
                     </p>
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] ${
-                        arrivalByTeamId.get(row.team_id)
-                          ? "border-[rgba(141,246,95,0.18)] bg-[rgba(141,246,95,0.12)] text-[#d8ffc7]"
-                          : "border-white/10 bg-white/[0.04] text-[#9fb3d9]"
-                      }`}
-                    >
+                    <StatusPill tone={arrivalByTeamId.get(row.team_id) ? "success" : "muted"}>
                       {arrivalByTeamId.get(row.team_id) ? "Llegado" : "Pendiente"}
-                    </span>
+                    </StatusPill>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-center font-semibold text-[var(--app-accent)]">
@@ -89,10 +84,10 @@ export function ScoreboardTable({
   return (
     <div className="public-scoreboard">
       {showHeader ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 px-5 py-5">
           <div>
-            <p className="text-lg font-semibold text-white">{category.category.name}</p>
-            <p className="text-sm text-[#9fb3d9]">
+            <p className="text-xl font-semibold text-white">{category.category.name}</p>
+            <p className="text-sm text-[#b7c2b0]">
               {category.category.sport} · {category.category.age_group} · {category.category.school}
             </p>
           </div>
@@ -115,11 +110,11 @@ export function ScoreboardTable({
       ) : null}
 
       {hasGroups ? (
-        <div className="grid gap-5 p-4 sm:p-5">
+        <div className="grid gap-4 p-4 sm:p-5">
           {category.groupStandings.map((group) => (
             <section
               key={group.groupLabel}
-              className="rounded-[1.2rem] border border-white/8 bg-white/[0.02]"
+              className="row-surface overflow-hidden"
             >
               <div className="border-b border-white/8 px-4 py-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--app-accent)]">

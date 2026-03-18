@@ -5,6 +5,7 @@ import { ClipboardCheck, Shield, TimerReset, UserRound, Users } from "lucide-rea
 import { saveCheckinAction } from "@/app/admin/actions";
 import { OfflineScoreForm } from "@/components/offline-score-form";
 import { QrTile } from "@/components/qr-tile";
+import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalMatchById } from "@/lib/supabase/queries";
 import { buildQrShareUrl, formatDateTime, formatDateTimeLocalValue } from "@/lib/utils";
@@ -74,7 +75,7 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
               {team?.registration_code ?? "Sin codigo"}
             </p>
 
-            <div className="app-soft-card mt-4">
+            <div className="row-surface mt-4 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-[var(--app-muted)]">Estado</p>
               <p className="mt-2 text-lg font-semibold">{checkinLabel(checkin?.status)}</p>
               {checkin?.checked_in_at ? (
@@ -142,7 +143,7 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
         </p>
       </div>
       {qrPath ? <QrTile href={qrPath} label="QR del partido" /> : null}
-      <div className="app-soft-card mt-4 text-sm text-[var(--app-muted)]">
+      <div className="row-surface mt-4 p-4 text-sm text-[var(--app-muted)]">
         <p>Estado del partido: <span className="text-[var(--app-text)]">{matchStatusLabel(detail.match.status)}</span></p>
         <p className="mt-2">Arbitro asignado: {detail.match.referee_assignment?.full_name ?? "Sin asignar"}</p>
         <p className="mt-2">
@@ -234,7 +235,11 @@ export default async function MatchDetailPage({ params, searchParams }: MatchDet
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
                 <p className="app-metric__label">Estado</p>
-                <p className="mt-3 text-xl font-semibold text-white">{matchStatusLabel(detail.match.status)}</p>
+                <div className="mt-3">
+                  <StatusPill tone={detail.match.status === "completed" ? "success" : "muted"}>
+                    {matchStatusLabel(detail.match.status)}
+                  </StatusPill>
+                </div>
               </div>
               <div className="rounded-[1.35rem] border border-[var(--app-line)] bg-white/[0.04] p-4">
                 <p className="app-metric__label">Marcador actual</p>
