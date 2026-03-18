@@ -12,7 +12,7 @@ const STAFF_COOKIE_NAME = "torneo_staff_session";
 type AdminAccessContext =
   | {
       mode: "legacy";
-      role: "admin";
+      role: "superadmin";
       profile: null;
       authUserId: null;
     }
@@ -172,7 +172,7 @@ export async function getAdminAccessContext(): Promise<AdminAccessContext | null
   if (await hasLegacyAdminSession()) {
     return {
       mode: "legacy",
-      role: "admin",
+      role: "superadmin",
       profile: null,
       authUserId: null,
     };
@@ -184,7 +184,17 @@ export async function getAdminAccessContext(): Promise<AdminAccessContext | null
 export async function requireAdminSession() {
   const context = await getAdminAccessContext();
 
-  if (!context || context.role !== "admin") {
+  if (!context || (context.role !== "admin" && context.role !== "superadmin")) {
+    redirect("/login?error=restricted");
+  }
+
+  return context;
+}
+
+export async function requireSuperadminSession() {
+  const context = await getAdminAccessContext();
+
+  if (!context || context.role !== "superadmin") {
     redirect("/login?error=restricted");
   }
 
@@ -212,8 +222,8 @@ export async function requireStaffSession(allowedRoles?: StaffRole[]) {
         id: "legacy-admin",
         auth_user_id: null,
         email: "legacy-admin@local",
-        full_name: "Admin temporal",
-        role: "admin",
+        full_name: "Superadmin temporal",
+        role: "superadmin",
         pin: null,
         is_active: true,
         created_at: new Date(0).toISOString(),

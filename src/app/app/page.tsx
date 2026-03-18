@@ -4,6 +4,7 @@ import { ArrowRight, CalendarClock, QrCode, Shield, Sparkles, Users } from "luci
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalDashboardData } from "@/lib/supabase/queries";
 import { PushPermissionBanner } from "@/components/push-permission-banner";
+import { isManagementRole } from "@/lib/utils";
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("es-ES", {
@@ -164,7 +165,7 @@ export default async function StaffAppHomePage() {
       <PushPermissionBanner />
 
       <div className="grid gap-5 lg:grid-cols-[0.92fr_1.08fr]">
-        <section className={`grid gap-3 ${staff.profile.role === "admin" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+        <section className={`grid gap-3 ${isManagementRole(staff.profile.role) ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <Link className="app-panel group" href="/app/scan">
             <div className="flex items-start justify-between gap-3">
               <div>

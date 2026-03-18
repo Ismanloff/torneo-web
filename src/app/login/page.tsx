@@ -21,7 +21,7 @@ function getErrorLabel(error?: string) {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const [context, params] = await Promise.all([getAdminAccessContext(), searchParams]);
 
-  if (context?.role === "admin") {
+  if (context?.role === "admin" || context?.role === "superadmin") {
     redirect("/app/admin");
   }
 

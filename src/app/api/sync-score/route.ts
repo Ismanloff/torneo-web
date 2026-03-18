@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getAdminAccessContext } from "@/lib/admin-auth";
+import { validateCompletedScore } from "@/lib/sport-rules";
 import { getOperationalMatchById } from "@/lib/supabase/queries";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -44,8 +45,8 @@ export async function POST(request: Request) {
           id: "legacy-admin",
           auth_user_id: null,
           email: "legacy-admin@local",
-          full_name: "Admin temporal",
-          role: "admin" as const,
+          full_name: "Superadmin temporal",
+          role: "superadmin" as const,
           pin: null,
           is_active: true,
           created_at: new Date(0).toISOString(),
@@ -90,6 +91,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "No tienes permiso para registrar el resultado de este partido." },
         { status: 403 },
+      );
+    }
+
+    const validationError = validateCompletedScore({
+      sport: detail.category.category.sport,
+      homeScore,
+      awayScore,
+    });
+
+    if (validationError) {
+      return NextResponse.json(
+        { error: validationError },
+        { status: 400 },
       );
     }
 

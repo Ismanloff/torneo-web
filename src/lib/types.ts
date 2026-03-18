@@ -1,4 +1,4 @@
-export type StaffRole = "admin" | "referee" | "assistant";
+export type StaffRole = "superadmin" | "admin" | "referee" | "assistant";
 export type StaffDuty = "referee" | "assistant";
 export type MatchScope = "category_match" | "bracket_match";
 export type CheckinStatus = "pendiente" | "presentado" | "incidencia" | "no_presentado";

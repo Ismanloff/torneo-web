@@ -10,6 +10,7 @@ import {
   TOURNAMENT_EDITION_LABEL,
   TOURNAMENT_NAME,
   TOURNAMENT_ORGANIZERS_LABEL,
+  TOURNAMENT_PARTICIPATION_LABEL,
 } from "@/lib/branding";
 import type { CategoryRow, TournamentRow } from "@/lib/types";
 
@@ -134,6 +135,9 @@ export default async function RegistroPage() {
               </p>
               <p className="public-hero-panel__lead mt-4">
                 {TOURNAMENT_ORGANIZERS_LABEL}
+              </p>
+              <p className="mt-2 max-w-xl text-sm leading-7 text-[#c2cfdf]">
+                {TOURNAMENT_PARTICIPATION_LABEL}
               </p>
               <p className="public-hero-panel__meta mt-4 text-sm text-[#c2cfdf]">
                 {TOURNAMENT_NAME} celebra su cuarta edición con inscripciones por categoría y seguimiento en tiempo real durante toda la jornada.

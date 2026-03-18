@@ -7,6 +7,10 @@ export function getScoreMetricLabel(sport: string) {
     return "Goles";
   }
 
+  if (normalized === "voleibol") {
+    return "Sets";
+  }
+
   return "Puntos";
 }
 
@@ -19,6 +23,10 @@ export function getScoreMetricSingularLower(sport: string) {
 
   if (normalized === "futbol") {
     return "gol";
+  }
+
+  if (normalized === "voleibol") {
+    return "set";
   }
 
   return "punto";

@@ -10,9 +10,11 @@ import type {
   AdminArrivalLogEntry,
   AdminMatchCheckinLogEntry,
   ScoreboardCategory,
+  StaffRole,
   StaffProfileRow,
   TournamentRow,
 } from "@/lib/types";
+import { isSuperadminRole } from "@/lib/utils";
 
 type Tab = "partidos" | "staff" | "config";
 
@@ -23,6 +25,7 @@ type AdminTabsProps = {
   recentArrivals: AdminArrivalLogEntry[];
   recentMatchCheckins: AdminMatchCheckinLogEntry[];
   tournament: TournamentRow;
+  viewerRole: StaffRole;
   totalTeams: number;
   totalMatches: number;
   activeStaffCount: number;
@@ -42,33 +45,38 @@ export function AdminTabs({
   recentArrivals,
   recentMatchCheckins,
   tournament,
+  viewerRole,
   totalTeams,
   totalMatches,
   activeStaffCount,
   surfacePath,
 }: AdminTabsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>(manualLookupError ? "config" : "partidos");
+  const visibleTabs = TABS.filter((tab) => tab.key !== "staff" || isSuperadminRole(viewerRole));
+  const initialTab = manualLookupError ? "config" : "partidos";
+  const [activeTab, setActiveTab] = useState<Tab>(
+    visibleTabs.some((tab) => tab.key === initialTab) ? initialTab : visibleTabs[0].key,
+  );
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleTabKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
       let next = index;
       if (e.key === "ArrowRight") {
-        next = (index + 1) % TABS.length;
+        next = (index + 1) % visibleTabs.length;
       } else if (e.key === "ArrowLeft") {
-        next = (index - 1 + TABS.length) % TABS.length;
+        next = (index - 1 + visibleTabs.length) % visibleTabs.length;
       } else if (e.key === "Home") {
         next = 0;
       } else if (e.key === "End") {
-        next = TABS.length - 1;
+        next = visibleTabs.length - 1;
       } else {
         return;
       }
       e.preventDefault();
-      setActiveTab(TABS[next].key);
+      setActiveTab(visibleTabs[next].key);
       tabRefs.current[next]?.focus();
     },
-    [],
+    [visibleTabs],
   );
 
   return (
@@ -78,7 +86,7 @@ export function AdminTabs({
         role="tablist"
         aria-label="Administración"
       >
-        {TABS.map((tab, index) => {
+        {visibleTabs.map((tab, index) => {
           const isActive = activeTab === tab.key;
           return (
             <button
@@ -112,10 +120,11 @@ export function AdminTabs({
             staffProfiles={staffProfiles}
             tournamentId={tournament.id}
             tournamentStartDate={tournament.start_date}
+            viewerRole={viewerRole}
             surfacePath={surfacePath}
           />
         )}
-        {activeTab === "staff" && (
+        {activeTab === "staff" && isSuperadminRole(viewerRole) && (
           <AdminStaffTab staffProfiles={staffProfiles} />
         )}
         {activeTab === "config" && (

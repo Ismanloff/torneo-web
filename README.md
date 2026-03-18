@@ -1,17 +1,24 @@
 # Torneo Web
 
-Portal de competicion y puntuacion para el torneo, separado del alta publica de equipos.
+Portal del torneo con dos superficies diferenciadas:
+
+- `público`: seguimiento, clasificación, cruces e inscripción de equipos
+- `staff`: operativa PWA por PIN para árbitros, organización y superadministración
 
 ## Arquitectura actual
 
-- `eloos.es` mantiene las inscripciones.
-- `torneo-web` lee los equipos ya inscritos desde la misma base de Supabase.
-- `torneo-web` anade solo puntuacion:
-  - reglas de puntos por categoria
-  - partidos
-  - marcadores
+- `torneo-web` mantiene el portal público y el alta de equipos.
+- `torneo-web` usa Supabase como fuente compartida de equipos, categorías, partidos y resultados.
+- `torneo-web` expone una PWA staff con acceso por PIN para:
+  - árbitros
+  - organización
+  - superadministración
+- `torneo-web` añade:
+  - reglas de puntuación por categoría
+  - partidos y cruces
+  - marcadores y check-ins
   - ajustes manuales
-  - clasificacion publica
+  - clasificación pública
 
 ## Base de datos compartida
 
@@ -27,6 +34,11 @@ Tablas nuevas de scoring creadas para no romper el flujo existente:
 - `category_scoring_rules`
 - `category_matches`
 - `team_score_adjustments`
+- `category_operational_settings`
+- `category_schedule_runs`
+- `staff_profiles`
+- `staff_assignments`
+- `team_checkins`
 - vista `category_standings`
 
 SQL local de referencia:
@@ -46,7 +58,8 @@ ADMIN_ACCESS_KEY=
 
 - Portal publico: [https://torneo.eloos.es](https://torneo.eloos.es)
 - Login admin: [https://torneo.eloos.es/admin/login](https://torneo.eloos.es/admin/login)
-- Inscripciones: [https://eloos.es/torneos/inscripcion](https://eloos.es/torneos/inscripcion)
+- Inscripciones: [https://torneo.eloos.es/inscripcion](https://torneo.eloos.es/inscripcion)
+- Staff PWA: [https://torneo.eloos.es/app](https://torneo.eloos.es/app)
 
 ## Arranque local
 
@@ -64,4 +77,4 @@ pnpm build
 
 ## Nota importante
 
-Este proyecto ya no debe usarse para registrar equipos. La ruta `/api/register` responde `410` y redirige conceptualmente al flujo de `eloos.es` para mantener coherencia en una sola fuente de inscripción.
+El registro de equipos sigue activo en `torneo-web`. La PWA staff usa PIN y la superadministración usa la clave interna configurada en `ADMIN_ACCESS_KEY`.

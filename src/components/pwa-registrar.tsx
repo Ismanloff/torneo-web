@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Ellipsis, Share2, Smartphone, X } from "lucide-react";
 
@@ -79,6 +79,8 @@ export async function registerBackgroundSync(tag: string): Promise<void> {
 
 export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   const pathname = usePathname();
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const shouldReloadOnControllerChangeRef = useRef(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [installDismissed, setInstallDismissed] = useState(() => {
     if (typeof window === "undefined") {
@@ -106,6 +108,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   });
   const [platform] = useState<Platform>(() => detectPlatform());
   const [updateReady, setUpdateReady] = useState(false);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {
@@ -150,13 +153,12 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    let refreshing = false;
     const handleControllerChange = () => {
-      if (refreshing) {
+      if (!shouldReloadOnControllerChangeRef.current) {
         return;
       }
 
-      refreshing = true;
+      shouldReloadOnControllerChangeRef.current = false;
       window.location.reload();
     };
 
@@ -165,6 +167,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     navigator.serviceWorker
       .register(`/sw.js?v=${encodeURIComponent(appVersion)}`, { scope: "/", updateViaCache: "none" })
       .then((registration) => {
+        registrationRef.current = registration;
         registration.update().catch(() => {});
 
         const refreshRegistration = () => {
@@ -185,6 +188,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
           worker.addEventListener("statechange", () => {
             if (worker.state === "installed" && navigator.serviceWorker.controller) {
               setUpdateReady(true);
+              setUpdateDismissed(false);
             }
           });
         };
@@ -195,6 +199,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
 
         if (registration.waiting) {
           setUpdateReady(true);
+          setUpdateDismissed(false);
         }
 
         const intervalId = window.setInterval(refreshRegistration, 60_000);
@@ -204,6 +209,9 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
           window.removeEventListener("focus", refreshRegistration);
           document.removeEventListener("visibilitychange", refreshRegistration);
           window.clearInterval(intervalId);
+          if (registrationRef.current === registration) {
+            registrationRef.current = null;
+          }
         };
       })
       .catch(() => {});
@@ -263,6 +271,18 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     }
 
     setInstallDismissed(true);
+  };
+
+  const requestUpdate = () => {
+    const waitingWorker = registrationRef.current?.waiting;
+
+    if (!waitingWorker) {
+      window.location.reload();
+      return;
+    }
+
+    shouldReloadOnControllerChangeRef.current = true;
+    waitingWorker.postMessage({ type: "skip-waiting" });
   };
 
   return (
@@ -368,23 +388,42 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
         </div>
       ) : null}
 
-      {updateReady ? (
+      {updateReady && !updateDismissed ? (
         <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-[1.4rem] border border-[var(--line)] bg-[color:rgba(23,19,17,0.96)] p-4 text-white shadow-[var(--shadow)] backdrop-blur">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--signal-soft)]">
-            Nueva version de la app
-          </p>
-          <p className="mt-2 text-sm leading-6 text-white/80">
-            Hay una actualizacion disponible. Al recargar tendras la ultima version instalada.
-          </p>
-          <button
-            className="action-button mt-4 w-full bg-white text-[var(--ink)]"
-            type="button"
-            onClick={() => {
-              window.location.reload();
-            }}
-          >
-            Actualizar
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--signal-soft)]">
+                Nueva version disponible
+              </p>
+              <p className="mt-2 text-sm leading-6 text-white/80">
+                Hay una actualizacion lista. Pulsa actualizar para recargar la app con la ultima version.
+              </p>
+            </div>
+            <button
+              aria-label="Cerrar aviso de actualización"
+              className="rounded-full border border-white/10 p-1.5 text-white/60 transition hover:text-white"
+              type="button"
+              onClick={() => setUpdateDismissed(true)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              className="action-button action-button--signal min-h-10 flex-1 px-4 py-2.5 text-[0.8rem]"
+              type="button"
+              onClick={requestUpdate}
+            >
+              Actualizar ahora
+            </button>
+            <button
+              className="rounded-full border border-white/10 px-4 py-2.5 text-sm font-medium text-white/70 transition hover:text-white"
+              type="button"
+              onClick={() => setUpdateDismissed(true)}
+            >
+              Más tarde
+            </button>
+          </div>
         </div>
       ) : null}
     </>
