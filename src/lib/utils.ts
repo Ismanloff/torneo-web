@@ -85,7 +85,16 @@ export function buildQrShareUrl(token: string) {
   return new URL(`/q/${token}`, TOURNAMENT_PUBLIC_URL).toString();
 }
 
+export function isManagementRole(role: string) {
+  return role === "superadmin" || role === "admin";
+}
+
+export function isSuperadminRole(role: string) {
+  return role === "superadmin";
+}
+
 export function formatStaffRoleLabel(role: string) {
+  if (role === "superadmin") return "Superadmin";
   if (role === "admin") return "Admin";
   if (role === "referee") return "Árbitro";
   if (role === "assistant") return "Organización";

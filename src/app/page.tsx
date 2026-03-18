@@ -19,6 +19,8 @@ import {
   TOURNAMENT_EVENT_DATE_LABEL,
   TOURNAMENT_NAME,
   TOURNAMENT_ORGANIZERS_SHORT,
+  TOURNAMENT_ORGANIZERS_LABEL,
+  TOURNAMENT_PARTICIPATION_LABEL,
 } from "@/lib/branding";
 import { getScoreboardHomeData } from "@/lib/supabase/queries";
 
@@ -81,15 +83,20 @@ export default async function Home() {
                   </span>
                   <span className="public-tag public-tag--soft">
                     <Landmark className="h-3.5 w-3.5" />
-                    Torneo parroquial
+                    Sporti y parroquias
                   </span>
                 </div>
                 <h1 className="public-title text-[clamp(2.8rem,11vw,5.9rem)]">
                   {TOURNAMENT_NAME}
                 </h1>
                 <p className="public-hero-panel__meta mt-3 text-sm text-[#9fb3d9] sm:mt-4">
-                  {TOURNAMENT_EVENT_DATE_LABEL} &middot;{" "}
-                  {ALLOWED_SPORT_LABELS.join(" · ")}
+                  {TOURNAMENT_EVENT_DATE_LABEL} &middot; {ALLOWED_SPORT_LABELS.join(" · ")}
+                </p>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-[#c2cfdf]">
+                  {TOURNAMENT_ORGANIZERS_LABEL}
+                </p>
+                <p className="mt-2 max-w-2xl text-sm leading-7 text-[#c2cfdf]">
+                  {TOURNAMENT_PARTICIPATION_LABEL}
                 </p>
 
                 <div className="public-inline-actions mt-5">

@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { buildCategoryStandings, buildGroupedStandings } from "@/lib/standings";
 import type { CategoryMatchRow, CategoryRow, ScoringRuleRow, TeamRow } from "@/lib/types";
 
-function makeCategory(): CategoryRow {
+function makeCategory(overrides: Partial<CategoryRow> = {}): CategoryRow {
   return {
     id: "category-standings",
     tournament_id: "tournament-1",
     school_id: "school-1",
-    name: "Voleibol Infantil",
-    sport: "Voleibol",
+    name: "Baloncesto Infantil",
+    sport: "Baloncesto",
     school: "Fátima",
     age_group: "11-13 años",
     age_min: 11,
@@ -19,6 +19,7 @@ function makeCategory(): CategoryRow {
     is_active: true,
     created_at: "2026-03-15T10:00:00.000Z",
     updated_at: "2026-03-15T10:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -73,6 +74,10 @@ function makeMatch(
 
 describe("standings", () => {
   const category = makeCategory();
+  const volleyballCategory = makeCategory({
+    name: "Voleibol Infantil",
+    sport: "Voleibol",
+  });
   const teams = [1, 2, 3, 4].map(makeTeam);
   const scoringRule: ScoringRuleRow = {
     category_id: category.id,
@@ -113,6 +118,29 @@ describe("standings", () => {
     expect(standings[1]?.goal_difference).toBe(2);
   });
 
+  it("uses volleyball standings points for 2-0 and 2-1 wins", () => {
+    const matches: CategoryMatchRow[] = [
+      makeMatch("v1", { home_team_id: "team-1", away_team_id: "team-2", home_score: 2, away_score: 0 }),
+      makeMatch("v2", { home_team_id: "team-3", away_team_id: "team-4", home_score: 2, away_score: 1 }),
+      makeMatch("v3", { home_team_id: "team-1", away_team_id: "team-3", home_score: 1, away_score: 2 }),
+      makeMatch("v4", { home_team_id: "team-2", away_team_id: "team-4", home_score: 2, away_score: 0 }),
+    ];
+
+    const standings = buildCategoryStandings({
+      category: volleyballCategory,
+      teams,
+      matches,
+      scoringRule,
+      adjustments: [],
+    });
+
+    expect(standings.map((row) => row.team_id)).toEqual(["team-3", "team-1", "team-2", "team-4"]);
+    expect(standings[0]?.total_points).toBe(4);
+    expect(standings[1]?.total_points).toBe(4);
+    expect(standings[2]?.total_points).toBe(3);
+    expect(standings[3]?.total_points).toBe(1);
+  });
+
   it("builds standings per group and ignores placement/friendly matches", () => {
     const matches: CategoryMatchRow[] = [
       makeMatch("g1", {
@@ -142,7 +170,7 @@ describe("standings", () => {
     ];
 
     const grouped = buildGroupedStandings({
-      category,
+      category: volleyballCategory,
       teams,
       matches,
       scoringRule,

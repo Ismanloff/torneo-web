@@ -252,23 +252,53 @@ function deletePendingScore(db, id) {
   });
 }
 
-self.addEventListener("sync", (event) => {
-  if (event.tag === "sync-scores") {
-    event.waitUntil(syncPendingScores());
+self.addEventListener("message", (event) => {
+  const type = event.data?.type;
+
+  if (type === "skip-waiting") {
+    self.skipWaiting();
+    return;
+  }
+
+  if (type === "sync-offline-scores") {
+    event.waitUntil(syncPendingScores({ source: "message" }));
   }
 });
 
-async function syncPendingScores() {
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-scores") {
+    event.waitUntil(syncPendingScores({ source: "background-sync" }));
+  }
+});
+
+async function notifyClients(message) {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+  await Promise.all(
+    clients.map((client) => {
+      client.postMessage(message);
+    }),
+  );
+}
+
+async function syncPendingScores({ source }) {
   let db;
 
   try {
     db = await openDB();
   } catch {
     // IndexedDB not available — nothing to sync
+    await notifyClients({
+      type: "offline-sync-update",
+      source,
+      pendingCount: 0,
+      syncedCount: 0,
+    });
     return;
   }
 
   const entries = await getAllPendingScores(db);
+  let syncedCount = 0;
 
   for (const entry of entries) {
     try {
@@ -286,6 +316,7 @@ async function syncPendingScores() {
 
       if (response.ok) {
         await deletePendingScore(db, entry.id);
+        syncedCount += 1;
       }
       // If the response is not ok (e.g. 4xx/5xx), leave the entry for the next sync attempt
     } catch {
@@ -293,6 +324,21 @@ async function syncPendingScores() {
       break;
     }
   }
+
+  const remainingCount = Math.max(0, entries.length - syncedCount);
+
+  await notifyClients({
+    type: "sync-complete",
+    source,
+    syncedCount,
+    pendingCount: remainingCount,
+  });
+  await notifyClients({
+    type: "offline-sync-update",
+    source,
+    syncedCount,
+    pendingCount: remainingCount,
+  });
 }
 
 // ──────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { QrTile } from "@/components/qr-tile";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalTeamById } from "@/lib/supabase/queries";
 import type { EnrichedBracketMatch, EnrichedCategoryMatch, StaffContext } from "@/lib/types";
-import { buildQrShareUrl, formatDateTime } from "@/lib/utils";
+import { buildQrShareUrl, formatDateTime, isManagementRole } from "@/lib/utils";
 
 type TeamDetailPageProps = {
   params: Promise<{
@@ -57,14 +57,14 @@ function getTeamCheckin(match: TeamRelatedMatch, teamId: string) {
 
 function canQuickCheckIn(staff: StaffContext, match: TeamRelatedMatch) {
   return (
-    staff.profile.role === "admin" ||
+    isManagementRole(staff.profile.role) ||
     (staff.profile.role === "assistant" &&
       match.assistant_assignment?.auth_user_id === staff.authUserId)
   );
 }
 
 function canManageArrival(staff: StaffContext) {
-  return staff.profile.role === "admin" || staff.profile.role === "assistant";
+  return isManagementRole(staff.profile.role) || staff.profile.role === "assistant";
 }
 
 function isOpenMatch(match: TeamRelatedMatch) {
@@ -96,7 +96,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
   const nextCheckinAllowed = nextOpenMatch ? canQuickCheckIn(staff, nextOpenMatch) : false;
   const entryMode = query.entry === "1";
   const fromScan = query.from === "scan";
-  const canSeeContacts = staff.profile.role === "admin" || staff.profile.role === "assistant";
+  const canSeeContacts = isManagementRole(staff.profile.role) || staff.profile.role === "assistant";
   const canHandleArrival = canManageArrival(staff);
   const teamEntryPath = `/app/equipo/${detail.team.id}?entry=1${fromScan ? "&from=scan" : ""}`;
   const nextMatchPath = nextOpenMatch

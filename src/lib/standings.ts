@@ -7,6 +7,7 @@ import type {
   TeamRow,
   TeamScoreAdjustmentRow,
 } from "@/lib/types";
+import { normalizeSportName } from "@/lib/allowed-sports";
 
 type BuildStandingsInput = {
   category: CategoryRow;
@@ -17,7 +18,27 @@ type BuildStandingsInput = {
   groupLabel?: GroupLabel;
 };
 
-function compareStandings(left: CategoryStandingRow, right: CategoryStandingRow) {
+function compareDefaultStandings(left: CategoryStandingRow, right: CategoryStandingRow) {
+  if (right.total_points !== left.total_points) {
+    return right.total_points - left.total_points;
+  }
+
+  if (right.goal_difference !== left.goal_difference) {
+    return right.goal_difference - left.goal_difference;
+  }
+
+  if (right.goals_for !== left.goals_for) {
+    return right.goals_for - left.goals_for;
+  }
+
+  return left.team_name.localeCompare(right.team_name, "es");
+}
+
+function compareVolleyballStandings(left: CategoryStandingRow, right: CategoryStandingRow) {
+  if (right.wins !== left.wins) {
+    return right.wins - left.wins;
+  }
+
   if (right.total_points !== left.total_points) {
     return right.total_points - left.total_points;
   }
@@ -41,6 +62,8 @@ export function buildCategoryStandings({
   adjustments,
   groupLabel,
 }: BuildStandingsInput): CategoryStandingRow[] {
+  const normalizedSport = normalizeSportName(category.sport);
+  const isVolleyball = normalizedSport === "voleibol";
   const pointsWin = scoringRule?.points_win ?? 3;
   const pointsDraw = scoringRule?.points_draw ?? 1;
   const pointsLoss = scoringRule?.points_loss ?? 0;
@@ -128,7 +151,7 @@ export function buildCategoryStandings({
     } else if (match.home_score < match.away_score) {
       away.wins += 1;
       home.losses += 1;
-    } else {
+    } else if (!isVolleyball) {
       home.draws += 1;
       away.draws += 1;
     }
@@ -136,11 +159,33 @@ export function buildCategoryStandings({
 
   return [...rows.values()]
     .map((row) => {
-      const totalPoints =
+      let totalPoints =
         row.wins * pointsWin +
         row.draws * pointsDraw +
         row.losses * pointsLoss +
         row.adjustment_points;
+
+      if (isVolleyball) {
+        totalPoints = row.adjustment_points;
+
+        for (const match of relevantMatches) {
+          const isHomeTeam = match.home_team_id === row.team_id;
+          const isAwayTeam = match.away_team_id === row.team_id;
+
+          if ((!isHomeTeam && !isAwayTeam) || match.home_score === null || match.away_score === null) {
+            continue;
+          }
+
+          const ownSets = isHomeTeam ? match.home_score : match.away_score;
+          const rivalSets = isHomeTeam ? match.away_score : match.home_score;
+
+          if (ownSets === 2 && rivalSets <= 1) {
+            totalPoints += rivalSets === 0 ? 3 : 2;
+          } else if (rivalSets === 2 && ownSets <= 1) {
+            totalPoints += ownSets === 1 ? 1 : 0;
+          }
+        }
+      }
 
       return {
         ...row,
@@ -148,7 +193,7 @@ export function buildCategoryStandings({
         total_points: totalPoints,
       };
     })
-    .sort(compareStandings);
+    .sort(isVolleyball ? compareVolleyballStandings : compareDefaultStandings);
 }
 
 export function buildGroupedStandings(input: Omit<BuildStandingsInput, "groupLabel">) {

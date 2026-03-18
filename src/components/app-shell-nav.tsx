@@ -5,6 +5,7 @@ import { ClipboardList, LayoutDashboard, QrCode, Shield, Users } from "lucide-re
 import { usePathname } from "next/navigation";
 
 import type { StaffRole } from "@/lib/types";
+import { isManagementRole } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/app", label: "Inicio", icon: LayoutDashboard },
@@ -16,7 +17,7 @@ const ITEMS = [
 
 export function AppShellNav({ role }: { role: StaffRole }) {
   const pathname = usePathname();
-  const visibleItems = ITEMS.filter((item) => !item.adminOnly || role === "admin");
+  const visibleItems = ITEMS.filter((item) => !item.adminOnly || isManagementRole(role));
   const columns =
     visibleItems.length === 5 ? "grid-cols-5" : visibleItems.length === 4 ? "grid-cols-4" : "grid-cols-3";
 

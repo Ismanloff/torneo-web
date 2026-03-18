@@ -10,13 +10,18 @@ type ScoreboardTableProps = {
 };
 
 function StandingsTable({
+  category,
   rows,
   compact,
 }: {
+  category: ScoreboardCategory;
   rows: CategoryStandingRow[];
   compact: boolean;
 }) {
   const visibleRows = compact ? rows.slice(0, 5) : rows;
+  const arrivalByTeamId = new Map(
+    category.teams.map((team) => [team.id, Boolean(team.checked_in_at)]),
+  );
 
   return (
     <div className="overflow-x-auto">
@@ -37,9 +42,20 @@ function StandingsTable({
                 <td className="px-4 py-3 font-semibold text-white">{index + 1}</td>
                 <td className="px-4 py-3">
                   <p className="font-semibold text-white">{row.team_name}</p>
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#8fa1c2]">
-                    {row.registration_code}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <p className="text-xs uppercase tracking-[0.16em] text-[#8fa1c2]">
+                      {row.registration_code}
+                    </p>
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] ${
+                        arrivalByTeamId.get(row.team_id)
+                          ? "border-[rgba(141,246,95,0.18)] bg-[rgba(141,246,95,0.12)] text-[#d8ffc7]"
+                          : "border-white/10 bg-white/[0.04] text-[#9fb3d9]"
+                      }`}
+                    >
+                      {arrivalByTeamId.get(row.team_id) ? "Llegado" : "Pendiente"}
+                    </span>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-center font-semibold text-[var(--app-accent)]">
                   {row.total_points}
@@ -110,12 +126,12 @@ export function ScoreboardTable({
                   Grupo {group.groupLabel}
                 </p>
               </div>
-              <StandingsTable compact={compact} rows={group.standings} />
+              <StandingsTable category={category} compact={compact} rows={group.standings} />
             </section>
           ))}
         </div>
       ) : (
-        <StandingsTable compact={compact} rows={category.standings} />
+        <StandingsTable category={category} compact={compact} rows={category.standings} />
       )}
     </div>
   );

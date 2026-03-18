@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
 
 import { PwaRegistrar } from "@/components/pwa-registrar";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import {
   TOURNAMENT_DESCRIPTION,
   TOURNAMENT_NAME,
@@ -76,6 +77,7 @@ export default function RootLayout({
           Saltar al contenido
         </a>
         <PwaRegistrar appVersion={appVersion} />
+        <PullToRefresh />
         <div id="main-content">{children}</div>
       </body>
     </html>

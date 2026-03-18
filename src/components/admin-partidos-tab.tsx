@@ -21,9 +21,15 @@ import {
 import { AdminModal } from "@/components/admin-modal";
 import { buildInitialOperationalPlan, getDefaultOperationalSettings } from "@/lib/operational-scheduling";
 import { getScoreMetricLabelLower } from "@/lib/score-metric";
-import { formatDateTime, formatDateTimeLocalValue, formatStaffRoleLabel } from "@/lib/utils";
+import {
+  formatDateTime,
+  formatDateTimeLocalValue,
+  formatStaffRoleLabel,
+  isManagementRole,
+  isSuperadminRole,
+} from "@/lib/utils";
 
-import type { ScoreboardCategory, StaffProfileRow } from "@/lib/types";
+import type { ScoreboardCategory, StaffProfileRow, StaffRole } from "@/lib/types";
 
 function getStatusLabel(status: string) {
   if (status === "completed") return "Finalizado";
@@ -98,8 +104,8 @@ function StaffSelect({
       profile.is_active &&
       profile.auth_user_id &&
       (duty === "referee"
-        ? profile.role === "admin" || profile.role === "referee"
-        : profile.role === "admin" || profile.role === "assistant" || profile.role === "referee"),
+        ? isManagementRole(profile.role) || profile.role === "referee"
+        : isManagementRole(profile.role) || profile.role === "assistant" || profile.role === "referee"),
   );
 
   return (
@@ -145,8 +151,8 @@ function CategoryStaffSelect({
       profile.is_active &&
       profile.auth_user_id &&
       (duty === "referee"
-        ? profile.role === "admin" || profile.role === "referee"
-        : profile.role === "admin" || profile.role === "assistant" || profile.role === "referee"),
+        ? isManagementRole(profile.role) || profile.role === "referee"
+        : isManagementRole(profile.role) || profile.role === "assistant" || profile.role === "referee"),
   );
 
   return (
@@ -186,6 +192,7 @@ type AdminPartidosTabProps = {
   staffProfiles: StaffProfileRow[];
   tournamentId: string;
   tournamentStartDate: string;
+  viewerRole: StaffRole;
   surfacePath: string;
 };
 
@@ -198,6 +205,7 @@ export function AdminPartidosTab({
   staffProfiles,
   tournamentId,
   tournamentStartDate,
+  viewerRole,
   surfacePath,
 }: AdminPartidosTabProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
@@ -232,6 +240,7 @@ export function AdminPartidosTab({
       : null;
   const latestInitialRun = category ? getLatestRun(category, "initial") : null;
   const latestFinalRun = category ? getLatestRun(category, "final") : null;
+  const canManageAssignments = isSuperadminRole(viewerRole);
   const canGenerateFinalStage =
     Boolean(category && latestInitialRun && !latestFinalRun) &&
     category!.matches.filter(
@@ -449,22 +458,35 @@ export function AdminPartidosTab({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <CategoryStaffSelect
-                categoryId={category.category.id}
-                duty="referee"
-                staffProfiles={staffProfiles}
-                tournamentId={tournamentId}
-                value={category.category_referee_assignment?.auth_user_id ?? ""}
-              />
-              <CategoryStaffSelect
-                categoryId={category.category.id}
-                duty="assistant"
-                staffProfiles={staffProfiles}
-                tournamentId={tournamentId}
-                value={category.category_assistant_assignment?.auth_user_id ?? ""}
-              />
-            </div>
+            {canManageAssignments ? (
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <CategoryStaffSelect
+                  categoryId={category.category.id}
+                  duty="referee"
+                  staffProfiles={staffProfiles}
+                  tournamentId={tournamentId}
+                  value={category.category_referee_assignment?.auth_user_id ?? ""}
+                />
+                <CategoryStaffSelect
+                  categoryId={category.category.id}
+                  duty="assistant"
+                  staffProfiles={staffProfiles}
+                  tournamentId={tournamentId}
+                  value={category.category_assistant_assignment?.auth_user_id ?? ""}
+                />
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-2 rounded-[1.25rem] border border-[var(--app-line)] bg-white/[0.03] px-4 py-3 text-sm text-[var(--app-muted)] sm:grid-cols-2">
+                <div className="flex items-center gap-2">
+                  <UserRound className="h-4 w-4 text-[var(--app-accent)]" />
+                  Arbitraje de categoría: {renderAssignmentLabel(category.category_referee_assignment)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-[var(--app-info)]" />
+                  Organización de categoría: {renderAssignmentLabel(category.category_assistant_assignment)}
+                </div>
+              </div>
+            )}
           </div>
 
           <AdminModal
@@ -679,26 +701,28 @@ export function AdminPartidosTab({
                         <textarea className="field-input field-input--dark min-h-20" defaultValue={match.notes ?? ""} name="notes" />
                       </label>
 
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <StaffSelect
-                          categoryId={category.category.id}
-                          duty="referee"
-                          matchId={match.id}
-                          scope="category_match"
-                          staffProfiles={staffProfiles}
-                          tournamentId={tournamentId}
-                          value={match.referee_assignment?.auth_user_id ?? ""}
-                        />
-                        <StaffSelect
-                          categoryId={category.category.id}
-                          duty="assistant"
-                          matchId={match.id}
-                          scope="category_match"
-                          staffProfiles={staffProfiles}
-                          tournamentId={tournamentId}
-                          value={match.assistant_assignment?.auth_user_id ?? ""}
-                        />
-                      </div>
+                      {canManageAssignments ? (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <StaffSelect
+                            categoryId={category.category.id}
+                            duty="referee"
+                            matchId={match.id}
+                            scope="category_match"
+                            staffProfiles={staffProfiles}
+                            tournamentId={tournamentId}
+                            value={match.referee_assignment?.auth_user_id ?? ""}
+                          />
+                          <StaffSelect
+                            categoryId={category.category.id}
+                            duty="assistant"
+                            matchId={match.id}
+                            scope="category_match"
+                            staffProfiles={staffProfiles}
+                            tournamentId={tournamentId}
+                            value={match.assistant_assignment?.auth_user_id ?? ""}
+                          />
+                        </div>
+                      ) : null}
 
                       <div className="flex flex-wrap gap-2">
                         <button className="admin-btn admin-btn--primary" type="submit">
@@ -871,26 +895,28 @@ export function AdminPartidosTab({
                               <textarea className="field-input field-input--dark min-h-20" defaultValue={match.notes ?? ""} name="notes" />
                             </label>
 
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <StaffSelect
-                                categoryId={category.category.id}
-                                duty="referee"
-                                matchId={match.id}
-                                scope="bracket_match"
-                                staffProfiles={staffProfiles}
-                                tournamentId={tournamentId}
-                                value={match.referee_assignment?.auth_user_id ?? ""}
-                              />
-                              <StaffSelect
-                                categoryId={category.category.id}
-                                duty="assistant"
-                                matchId={match.id}
-                                scope="bracket_match"
-                                staffProfiles={staffProfiles}
-                                tournamentId={tournamentId}
-                                value={match.assistant_assignment?.auth_user_id ?? ""}
-                              />
-                            </div>
+                            {canManageAssignments ? (
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <StaffSelect
+                                  categoryId={category.category.id}
+                                  duty="referee"
+                                  matchId={match.id}
+                                  scope="bracket_match"
+                                  staffProfiles={staffProfiles}
+                                  tournamentId={tournamentId}
+                                  value={match.referee_assignment?.auth_user_id ?? ""}
+                                />
+                                <StaffSelect
+                                  categoryId={category.category.id}
+                                  duty="assistant"
+                                  matchId={match.id}
+                                  scope="bracket_match"
+                                  staffProfiles={staffProfiles}
+                                  tournamentId={tournamentId}
+                                  value={match.assistant_assignment?.auth_user_id ?? ""}
+                                />
+                              </div>
+                            ) : null}
 
                             <div className="flex flex-wrap gap-2">
                               <button className="admin-btn admin-btn--primary" type="submit">

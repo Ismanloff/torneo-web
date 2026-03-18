@@ -5,7 +5,7 @@ create table if not exists public.staff_profiles (
   auth_user_id uuid unique references auth.users(id) on delete set null,
   email text not null unique,
   full_name text not null,
-  role text not null check (role in ('admin', 'referee', 'assistant')),
+  role text not null check (role in ('superadmin', 'admin', 'referee', 'assistant')),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -69,7 +69,7 @@ create table if not exists public.match_result_audit (
   match_scope text not null check (match_scope in ('category_match', 'bracket_match')),
   match_id uuid not null,
   actor_user_id uuid references auth.users(id) on delete set null,
-  actor_role text check (actor_role in ('admin', 'referee', 'assistant')),
+  actor_role text check (actor_role in ('superadmin', 'admin', 'referee', 'assistant')),
   previous_status text,
   new_status text,
   previous_home_score integer,
@@ -121,7 +121,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select coalesce(public.current_staff_role() = 'admin', false);
+  select coalesce(public.current_staff_role() in ('superadmin', 'admin'), false);
 $$;
 
 create or replace function public.can_access_category_match(target_match_id uuid, required_duty text default null)

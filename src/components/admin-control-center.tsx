@@ -15,7 +15,7 @@ export async function AdminControlCenter({
   manualLookupError,
   surfacePath = "/app/admin",
 }: AdminControlCenterProps = {}) {
-  await requireAdminSession();
+  const access = await requireAdminSession();
   const data = await getAdminScoreboardData();
   const activeStaff = data.staffProfiles.filter((profile) => profile.is_active);
 
@@ -80,10 +80,11 @@ export async function AdminControlCenter({
           <AdminTabs
             categories={data.categories}
             staffProfiles={data.staffProfiles}
-            manualLookupError={manualLookupError}
-            recentArrivals={data.recentArrivals}
-            recentMatchCheckins={data.recentMatchCheckins}
-            tournament={data.tournament}
+          manualLookupError={manualLookupError}
+          recentArrivals={data.recentArrivals}
+          recentMatchCheckins={data.recentMatchCheckins}
+          tournament={data.tournament}
+          viewerRole={access.role}
           totalTeams={data.totalTeams}
           totalMatches={data.totalMatches}
           activeStaffCount={activeStaff.length}

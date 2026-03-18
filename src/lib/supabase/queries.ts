@@ -32,6 +32,7 @@ import type {
 } from "@/lib/types";
 import { getDefaultOperationalSettings } from "@/lib/operational-scheduling";
 import { buildCategoryStandings, buildGroupedStandings } from "@/lib/standings";
+import { isManagementRole } from "@/lib/utils";
 
 function requireTournament(tournament: TournamentRow | null): TournamentRow {
   if (!tournament) {
@@ -659,7 +660,7 @@ function flattenOperationalMatches(
   for (const category of categories) {
     for (const match of category.matches) {
       const duty =
-        staff.profile.role === "admin"
+        isManagementRole(staff.profile.role)
           ? "admin"
           : match.referee_assignment?.auth_user_id === staff.authUserId
             ? "referee"
@@ -691,7 +692,7 @@ function flattenOperationalMatches(
     for (const round of category.bracket?.rounds ?? []) {
       for (const match of round.matches) {
         const duty =
-          staff.profile.role === "admin"
+          isManagementRole(staff.profile.role)
             ? "admin"
             : match.referee_assignment?.auth_user_id === staff.authUserId
               ? "referee"
@@ -747,7 +748,7 @@ export async function getOperationalDashboardData(
   const teams = adminData.categories
     .flatMap((category) =>
       category.teams
-        .filter((team) => staff.profile.role === "admin" || teamIds.has(team.id))
+        .filter((team) => isManagementRole(staff.profile.role) || teamIds.has(team.id))
         .map((team) => ({
           ...team,
           category: category.category,
@@ -778,7 +779,7 @@ export async function getOperationalMatchById(
       }
 
       const canAccess =
-        staff.profile.role === "admin" ||
+        isManagementRole(staff.profile.role) ||
         match.referee_assignment?.auth_user_id === staff.authUserId ||
         match.assistant_assignment?.auth_user_id === staff.authUserId;
 
@@ -787,10 +788,10 @@ export async function getOperationalMatchById(
             category,
             match,
             canSubmitResult:
-              staff.profile.role === "admin" ||
+              isManagementRole(staff.profile.role) ||
               match.referee_assignment?.auth_user_id === staff.authUserId,
             canCheckIn:
-              staff.profile.role === "admin" ||
+              isManagementRole(staff.profile.role) ||
               match.assistant_assignment?.auth_user_id === staff.authUserId,
           }
         : null;
@@ -804,7 +805,7 @@ export async function getOperationalMatchById(
       }
 
       const canAccess =
-        staff.profile.role === "admin" ||
+        isManagementRole(staff.profile.role) ||
         match.referee_assignment?.auth_user_id === staff.authUserId ||
         match.assistant_assignment?.auth_user_id === staff.authUserId;
 
@@ -814,10 +815,10 @@ export async function getOperationalMatchById(
             round,
             match,
             canSubmitResult:
-              staff.profile.role === "admin" ||
+              isManagementRole(staff.profile.role) ||
               match.referee_assignment?.auth_user_id === staff.authUserId,
             canCheckIn:
-              staff.profile.role === "admin" ||
+              isManagementRole(staff.profile.role) ||
               match.assistant_assignment?.auth_user_id === staff.authUserId,
           }
         : null;
@@ -845,7 +846,7 @@ export async function getOperationalTeamById(staff: StaffContext, teamId: string
     );
 
     const canAccess =
-      staff.profile.role === "admin" ||
+      isManagementRole(staff.profile.role) ||
       relatedCategoryMatches.some(
         (match) =>
           match.referee_assignment?.auth_user_id === staff.authUserId ||

@@ -26,6 +26,20 @@ type OfflineScoreFormProps = {
   canSubmit: boolean;
 };
 
+async function requestOfflineScoreSync() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+
+  if ("sync" in registration) {
+    return;
+  }
+
+  registration.active?.postMessage({ type: "sync-offline-scores" });
+}
+
 export function OfflineScoreForm({
   matchId,
   matchScope,
@@ -74,7 +88,8 @@ export function OfflineScoreForm({
     }
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "sync-complete") {
+      if (event.data?.type === "sync-complete" || event.data?.type === "offline-sync-update") {
+        setOfflineSaved(false);
         router.refresh();
       }
     };
@@ -85,6 +100,31 @@ export function OfflineScoreForm({
       navigator.serviceWorker.removeEventListener("message", handleMessage);
     };
   }, [router]);
+
+  useEffect(() => {
+    const trySyncQueuedScores = () => {
+      if (!navigator.onLine) {
+        return;
+      }
+
+      void requestOfflineScoreSync().catch(() => {});
+    };
+
+    window.addEventListener("online", trySyncQueuedScores);
+    window.addEventListener("focus", trySyncQueuedScores);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        trySyncQueuedScores();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("online", trySyncQueuedScores);
+      window.removeEventListener("focus", trySyncQueuedScores);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
 
   async function handleSubmit(formData: FormData) {
     if (!isOnline) {
@@ -126,6 +166,8 @@ export function OfflineScoreForm({
 
           if ("sync" in registration) {
             await (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("sync-scores");
+          } else {
+            void requestOfflineScoreSync().catch(() => {});
           }
         } catch {
           // Background sync not supported or failed — scores remain in IndexedDB

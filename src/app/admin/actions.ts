@@ -11,6 +11,7 @@ import {
   isValidAdminAccessKey,
   requireAdminSession,
   requireStaffSession,
+  requireSuperadminSession,
   setLegacyAdminSession,
   setPinSession,
   signOutStaffSession,
@@ -23,6 +24,7 @@ import {
   getDefaultOperationalSettings,
 } from "@/lib/operational-scheduling";
 import { sendPushToStaff } from "@/lib/push-notify";
+import { validateCompletedScore } from "@/lib/sport-rules";
 import {
   getAdminScoreboardData,
   getOperationalMatchById,
@@ -762,7 +764,7 @@ export async function loginWithPinAction(formData: FormData) {
 
   await setPinSession(profile.id);
 
-  if (profile.role === "admin") {
+  if (profile.role === "admin" || profile.role === "superadmin") {
     redirect("/app/admin");
   }
 
@@ -862,6 +864,24 @@ export async function updateMatchAction(formData: FormData) {
     (homeScore === null || awayScore === null)
   ) {
     redirect("/app/admin?error=marcador");
+  }
+
+  if (parsed.data.status === "completed") {
+    const { category } = await loadAdminCategory(parsed.data.categoryId);
+
+    if (!category) {
+      redirect("/app/admin?error=categoria");
+    }
+
+    const validationError = validateCompletedScore({
+      sport: category.category.sport,
+      homeScore,
+      awayScore,
+    });
+
+    if (validationError) {
+      redirect(`/app/admin?error=${encodeURIComponent(validationError)}`);
+    }
   }
 
   const error = await persistCategoryMatchUpdate({
@@ -1264,6 +1284,24 @@ export async function updateBracketMatchAction(formData: FormData) {
     redirect("/app/admin?error=marcador-cuadro");
   }
 
+  if (parsed.data.status === "completed") {
+    const { category } = await loadAdminCategory(parsed.data.categoryId);
+
+    if (!category) {
+      redirect("/app/admin?error=categoria");
+    }
+
+    const validationError = validateCompletedScore({
+      sport: category.category.sport,
+      homeScore,
+      awayScore,
+    });
+
+    if (validationError) {
+      redirect(`/app/admin?error=${encodeURIComponent(validationError)}`);
+    }
+  }
+
   const error = await persistBracketMatchUpdate({
     matchId: parsed.data.matchId,
     categoryId: parsed.data.categoryId,
@@ -1291,7 +1329,7 @@ function generatePin(): string {
 }
 
 export async function createStaffAction(formData: FormData) {
-  await requireAdminSession();
+  await requireSuperadminSession();
 
   const parsed = createStaffSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -1337,7 +1375,7 @@ export async function createStaffAction(formData: FormData) {
 }
 
 export async function assignStaffToMatchAction(formData: FormData) {
-  await requireAdminSession();
+  await requireSuperadminSession();
 
   const parsed = assignStaffSchema.safeParse({
     tournamentId: formData.get("tournamentId"),
@@ -1428,7 +1466,7 @@ export async function assignStaffToMatchAction(formData: FormData) {
 }
 
 export async function assignStaffToCategoryAction(formData: FormData) {
-  await requireAdminSession();
+  await requireSuperadminSession();
 
   const parsed = assignCategoryStaffSchema.safeParse({
     tournamentId: formData.get("tournamentId"),
@@ -1471,7 +1509,7 @@ export async function assignStaffToCategoryAction(formData: FormData) {
 export async function generateQrForResourceAction(formData: FormData) {
   const access = await getAdminAccessContext();
 
-  if (!access || access.role !== "admin") {
+  if (!access || (access.role !== "admin" && access.role !== "superadmin")) {
     redirect("/login?error=restricted");
   }
 
@@ -1602,6 +1640,18 @@ export async function submitMatchResultAction(formData: FormData) {
       redirect("/app?error=marcador");
     }
 
+    if (parsed.data.status === "completed") {
+      const validationError = validateCompletedScore({
+        sport: detail.category.category.sport,
+        homeScore,
+        awayScore,
+      });
+
+      if (validationError) {
+        redirect(`/app?error=${encodeURIComponent(validationError)}`);
+      }
+    }
+
     const error = await persistCategoryMatchUpdate({
       matchId: parsed.data.matchId,
       categoryId: parsed.data.categoryId,
@@ -1644,6 +1694,18 @@ export async function submitMatchResultAction(formData: FormData) {
 
   if (parsed.data.status === "completed" && (homeScore === null || awayScore === null)) {
     redirect("/app?error=marcador");
+  }
+
+  if (parsed.data.status === "completed") {
+    const validationError = validateCompletedScore({
+      sport: detail.category.category.sport,
+      homeScore,
+      awayScore,
+    });
+
+    if (validationError) {
+      redirect(`/app?error=${encodeURIComponent(validationError)}`);
+    }
   }
 
   const error = await persistBracketMatchUpdate({
@@ -1767,7 +1829,7 @@ export async function deleteAdjustmentAction(formData: FormData) {
 }
 
 export async function removeStaffAction(formData: FormData) {
-  await requireAdminSession();
+  await requireSuperadminSession();
 
   const parsed = removeStaffSchema.safeParse({
     staffId: formData.get("staffId"),
