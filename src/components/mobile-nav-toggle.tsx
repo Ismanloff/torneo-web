@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Menu, X } from "lucide-react";
 
-export function MobileNavToggle({ children }: { children: React.ReactNode }) {
+type MobileNavToggleProps = {
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+};
+
+export function MobileNavToggle({ children, footer }: MobileNavToggleProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -67,6 +72,12 @@ export function MobileNavToggle({ children }: { children: React.ReactNode }) {
           <div className="public-nav__stack" onClick={() => setOpen(false)}>
             {children}
           </div>
+
+          {footer ? (
+            <div className="public-nav__supplement" onClick={() => setOpen(false)}>
+              {footer}
+            </div>
+          ) : null}
 
           <div className="public-nav__meta">
             <span>Portal público</span>

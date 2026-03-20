@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 
 import { MatchCountdown } from "@/components/match-countdown";
+import { PublicAgeGroupsSection } from "@/components/public-age-groups";
 import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -167,6 +168,8 @@ export default async function Home() {
             ) : null}
           </div>
         </section>
+
+        <PublicAgeGroupsSection />
 
         {/* Countdown banner for upcoming matches */}
         <MatchCountdown matches={countdownMatches} />
