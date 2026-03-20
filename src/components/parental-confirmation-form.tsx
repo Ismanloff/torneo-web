@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { ArrowRight, CircleCheckBig } from "lucide-react";
 
+import { getSameOriginMutationHeaders } from "@/lib/security";
 import { isExpired } from "@/lib/utils";
 
 export function ParentalConfirmationForm({
@@ -33,6 +34,7 @@ export function ParentalConfirmationForm({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getSameOriginMutationHeaders(),
         },
         body: JSON.stringify({
           token,

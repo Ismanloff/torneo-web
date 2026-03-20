@@ -2,16 +2,16 @@ import type { MetadataRoute } from "next";
 import {
   TOURNAMENT_BACKGROUND_COLOR,
   TOURNAMENT_DESCRIPTION,
-  TOURNAMENT_NAME,
-  TOURNAMENT_SHORT_NAME,
+  TOURNAMENT_PWA_NAME,
+  TOURNAMENT_PWA_SHORT_NAME,
   TOURNAMENT_THEME_COLOR,
 } from "@/lib/branding";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: TOURNAMENT_NAME,
-    short_name: TOURNAMENT_SHORT_NAME,
+    name: TOURNAMENT_PWA_NAME,
+    short_name: TOURNAMENT_PWA_SHORT_NAME,
     description: TOURNAMENT_DESCRIPTION,
     start_url: "/",
     scope: "/",

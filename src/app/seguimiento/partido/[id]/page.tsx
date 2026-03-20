@@ -2,8 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PublicPageShell } from "@/components/public-page-shell";
+import { getPublicAccessToken } from "@/lib/flash-state";
 import { getPublicMatchByToken } from "@/lib/supabase/queries";
 import { formatDateTime } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 type PublicMatchPageProps = {
   params: Promise<{
@@ -25,12 +28,23 @@ function checkinLabel(status: string | null | undefined) {
 export default async function PublicMatchPage({ params, searchParams }: PublicMatchPageProps) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
 
-  if (!query.token || !query.scope) {
+  if (!query.scope) {
+    notFound();
+  }
+
+  const accessToken =
+    query.token ??
+    (await getPublicAccessToken({
+      resourceId: id,
+      resourceType: query.scope,
+    }));
+
+  if (!accessToken) {
     notFound();
   }
 
   const detail = await getPublicMatchByToken({
-    token: query.token,
+    token: accessToken,
     matchId: id,
     scope: query.scope,
   });

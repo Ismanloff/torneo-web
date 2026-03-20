@@ -3,8 +3,8 @@ import { Trophy } from "lucide-react";
 
 import {
   TOURNAMENT_EDITION_LABEL,
-  TOURNAMENT_TAGLINE,
-  TOURNAMENT_ORGANIZER_MAIN,
+  TOURNAMENT_ORGANIZERS_COMPACT,
+  TOURNAMENT_SHORT_NAME,
 } from "@/lib/branding";
 import { getSportiLogoPath } from "@/lib/brand-assets";
 
@@ -23,8 +23,8 @@ export function PublicBrandLockup() {
 
       <div className="public-brand__copy">
         <p className="public-brand__eyebrow">{TOURNAMENT_EDITION_LABEL}</p>
-        <p className="public-brand__title">{TOURNAMENT_ORGANIZER_MAIN}</p>
-        <p className="public-brand__subtitle">{TOURNAMENT_TAGLINE}</p>
+        <p className="public-brand__title">{TOURNAMENT_SHORT_NAME}</p>
+        <p className="public-brand__subtitle">Organiza {TOURNAMENT_ORGANIZERS_COMPACT}</p>
       </div>
     </div>
   );

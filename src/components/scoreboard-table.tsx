@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
-import { ExportPdfButton } from "@/components/export-pdf-button";
 import { StatusPill } from "@/components/surface-primitives";
 import type { CategoryStandingRow, ScoreboardCategory } from "@/lib/types";
 
@@ -64,7 +64,7 @@ function StandingsTable({
           ) : (
             <tr>
               <td className="px-4 py-6 text-[#8fa1c2]" colSpan={5}>
-                Las inscripciones están abiertas. Los equipos aparecerán aquí en cuanto se registren.
+                Aún no hay equipos inscritos en esta categoría. Aparecerán aquí en cuanto se registren.
               </td>
             </tr>
           )}
@@ -92,18 +92,12 @@ export function ScoreboardTable({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {!hasGroups ? (
-              <ExportPdfButton
-                categoryName={category.category.name}
-                sport={category.category.sport}
-                standings={category.standings}
-              />
-            ) : null}
             <Link
-              className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--app-accent)]"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--app-accent)]/35 bg-[var(--app-accent)]/12 px-4 py-2 text-sm font-semibold text-[var(--app-accent)] transition hover:border-[var(--app-accent)]/55 hover:bg-[var(--app-accent)]/18"
               href={`/clasificacion/${category.category.id}`}
             >
               Ver detalle
+              <ArrowUpRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

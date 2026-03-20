@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Clock3, Home, QrCode, Sparkles } from "lucide-react";
+import { Clock3, Home, LockKeyhole, Sparkles } from "lucide-react";
 
 import { PublicPageShell } from "@/components/public-page-shell";
-import { QrTile } from "@/components/qr-tile";
 import { getTeamByRegistrationCode } from "@/lib/supabase/queries";
-import { buildQrShareUrl, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
 type TeamStatusPageProps = {
   params: Promise<{ code: string }>;
@@ -39,13 +38,11 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
     );
   }
 
-  const teamQrPath = team.qr_token ? buildQrShareUrl(team.qr_token.token) : null;
-
   return (
     <PublicPageShell
       eyebrow="Código de seguimiento"
       title={team.registration_code}
-      description="Este código identifica la inscripción del equipo y sirve para consultar su estado."
+      description="Este código identifica la inscripción del equipo, pero ya no da acceso al panel privado ni al QR del equipo."
       backHref="/"
       backLabel="Volver al portal"
       actions={
@@ -56,9 +53,11 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
             <p className="mt-2 text-sm text-[#a8b7d2]">{team.category.name}</p>
           </div>
           <div className="public-soft p-4">
-            <p className="public-kicker">Contacto</p>
-            <p className="mt-3 text-lg font-semibold text-white">{team.captain_name}</p>
-            <p className="mt-2 text-sm text-[#a8b7d2]">{team.captain_email}</p>
+            <p className="public-kicker">Acceso privado</p>
+            <p className="mt-3 text-lg font-semibold text-white">Protegido por enlace único</p>
+            <p className="mt-2 text-sm text-[#a8b7d2]">
+              Para abrir el panel del equipo y recuperar el QR usa el enlace privado enviado al responsable.
+            </p>
           </div>
         </div>
       }
@@ -79,21 +78,12 @@ export default async function TeamStatusPage({ params }: TeamStatusPageProps) {
 
         <article className="public-glass p-5">
           <div className="flex items-center gap-2">
-            <QrCode className="h-4 w-4 text-[var(--app-accent)]" />
-            <p className="public-kicker">QR de acceso</p>
+            <LockKeyhole className="h-4 w-4 text-[var(--app-accent)]" />
+            <p className="public-kicker">Panel privado</p>
           </div>
-          {teamQrPath ? (
-            <QrTile
-              href={teamQrPath}
-              label="QR del equipo"
-              note="Este es el acceso único del equipo para entrada y validación rápida."
-              variant="public"
-            />
-          ) : (
-            <div className="public-soft mt-4 p-5 text-sm leading-6 text-[#a8b7d2]">
-              El QR todavía no está disponible para este equipo.
-            </div>
-          )}
+          <div className="public-soft mt-4 p-5 text-sm leading-6 text-[#a8b7d2]">
+            El QR y los datos del responsable ya no se exponen desde esta ruta pública. Usa el enlace privado enviado al responsable del equipo.
+          </div>
         </article>
 
         <article className="public-glass p-5">

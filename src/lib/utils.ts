@@ -66,19 +66,19 @@ export function buildQrTargetPath(token: Pick<MatchQrTokenRow, "resource_id" | "
 }
 
 export function buildPublicQrTargetPath(
-  token: Pick<MatchQrTokenRow, "resource_id" | "resource_type" | "token">,
+  token: Pick<MatchQrTokenRow, "resource_id" | "resource_type">,
 ) {
   if (token.resource_type === "team") {
-    return `/seguimiento/equipo/${token.resource_id}?token=${token.token}`;
+    return `/seguimiento/equipo/${token.resource_id}`;
   }
 
-  return `/seguimiento/partido/${token.resource_id}?scope=${token.resource_type}&token=${token.token}`;
+  return `/seguimiento/partido/${token.resource_id}?scope=${token.resource_type}`;
 }
 
 export function buildPublicQrTargetUrl(
   token: Pick<MatchQrTokenRow, "resource_id" | "resource_type" | "token">,
 ) {
-  return new URL(buildPublicQrTargetPath(token), TOURNAMENT_PUBLIC_URL).toString();
+  return buildQrShareUrl(token.token);
 }
 
 export function buildQrShareUrl(token: string) {

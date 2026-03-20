@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { setStaffCreationFlash } from "@/lib/flash-state";
 import {
   getAdminAccessContext,
   isValidAdminAccessKey,
@@ -16,6 +17,17 @@ import {
   setPinSession,
   signOutStaffSession,
 } from "@/lib/admin-auth";
+import {
+  assertPinLoginAllowed,
+  clearFailedPinAttempts,
+  clearRateLimitAttempts,
+  hashStaffPin,
+  assertRateLimitAllowed,
+  registerRateLimitAttempt,
+  registerFailedPinAttempt,
+  verifyStaffPin,
+} from "@/lib/staff-auth";
+import { sanitizeRelativePath } from "@/lib/security";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
   buildFinalStagePlan,
@@ -172,6 +184,12 @@ const teamLookupSchema = z.object({
   redirectTo: z.string().trim().optional().or(z.literal("")),
 });
 
+const legacyAdminRateLimit = {
+  maxAttempts: 5,
+  windowMs: 15 * 60 * 1000,
+  lockWindowMs: 15 * 60 * 1000,
+} as const;
+
 function buildSeedOrder(size: number): number[] {
   if (size === 2) {
     return [1, 2];
@@ -195,15 +213,7 @@ function toNullable(value: string | undefined) {
 }
 
 function safeRedirect(pathname: string | undefined, fallback: string) {
-  if (!pathname) {
-    return fallback;
-  }
-
-  if (!pathname.startsWith("/")) {
-    return fallback;
-  }
-
-  return pathname;
+  return sanitizeRelativePath(pathname, fallback);
 }
 
 function normalizeTimeValue(value: string) {
@@ -734,10 +744,21 @@ export async function loginAdminAction(formData: FormData) {
     accessKey: formData.get("accessKey"),
   });
 
+  const throttle = await assertRateLimitAllowed(
+    "legacy-admin-login",
+    legacyAdminRateLimit,
+  );
+
+  if (!throttle.allowed) {
+    redirect("/login?error=legacy-locked");
+  }
+
   if (!parsed.success || !isValidAdminAccessKey(parsed.data.accessKey)) {
+    await registerRateLimitAttempt(throttle.attemptKey, legacyAdminRateLimit);
     redirect("/login?error=legacy");
   }
 
+  await clearRateLimitAttempts(throttle.attemptKey);
   await setLegacyAdminSession();
   redirect("/app/admin");
 }
@@ -751,15 +772,45 @@ export async function loginWithPinAction(formData: FormData) {
     redirect("/login?error=pin");
   }
 
+  const throttle = await assertPinLoginAllowed();
+
+  if (!throttle.allowed) {
+    redirect("/login?error=pin-locked");
+  }
+
+  const pinHash = hashStaffPin(parsed.data.pin);
+
   const { data: profile } = await supabaseAdmin
     .from("staff_profiles")
     .select("*")
-    .eq("pin", parsed.data.pin)
+    .or(`pin_hash.eq.${pinHash},pin.eq.${parsed.data.pin}`)
     .eq("is_active", true)
     .maybeSingle<StaffProfileRow>();
 
-  if (!profile) {
+  if (!profile || !verifyStaffPin(profile, parsed.data.pin)) {
+    await registerFailedPinAttempt(throttle.attemptKey);
     redirect("/login?error=pin");
+  }
+
+  await clearFailedPinAttempts(throttle.attemptKey);
+
+  if (!profile.pin_hash) {
+    await supabaseAdmin
+      .from("staff_profiles")
+      .update({
+        pin: null,
+        pin_hash: pinHash,
+        pin_last_four: parsed.data.pin.slice(-4),
+        last_login_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
+  } else {
+    await supabaseAdmin
+      .from("staff_profiles")
+      .update({
+        last_login_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
   }
 
   await setPinSession(profile.id);
@@ -773,7 +824,7 @@ export async function loginWithPinAction(formData: FormData) {
 
 export async function logoutAdminAction() {
   await signOutStaffSession();
-  redirect("/login");
+  redirect("/login?logout=1");
 }
 
 export async function saveScoringRuleAction(formData: FormData) {
@@ -1341,11 +1392,12 @@ export async function createStaffAction(formData: FormData) {
   }
 
   const pin = generatePin();
+  const pinHash = hashStaffPin(pin);
 
   const { data: collision } = await supabaseAdmin
     .from("staff_profiles")
     .select("id")
-    .eq("pin", pin)
+    .eq("pin_hash", pinHash)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -1355,21 +1407,42 @@ export async function createStaffAction(formData: FormData) {
 
   const staffId = randomUUID();
   const email = `staff-${staffId.slice(0, 8)}@torneo.local`;
+  const password = randomBytes(24).toString("base64url");
+  const { data: authUserData, error: authUserError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: parsed.data.fullName,
+      role: parsed.data.role,
+    },
+  });
+
+  if (authUserError || !authUserData.user) {
+    redirect(`/app/admin?error=${encodeURIComponent(authUserError?.message ?? "No se pudo crear la cuenta de staff.")}`);
+  }
 
   const { error } = await supabaseAdmin.from("staff_profiles").insert({
     id: staffId,
-    auth_user_id: staffId,
+    auth_user_id: authUserData.user.id,
     email,
     full_name: parsed.data.fullName,
     role: parsed.data.role,
-    pin,
+    pin: null,
+    pin_hash: pinHash,
+    pin_last_four: pin.slice(-4),
     is_active: true,
   });
 
   if (error) {
+    await supabaseAdmin.auth.admin.deleteUser(authUserData.user.id);
     redirect(`/app/admin?error=${encodeURIComponent(error.message)}`);
   }
 
+  await setStaffCreationFlash({
+    pin,
+    staffName: parsed.data.fullName,
+  });
   revalidateTournamentSurface();
   redirect("/app/admin?saved=staff");
 }

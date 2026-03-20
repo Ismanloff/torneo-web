@@ -5,28 +5,58 @@ import { AlertTriangle, CheckCircle, Home, MailCheck, QrCode, UserCheck } from "
 import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
 import { QrTile } from "@/components/qr-tile";
-import { getTeamByRegistrationCode } from "@/lib/supabase/queries";
-import { buildQrShareUrl } from "@/lib/utils";
+import { getRegistrationSuccessFlash } from "@/lib/flash-state";
+import { getPublicTeamByToken } from "@/lib/supabase/queries";
+import { maskEmailAddress } from "@/lib/security";
+import { buildPublicQrTargetPath, buildQrShareUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Inscripción completada",
 };
 
+export const dynamic = "force-dynamic";
+
 type ExitoPageProps = {
   searchParams: Promise<{
-    code?: string;
+    team?: string;
+    token?: string;
     email?: string;
   }>;
 };
 
 export default async function ExitoPage({ searchParams }: ExitoPageProps) {
-  const params = await searchParams;
-  const code = params.code ?? "";
-  const emailStatus = params.email === "sent" ? "sent" : params.email === "failed" ? "failed" : "skipped";
-  const team = code ? await getTeamByRegistrationCode(code) : null;
-  const teamQrPath = team?.qr_token ? buildQrShareUrl(team.qr_token.token) : null;
+  const [params, registrationState] = await Promise.all([
+    searchParams,
+    getRegistrationSuccessFlash(),
+  ]);
+  const teamId = registrationState?.teamId ?? params.team ?? "";
+  const token = registrationState?.token ?? params.token ?? "";
+  const emailStatus =
+    registrationState?.emailStatus ??
+    (params.email === "sent"
+      ? "sent"
+      : params.email === "failed"
+        ? "failed"
+        : "skipped");
+  const detail =
+    teamId && token
+      ? await getPublicTeamByToken({
+          token,
+          teamId,
+        })
+      : null;
+  const team = detail?.team ?? null;
+  const privateTeamPath =
+    team && detail
+      ? buildPublicQrTargetPath({
+          resource_id: team.id,
+          resource_type: "team",
+        })
+      : null;
+  const teamQrPath = team && detail ? buildQrShareUrl(token) : null;
   const emailDelivered = emailStatus === "sent";
   const emailBlocked = emailStatus === "skipped";
+  const maskedCaptainEmail = maskEmailAddress(team?.captain_email);
 
   return (
     <main className="public-arena">
@@ -59,7 +89,7 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
 
               {team ? (
                 <p className="mt-3 text-sm text-[#a8b7d2]">
-                  {team.category.sport} &middot; {team.category.name} &middot; {team.category.age_group}
+                  {detail?.category.sport} &middot; {detail?.category.name} &middot; {detail?.category.age_group}
                 </p>
               ) : null}
 
@@ -73,17 +103,17 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-              {code ? (
+              {team ? (
                 <div className="public-glass p-8 text-center lg:text-left">
                   <p className="public-kicker mb-4">Código de registro</p>
                   <p
                     className="text-4xl font-bold tracking-[0.08em] text-[var(--app-accent)] sm:text-5xl"
                     style={{ fontFamily: "monospace" }}
                   >
-                    {code.toUpperCase()}
+                    {team.registration_code}
                   </p>
                   <p className="mt-4 text-sm leading-7 text-[#a8b7d2]">
-                    Guárdalo. Lo necesitarás para consultar el estado del equipo y localizar la inscripción.
+                    Guárdalo como referencia de inscripción. El acceso privado del equipo queda protegido por el enlace y el QR de esta pantalla.
                   </p>
 
                   <div className="public-soft mt-6 p-5 text-left">
@@ -99,7 +129,7 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
                         </p>
                         <p className="mt-2 text-sm leading-6 text-[#a8b7d2]">
                           {emailDelivered
-                            ? `Se ha enviado una copia a ${team?.captain_email ?? "la dirección indicada"}.`
+                            ? `Se ha enviado una copia a ${maskedCaptainEmail}.`
                             : "El registro está correcto, pero este entorno no ha podido enviar el correo automático. El QR sigue disponible aquí."}
                         </p>
                       </div>
@@ -136,7 +166,7 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
                   <div>
                     <p className="text-sm font-semibold text-white">Datos del responsable</p>
                     <p className="mt-2 text-sm text-[#a8b7d2]">
-                      {team.captain_name} &middot; {team.captain_email}
+                      {team.captain_name} &middot; {maskedCaptainEmail}
                     </p>
                     <p className="mt-1 text-sm text-[#a8b7d2]">
                       {team.total_players} {team.total_players === 1 ? "jugador" : "jugadores"} declarados
@@ -148,10 +178,10 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3 justify-center">
-              {code ? (
-                <Link className="public-action" href={`/equipo/${code}`}>
+              {privateTeamPath ? (
+                <Link className="public-action" href={privateTeamPath}>
                   <UserCheck className="h-4 w-4" />
-                  Ver estado del equipo
+                  Abrir panel privado del equipo
                 </Link>
               ) : null}
 

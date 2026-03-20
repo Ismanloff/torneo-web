@@ -20,6 +20,8 @@ type Tab = "partidos" | "staff" | "config";
 
 type AdminTabsProps = {
   categories: ScoreboardCategory[];
+  createdPin?: string;
+  createdStaffName?: string;
   staffProfiles: StaffProfileRow[];
   manualLookupError?: string;
   recentArrivals: AdminArrivalLogEntry[];
@@ -40,6 +42,8 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function AdminTabs({
   categories,
+  createdPin,
+  createdStaffName,
   staffProfiles,
   manualLookupError,
   recentArrivals,
@@ -125,7 +129,11 @@ export function AdminTabs({
           />
         )}
         {activeTab === "staff" && isSuperadminRole(viewerRole) && (
-          <AdminStaffTab staffProfiles={staffProfiles} />
+          <AdminStaffTab
+            createdPin={createdPin}
+            createdStaffName={createdStaffName}
+            staffProfiles={staffProfiles}
+          />
         )}
         {activeTab === "config" && (
           <AdminConfigTab

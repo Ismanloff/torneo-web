@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const category = data.categories.find((item) => item.category.id === categoryId);
 
   return {
-    title: category ? `Clasificación ${category.category.name}` : "Clasificación",
+    title: category ? `Clasificación · ${category.category.name}` : "Clasificación",
   };
 }
 
@@ -32,9 +32,9 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
   if (!category) {
     return (
       <PublicPageShell
-        eyebrow="Categoria no encontrada"
-        title="No existe esa clasificación"
-        description="Revisa el enlace o vuelve al portal principal para navegar desde la tabla pública."
+        eyebrow="Categoría no encontrada"
+        title="Esa clasificación no está disponible"
+        description="Revisa el enlace o vuelve al portal principal para entrar desde la clasificación."
       >
         <div className="public-glass p-6">
           <Link className="public-action public-action--ghost" href="/">
@@ -47,7 +47,7 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
 
   return (
     <PublicPageShell
-      eyebrow="Clasificación completa"
+      eyebrow="Clasificación"
       title={category.category.name}
       description={`${category.category.sport} · ${category.category.age_group} · ${category.category.school}`}
       backHref="/#clasificacion"
@@ -64,7 +64,7 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
           />
           <div className="row-surface p-4">
             <p className="text-sm leading-7 text-[#b7c2b0]">
-              Clasificación ordenada por puntos, diferencia y tantos a favor.
+              Consulta la clasificación, los partidos y el cuadro de esta categoría.
             </p>
             {category.bracket ? (
               <div className="mt-4">
@@ -80,9 +80,9 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
       <div className="section-surface overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
           <div>
-            <p className="public-kicker">Tabla oficial</p>
+            <p className="public-kicker">Clasificación</p>
             <p className="mt-2 text-sm text-[#b7c2b0]">
-              Se ordena por puntos, diferencia y tantos a favor. Si hay grupos, cada grupo se muestra por separado.
+              Se ordena por puntos, diferencia y tantos a favor. Si hay grupos, cada uno se muestra por separado.
             </p>
           </div>
           {category.bracket ? (
@@ -105,7 +105,7 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
         </article>
 
         <article className="section-surface p-5 sm:p-6">
-          <p className="public-kicker">Criterio</p>
+          <p className="public-kicker">Desempate</p>
           <div className="mt-5 grid gap-3">
             <div className="row-surface p-4">
               <p className="font-semibold text-white">Puntos primero, luego desempates</p>
@@ -114,18 +114,18 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
               </p>
             </div>
             <div className="row-surface p-4">
-              <p className="font-semibold text-white">Puntos totales de la categoría</p>
+              <p className="font-semibold text-white">Puntos repartidos en la categoría</p>
               <div className="mt-3">
                 <StatusPill tone="accent">{totalPoints} puntos</StatusPill>
               </div>
               {leadTeam ? (
                 <p className="mt-3 text-sm text-[#b7c2b0]">
-                  Registro líder: <strong className="text-white">{leadTeam.team_name}</strong> con{" "}
+                  Líder actual: <strong className="text-white">{leadTeam.team_name}</strong> con{" "}
                   {leadTeam.total_points} puntos.
                 </p>
               ) : (
                 <p className="mt-3 text-sm text-[#b7c2b0]">
-                  La categoría todavía no tiene equipos en juego.
+                  Esta categoría todavía no tiene equipos inscritos.
                 </p>
               )}
             </div>
@@ -138,8 +138,8 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
           <div>
             <p className="public-kicker">Cuadro eliminatorio</p>
             <p className="mt-3 text-sm text-[#b7c2b0]">
-              Vista del cuadro para esta categoria. Si todavia no existe, aparecera en cuanto se
-              genere desde el panel interno.
+              Consulta aquí el cuadro eliminatorio de la categoría. Si todavía no existe, aparecerá
+              en cuanto la organización lo publique.
             </p>
           </div>
           {category.bracket ? (

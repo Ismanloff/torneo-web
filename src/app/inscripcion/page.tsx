@@ -9,7 +9,6 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ALLOWED_SPORT_LABELS, isAllowedSport, normalizeSportName } from "@/lib/allowed-sports";
 import {
   TOURNAMENT_EDITION_LABEL,
-  TOURNAMENT_NAME,
   TOURNAMENT_ORGANIZERS_LABEL,
   TOURNAMENT_PARTICIPATION_LABEL,
 } from "@/lib/branding";
@@ -127,14 +126,14 @@ export default async function RegistroPage() {
                   <span className="public-tag public-tag--accent">{TOURNAMENT_EDITION_LABEL}</span>
                   <span className="public-tag public-tag--soft">
                     <Landmark className="h-3.5 w-3.5" />
-                    Inscripción oficial
+                    Inscripción abierta
                   </span>
                 </div>
                 <h1 className="public-title mt-4 text-5xl sm:text-6xl">
-                  Equipos al torneo
+                  Inscripción de equipos
                 </h1>
                 <p className="public-copy mt-4 max-w-xl text-base">
-                  Elige categoría, completa el registro y sal con código de seguimiento y QR listos para la jornada.
+                  Elige una categoría, completa el registro y obtén el acceso privado del equipo para la jornada.
                 </p>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-[#c2cfdf]">
                   {TOURNAMENT_ORGANIZERS_LABEL}
@@ -220,7 +219,7 @@ export default async function RegistroPage() {
 
             {sportGroups.length === 0 ? (
               <div className="section-surface p-8 text-center">
-                <p className="text-[#a8b7d2]">No hay categorías disponibles para inscripción.</p>
+                <p className="text-[#a8b7d2]">Ahora mismo no hay categorías disponibles para inscribirse.</p>
               </div>
             ) : null}
           </div>

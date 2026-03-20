@@ -5,7 +5,7 @@ import { ClipboardCheck, Shield, TimerReset, UserRound, Users } from "lucide-rea
 import { saveCheckinAction } from "@/app/admin/actions";
 import { OfflineScoreForm } from "@/components/offline-score-form";
 import { QrTile } from "@/components/qr-tile";
-import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
+import { StatusPill } from "@/components/surface-primitives";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalMatchById } from "@/lib/supabase/queries";
 import { buildQrShareUrl, formatDateTime, formatDateTimeLocalValue } from "@/lib/utils";

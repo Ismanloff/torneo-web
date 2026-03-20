@@ -78,3 +78,15 @@ pnpm build
 ## Nota importante
 
 El registro de equipos sigue activo en `torneo-web`. La PWA staff usa PIN y la superadministración usa la clave interna configurada en `ADMIN_ACCESS_KEY`.
+
+## Acceso operativo
+
+- `árbitro` y `organización` entran con su `PIN` individual desde [https://torneo.eloos.es/login](https://torneo.eloos.es/login)
+- `admin` puede entrar con PIN si tiene perfil activo en `staff_profiles`
+- `superadmin` entra desde el bloque `Acceso superadmin` del login usando la variable de entorno `ADMIN_ACCESS_KEY`
+
+Regla de seguridad:
+
+- no documentar ni versionar el valor real de `ADMIN_ACCESS_KEY`
+- el valor debe guardarse solo en variables de entorno del entorno local o de producción
+- si hace falta compartirlo con alguien, hacerlo fuera del repositorio y rotarlo si se ha expuesto

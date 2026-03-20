@@ -3,14 +3,13 @@
 // - documents: network-first with offline fallback on safe routes
 // - versioned Next assets: cache-first
 // - images/icons: stale-while-revalidate with explicit fallback
-// - APIs: network-first only where a cached response is safe
+// - APIs and private routes: network-only
 // - RSC/prefetch/tokenized flows: bypass cache entirely
 
 const SW_VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
 const CACHE_VERSION = `torneo-${SW_VERSION}`;
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const PAGE_CACHE = `${CACHE_VERSION}-pages`;
-const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
 const OFFLINE_URL = "/offline.html";
 const EMPTY_PIXEL =
@@ -41,7 +40,7 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  const currentCaches = [SHELL_CACHE, PAGE_CACHE, DATA_CACHE, IMAGE_CACHE];
+  const currentCaches = [SHELL_CACHE, PAGE_CACHE, IMAGE_CACHE];
 
   event.waitUntil(
     caches
@@ -153,10 +152,13 @@ function isRscOrPrefetchRequest(request, url) {
 
 function isSensitiveRequest(url) {
   return (
+    url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/api/push/") ||
     url.pathname.startsWith("/auth/") ||
     url.pathname.startsWith("/confirmacion/") ||
-    url.pathname.startsWith("/q/")
+    url.pathname.startsWith("/inscripcion/exito") ||
+    url.pathname.startsWith("/q/") ||
+    url.pathname.startsWith("/seguimiento/")
   );
 }
 
@@ -165,13 +167,11 @@ function isSafeOfflineDocument(url) {
     url.pathname === "/" ||
     url.pathname === "/login" ||
     url.pathname === "/inscripcion" ||
-    url.pathname.startsWith("/inscripcion/") ||
+    (url.pathname.startsWith("/inscripcion/") &&
+      !url.pathname.startsWith("/inscripcion/exito")) ||
     url.pathname.startsWith("/clasificacion/") ||
     url.pathname.startsWith("/cuadro/") ||
-    url.pathname.startsWith("/equipo/") ||
-    url.pathname.startsWith("/app/") ||
-    url.pathname.startsWith("/admin") ||
-    url.pathname.startsWith("/seguimiento/")
+    url.pathname.startsWith("/equipo/")
   );
 }
 
@@ -200,7 +200,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(networkFirst(request, DATA_CACHE));
+    event.respondWith(networkOnly(request));
     return;
   }
 
@@ -341,7 +341,10 @@ async function syncPendingScores({ source }) {
     try {
       const response = await fetch("/api/sync-score", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-torneo-intent": "same-origin-json",
+        },
         body: JSON.stringify({
           matchId: entry.matchId,
           matchScope: entry.matchScope,
@@ -413,15 +416,13 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification.data?.url || "/";
+  const targetUrl = normalizeNotificationTarget(event.notification.data?.url);
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && "focus" in client) {
-          client.focus();
-          client.navigate(targetUrl);
-          return;
+          return client.focus().then(() => client.navigate(targetUrl));
         }
       }
 
@@ -429,3 +430,17 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+
+function normalizeNotificationTarget(rawUrl) {
+  try {
+    const normalized = new URL(rawUrl || "/", self.location.origin);
+
+    if (normalized.origin !== self.location.origin) {
+      return "/";
+    }
+
+    return `${normalized.pathname}${normalized.search}${normalized.hash}`;
+  } catch {
+    return "/";
+  }
+}

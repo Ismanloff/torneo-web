@@ -3,17 +3,19 @@ import { defineConfig } from "@playwright/test";
 
 loadEnv({ path: ".env.local" });
 
+const playwrightBaseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3101";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 30_000,
   use: {
-    baseURL: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    baseURL: playwrightBaseUrl,
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev",
-    reuseExistingServer: true,
+    command: "npm run dev -- --hostname localhost --port 3101",
+    reuseExistingServer: false,
     timeout: 120_000,
-    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    url: playwrightBaseUrl,
   },
 });

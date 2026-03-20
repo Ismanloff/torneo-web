@@ -1,11 +1,8 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  CalendarDays,
   Landmark,
   Sparkles,
-  Swords,
-  Trophy,
 } from "lucide-react";
 
 import { MatchCountdown } from "@/components/match-countdown";
@@ -97,7 +94,7 @@ export default async function Home() {
                   {TOURNAMENT_EVENT_DATE_LABEL} &middot; {ALLOWED_SPORT_LABELS.join(" · ")}
                 </p>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-[#b9c7bc]">
-                  {TOURNAMENT_ORGANIZERS_SHORT}. Inscribe equipos, sigue marcadores y consulta cruces desde la misma experiencia.
+                  {TOURNAMENT_ORGANIZERS_SHORT}. Inscribe equipos, consulta la clasificación y sigue los partidos del torneo.
                 </p>
 
                 <div className="public-inline-actions mt-5">
@@ -130,18 +127,18 @@ export default async function Home() {
 
                 <div className="public-hero-note public-hero-note--spotlight">
                   <p className="public-kicker">Hoy importa</p>
-                  <p className="public-hero-note__title mt-3">Entrar rápido y seguir la jornada</p>
+                  <p className="public-hero-note__title mt-3">Inscripción, clasificación y partidos</p>
                   <div className="public-note-list mt-4">
                     <div className="public-note-item">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d7e5b7]">Inscripción abierta</p>
                       <p className="mt-1 text-sm leading-6 text-[#d5ddd2]">
-                        Si todavía no hay partidos visibles, la inscripción es el primer paso útil.
+                        Si todavía no hay partidos publicados, empieza por la inscripción del equipo.
                       </p>
                     </div>
                     <div className="public-note-item">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d7e5b7]">Lectura clara</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d7e5b7]">Consulta por deporte</p>
                       <p className="mt-1 text-sm leading-6 text-[#d5ddd2]">
-                        Clasificación, próximos encuentros y cruces quedan agrupados por deporte con menos ruido móvil.
+                        Revisa cada deporte por separado y entra en el detalle de cada categoría.
                       </p>
                     </div>
                   </div>
@@ -155,7 +152,7 @@ export default async function Home() {
                   <div>
                     <p className="text-sm font-semibold text-white">La jornada empieza por la inscripción.</p>
                     <p className="mt-1 text-sm text-[#d4decd]">
-                      Registra el primer equipo y esta pantalla activará automáticamente clasificación, seguimiento y cruces del deporte correspondiente.
+                      Registra el primer equipo y se activarán la clasificación, los partidos y el cuadro del deporte correspondiente.
                     </p>
                   </div>
                   <Link

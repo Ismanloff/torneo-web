@@ -8,11 +8,15 @@ import { AdminTabs } from "@/components/admin-tabs-shell";
 import { MetricStrip } from "@/components/surface-primitives";
 
 type AdminControlCenterProps = {
+  createdPin?: string;
+  createdStaffName?: string;
   manualLookupError?: string;
   surfacePath?: string;
 };
 
 export async function AdminControlCenter({
+  createdPin,
+  createdStaffName,
   manualLookupError,
   surfacePath = "/app/admin",
 }: AdminControlCenterProps = {}) {
@@ -73,6 +77,8 @@ export async function AdminControlCenter({
       <section>
         <AdminTabs
           categories={data.categories}
+          createdPin={createdPin}
+          createdStaffName={createdStaffName}
           staffProfiles={data.staffProfiles}
           manualLookupError={manualLookupError}
           recentArrivals={data.recentArrivals}

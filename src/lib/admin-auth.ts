@@ -1,8 +1,11 @@
+import "server-only";
+
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { shouldUseSecureCookies } from "@/lib/server-security";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { StaffContext, StaffProfileRow, StaffRole } from "@/lib/types";
 
@@ -41,6 +44,22 @@ function signStaffId(staffId: string) {
   return createHmac("sha256", getAdminAccessKey()).update(staffId).digest("hex");
 }
 
+function buildSessionCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: shouldUseSecureCookies(),
+    path: "/",
+    maxAge,
+    priority: "high" as const,
+  };
+}
+
+async function expireCookie(name: string) {
+  const store = await cookies();
+  store.set(name, "", buildSessionCookieOptions(0));
+}
+
 export function isValidAdminAccessKey(input: string) {
   const expected = Buffer.from(getAdminAccessKey());
   const current = Buffer.from(input);
@@ -57,18 +76,15 @@ export function isValidAdminAccessKey(input: string) {
 export async function setLegacyAdminSession() {
   const store = await cookies();
 
-  store.set(ADMIN_COOKIE_NAME, hashValue(getAdminAccessKey()), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: true,
-    path: "/",
-    maxAge: 60 * 60 * 4,
-  });
+  store.set(
+    ADMIN_COOKIE_NAME,
+    hashValue(getAdminAccessKey()),
+    buildSessionCookieOptions(60 * 60 * 4),
+  );
 }
 
 export async function clearLegacyAdminSession() {
-  const store = await cookies();
-  store.delete(ADMIN_COOKIE_NAME);
+  await expireCookie(ADMIN_COOKIE_NAME);
 }
 
 async function hasLegacyAdminSession() {
@@ -84,18 +100,15 @@ export async function setPinSession(staffId: string) {
   const store = await cookies();
   const signature = signStaffId(staffId);
 
-  store.set(STAFF_COOKIE_NAME, `${staffId}.${signature}`, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: true,
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
+  store.set(
+    STAFF_COOKIE_NAME,
+    `${staffId}.${signature}`,
+    buildSessionCookieOptions(60 * 60 * 8),
+  );
 }
 
 export async function clearPinSession() {
-  const store = await cookies();
-  store.delete(STAFF_COOKIE_NAME);
+  await expireCookie(STAFF_COOKIE_NAME);
 }
 
 async function getPinSessionStaffId(): Promise<string | null> {
@@ -225,6 +238,8 @@ export async function requireStaffSession(allowedRoles?: StaffRole[]) {
         full_name: "Superadmin temporal",
         role: "superadmin",
         pin: null,
+        pin_hash: null,
+        pin_last_four: null,
         is_active: true,
         created_at: new Date(0).toISOString(),
         updated_at: new Date(0).toISOString(),

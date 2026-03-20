@@ -3,11 +3,12 @@ import { Bebas_Neue, Inter, JetBrains_Mono } from "next/font/google";
 
 import { PwaRegistrar } from "@/components/pwa-registrar";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { APP_VERSION } from "@/lib/app-version";
 import {
   TOURNAMENT_THEME_COLOR,
   TOURNAMENT_DESCRIPTION,
   TOURNAMENT_NAME,
-  TOURNAMENT_SHORT_NAME,
+  TOURNAMENT_PWA_SHORT_NAME,
 } from "@/lib/branding";
 
 import "./globals.css";
@@ -33,7 +34,7 @@ const monoFont = JetBrains_Mono({
 export const metadata: Metadata = {
   title: TOURNAMENT_NAME,
   description: TOURNAMENT_DESCRIPTION,
-  applicationName: TOURNAMENT_NAME,
+  applicationName: TOURNAMENT_PWA_SHORT_NAME,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: TOURNAMENT_SHORT_NAME,
+    title: TOURNAMENT_PWA_SHORT_NAME,
   },
 };
 
@@ -53,12 +54,6 @@ export const viewport: Viewport = {
   themeColor: TOURNAMENT_THEME_COLOR,
   viewportFit: "cover",
 };
-
-const appVersion =
-  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) ??
-  process.env.VERCEL_DEPLOYMENT_ID ??
-  process.env.npm_package_version ??
-  "dev";
 
 export default function RootLayout({
   children,
@@ -69,7 +64,7 @@ export default function RootLayout({
     <html lang="es">
       <body
         className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}
-        data-app-version={appVersion}
+        data-app-version={APP_VERSION}
       >
         <a
           href="#main-content"
@@ -77,7 +72,7 @@ export default function RootLayout({
         >
           Saltar al contenido
         </a>
-        <PwaRegistrar appVersion={appVersion} />
+        <PwaRegistrar appVersion={APP_VERSION} />
         <PullToRefresh />
         <div id="main-content">{children}</div>
       </body>

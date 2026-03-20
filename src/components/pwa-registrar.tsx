@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Ellipsis, Share2, Smartphone, X } from "lucide-react";
 import { trackPwaEvent } from "@/lib/pwa-telemetry";
@@ -13,9 +13,11 @@ type BeforeInstallPromptEvent = Event & {
 const INSTALL_DISMISSED_KEY = "torneo-install-dismissed-until";
 const HOME_VISIT_COUNT_KEY = "torneo-home-visit-count";
 const INSTALL_INTEREST_KEY = "torneo-install-interest";
+const AUTO_UPDATE_RELOAD_KEY = "torneo-auto-update-version";
 const INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 14;
 const SHORT_INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 3;
 const INSTALL_SCROLL_THRESHOLD = 320;
+const SW_UPDATE_READY = "update-ready";
 
 type Platform = "ios-safari" | "ios-other" | "android" | "other";
 
@@ -70,6 +72,13 @@ function persistInstallDismiss(ttl = INSTALL_DISMISS_TTL) {
   window.localStorage.setItem(INSTALL_DISMISSED_KEY, String(Date.now() + ttl));
 }
 
+function readVisitCount() {
+  const rawValue = window.localStorage.getItem(HOME_VISIT_COUNT_KEY);
+  const count = Number(rawValue ?? "0");
+
+  return Number.isFinite(count) ? count : 0;
+}
+
 function markInstallInterest() {
   window.localStorage.setItem(INSTALL_INTEREST_KEY, "1");
   window.dispatchEvent(new CustomEvent("torneo:pwa-interest"));
@@ -122,38 +131,154 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   const pathname = usePathname();
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const shouldReloadOnControllerChangeRef = useRef(false);
-  const [hasMounted, setHasMounted] = useState(false);
+  const autoUpdateInFlightRef = useRef(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installDismissed, setInstallDismissed] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [platform, setPlatform] = useState<Platform>("other");
-  const [visitCount, setVisitCount] = useState(0);
-  const [hasInstallInterest, setHasInstallInterest] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(() =>
+    typeof window === "undefined" ? false : readDismissedState(),
+  );
+  const [isStandalone, setIsStandalone] = useState(() =>
+    typeof window === "undefined" ? false : isStandaloneMode(),
+  );
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : (window.matchMedia?.("(max-width: 767px)").matches ?? false),
+  );
+  const [platform] = useState<Platform>(() =>
+    typeof window === "undefined" ? "other" : detectPlatform(),
+  );
+  const [visitCount, setVisitCount] = useState(() =>
+    typeof window === "undefined" ? 0 : readVisitCount(),
+  );
+  const [hasInstallInterest, setHasInstallInterest] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.localStorage.getItem(INSTALL_INTEREST_KEY) === "1",
+  );
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDismissed, setUpdateDismissed] = useState(false);
 
+  const requestUpdate = useCallback(() => {
+    if (autoUpdateInFlightRef.current) {
+      return;
+    }
+
+    autoUpdateInFlightRef.current = true;
+    trackPwaEvent("update_applied");
+
+    const waitingWorker = registrationRef.current?.waiting;
+
+    if (!waitingWorker) {
+      window.location.reload();
+      return;
+    }
+
+    shouldReloadOnControllerChangeRef.current = true;
+    waitingWorker.postMessage({ type: "skip-waiting" });
+  }, []);
+
+  const syncToVersion = useCallback(async (nextVersion: string, reason: string) => {
+    const normalizedVersion = nextVersion.trim();
+
+    if (!normalizedVersion || normalizedVersion === appVersion) {
+      return;
+    }
+
+    const reloadedForVersion = window.sessionStorage.getItem(AUTO_UPDATE_RELOAD_KEY);
+
+    if (reloadedForVersion === normalizedVersion) {
+      return;
+    }
+
+    trackPwaEvent("update_ready", {
+      reason,
+      currentVersion: appVersion,
+      remoteVersion: normalizedVersion,
+    });
+    window.sessionStorage.setItem(AUTO_UPDATE_RELOAD_KEY, normalizedVersion);
+    setUpdateReady(true);
+    setUpdateDismissed(false);
+
+    const registration = registrationRef.current;
+
+    if (registration) {
+      await registration.update().catch(() => {});
+
+      if (registration.waiting) {
+        requestUpdate();
+        return;
+      }
+    }
+
+    shouldReloadOnControllerChangeRef.current = true;
+    window.location.reload();
+  }, [appVersion, requestUpdate]);
+
+  const autoApplyUpdate = useCallback((reason: "waiting" | "installed") => {
+    setUpdateReady(true);
+    setUpdateDismissed(false);
+    trackPwaEvent("update_ready", { reason });
+
+    if (document.visibilityState !== "visible") {
+      return;
+    }
+
+    window.setTimeout(() => {
+      requestUpdate();
+    }, 650);
+  }, [requestUpdate]);
+
+  const checkDeploymentVersion = useCallback(async () => {
+    try {
+      const response = await fetch("/api/version", { cache: "no-store" });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as { version?: string };
+      const remoteVersion = payload.version?.trim();
+
+      if (!remoteVersion || remoteVersion === appVersion) {
+        return;
+      }
+      await syncToVersion(remoteVersion, "remote-version");
+    } catch {
+      // Version checks are best-effort.
+    }
+  }, [appVersion, syncToVersion]);
+
   useEffect(() => {
-    setHasMounted(true);
-    setInstallDismissed(readDismissedState());
-    setIsStandalone(isStandaloneMode());
-    setIsMobileViewport(window.matchMedia?.("(max-width: 767px)").matches ?? false);
-    setPlatform(detectPlatform());
-    setHasInstallInterest(window.localStorage.getItem(INSTALL_INTEREST_KEY) === "1");
+    const handleVisitCountUpdate = (event: Event) => {
+      const nextCount = (event as CustomEvent<number>).detail;
+      setVisitCount(typeof nextCount === "number" ? nextCount : readVisitCount());
+    };
+
+    window.addEventListener("torneo:visit-count", handleVisitCountUpdate);
+
+    return () => {
+      window.removeEventListener("torneo:visit-count", handleVisitCountUpdate);
+    };
   }, []);
 
   useEffect(() => {
-    if (!hasMounted || pathname !== "/") {
+    if (pathname !== "/") {
       return;
     }
 
     const nextCount = Number(window.localStorage.getItem(HOME_VISIT_COUNT_KEY) ?? "0") + 1;
     window.localStorage.setItem(HOME_VISIT_COUNT_KEY, String(nextCount));
-    setVisitCount(nextCount);
-  }, [hasMounted, pathname]);
+    window.dispatchEvent(new CustomEvent("torneo:visit-count", { detail: nextCount }));
+  }, [pathname]);
 
   useEffect(() => {
-    if (!hasMounted || !window.matchMedia) {
+    if (window.sessionStorage.getItem(AUTO_UPDATE_RELOAD_KEY) === appVersion) {
+      window.sessionStorage.removeItem(AUTO_UPDATE_RELOAD_KEY);
+    }
+  }, [appVersion]);
+
+  useEffect(() => {
+    if (!window.matchMedia) {
       return;
     }
 
@@ -175,10 +300,10 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       mobileQuery.removeEventListener("change", updateViewportState);
       standaloneQuery.removeEventListener("change", updateViewportState);
     };
-  }, [hasMounted]);
+  }, []);
 
   useEffect(() => {
-    if (!hasMounted || pathname !== "/" || isStandalone) {
+    if (pathname !== "/" || isStandalone) {
       return;
     }
 
@@ -209,7 +334,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       document.removeEventListener("click", handleClick);
       window.removeEventListener("torneo:pwa-interest", handleInterest);
     };
-  }, [hasMounted, isStandalone, pathname]);
+  }, [isStandalone, pathname]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {
@@ -255,6 +380,13 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     const handleControllerChange = () => {
+      if (
+        !shouldReloadOnControllerChangeRef.current &&
+        window.sessionStorage.getItem(AUTO_UPDATE_RELOAD_KEY) !== appVersion
+      ) {
+        shouldReloadOnControllerChangeRef.current = true;
+      }
+
       if (!shouldReloadOnControllerChangeRef.current) {
         return;
       }
@@ -264,6 +396,17 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     };
 
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+    const handleServiceWorkerMessage = (event: MessageEvent<{ type?: string; version?: string }>) => {
+      if (event.data?.type !== SW_UPDATE_READY) {
+        return;
+      }
+
+      if (event.data.version && event.data.version !== appVersion) {
+        void syncToVersion(event.data.version, "service-worker-message");
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
 
     navigator.serviceWorker
       .register(`/sw.js?v=${encodeURIComponent(appVersion)}`, { scope: "/", updateViaCache: "none" })
@@ -288,9 +431,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
 
           worker.addEventListener("statechange", () => {
             if (worker.state === "installed" && navigator.serviceWorker.controller) {
-              setUpdateReady(true);
-              setUpdateDismissed(false);
-              trackPwaEvent("update_ready");
+              autoApplyUpdate("installed");
             }
           });
         };
@@ -300,18 +441,20 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
         document.addEventListener("visibilitychange", refreshRegistration);
 
         if (registration.waiting) {
-          setUpdateReady(true);
-          setUpdateDismissed(false);
-          trackPwaEvent("update_ready");
+          autoApplyUpdate("waiting");
         }
 
         const intervalId = window.setInterval(refreshRegistration, 60_000);
+        const versionCheckId = window.setInterval(() => {
+          void checkDeploymentVersion();
+        }, 60_000);
 
         registrationCleanup = () => {
           registration.removeEventListener("updatefound", onUpdateFound);
           window.removeEventListener("focus", refreshRegistration);
           document.removeEventListener("visibilitychange", refreshRegistration);
           window.clearInterval(intervalId);
+          window.clearInterval(versionCheckId);
           if (registrationRef.current === registration) {
             registrationRef.current = null;
           }
@@ -322,12 +465,39 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
       registrationCleanup?.();
     };
-  }, [appVersion]);
+  }, [appVersion, autoApplyUpdate, checkDeploymentVersion, syncToVersion]);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    const handleRefreshTriggers = () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      void checkDeploymentVersion();
+    };
+
+    window.addEventListener("focus", handleRefreshTriggers);
+    document.addEventListener("visibilitychange", handleRefreshTriggers);
+
+    const initialCheckId = window.setTimeout(() => {
+      void checkDeploymentVersion();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(initialCheckId);
+      window.removeEventListener("focus", handleRefreshTriggers);
+      document.removeEventListener("visibilitychange", handleRefreshTriggers);
+    };
+  }, [checkDeploymentVersion]);
 
   const shouldShowInstallPrompt =
-    hasMounted &&
     pathname === "/" &&
     !installDismissed &&
     !isStandalone &&
@@ -365,19 +535,6 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     persistInstallDismiss(ttl);
     setInstallDismissed(true);
     trackPwaEvent("install_prompt_dismissed", { platform, ttl });
-  };
-
-  const requestUpdate = () => {
-    trackPwaEvent("update_applied");
-    const waitingWorker = registrationRef.current?.waiting;
-
-    if (!waitingWorker) {
-      window.location.reload();
-      return;
-    }
-
-    shouldReloadOnControllerChangeRef.current = true;
-    waitingWorker.postMessage({ type: "skip-waiting" });
   };
 
   return (

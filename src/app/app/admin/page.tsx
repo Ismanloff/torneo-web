@@ -1,4 +1,5 @@
 import { AdminControlCenter } from "@/components/admin-control-center";
+import { getStaffCreationFlash } from "@/lib/flash-state";
 
 type StaffAdminPageProps = {
   searchParams: Promise<{
@@ -7,9 +8,19 @@ type StaffAdminPageProps = {
 };
 
 export default async function StaffAdminPage({ searchParams }: StaffAdminPageProps) {
-  const params = await searchParams;
+  const [params, staffCreation] = await Promise.all([
+    searchParams,
+    getStaffCreationFlash(),
+  ]);
 
-  return <AdminControlCenter manualLookupError={params.error} surfacePath="/app/admin" />;
+  return (
+    <AdminControlCenter
+      createdPin={staffCreation?.pin}
+      createdStaffName={staffCreation?.staffName}
+      manualLookupError={params.error}
+      surfacePath="/app/admin"
+    />
+  );
 }
 
 export const dynamic = "force-dynamic";

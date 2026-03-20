@@ -214,7 +214,7 @@ export function RealtimeRefresh({ channelName, tables }: RealtimeRefreshProps) {
       document.removeEventListener("visibilitychange", flushPendingRefresh);
       void supabase.removeChannel(channel);
     };
-  }, [channelName, handleRealtimeChange, scheduleRefresh, tables]);
+  }, [channelName, tables]);
 
   return null;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Bell, X } from "lucide-react";
 import { trackPwaEvent } from "@/lib/pwa-telemetry";
+import { getSameOriginMutationHeaders } from "@/lib/security";
 
 const PUSH_DISMISSED_KEY = "torneo-push-dismissed";
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
@@ -79,7 +80,10 @@ export function PushPermissionBanner() {
 
       const response = await fetch("/api/push/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getSameOriginMutationHeaders(),
+        },
         body: JSON.stringify({
           endpoint: subscriptionJson.endpoint,
           keys: {

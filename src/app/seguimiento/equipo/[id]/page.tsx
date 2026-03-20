@@ -4,14 +4,18 @@ import { CalendarDays, MapPin, QrCode, ShieldCheck } from "lucide-react";
 
 import { PublicPageShell } from "@/components/public-page-shell";
 import { QrTile } from "@/components/qr-tile";
+import { getPublicAccessToken } from "@/lib/flash-state";
 import {
   TOURNAMENT_EVENT_DATE_LABEL,
   TOURNAMENT_EVENT_START_LABEL,
   TOURNAMENT_EVENT_VENUE,
   TOURNAMENT_EVENT_WINDOW_LABEL,
 } from "@/lib/branding";
+import { maskEmailAddress } from "@/lib/security";
 import { getPublicTeamByToken } from "@/lib/supabase/queries";
 import { buildQrShareUrl, formatDateTime } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 type PublicTeamPageProps = {
   params: Promise<{
@@ -24,13 +28,19 @@ type PublicTeamPageProps = {
 
 export default async function PublicTeamPage({ params, searchParams }: PublicTeamPageProps) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  const accessToken =
+    query.token ??
+    (await getPublicAccessToken({
+      resourceId: id,
+      resourceType: "team",
+    }));
 
-  if (!query.token) {
+  if (!accessToken) {
     notFound();
   }
 
   const detail = await getPublicTeamByToken({
-    token: query.token,
+    token: accessToken,
     teamId: id,
   });
 
@@ -44,6 +54,7 @@ export default async function PublicTeamPage({ params, searchParams }: PublicTea
     return leftTime - rightTime;
   });
   const teamQrUrl = buildQrShareUrl(detail.qrTarget.token);
+  const maskedCaptainEmail = maskEmailAddress(detail.team.captain_email);
 
   return (
     <PublicPageShell
@@ -66,7 +77,7 @@ export default async function PublicTeamPage({ params, searchParams }: PublicTea
           <div className="public-soft p-4">
             <p className="public-kicker">Responsable</p>
             <p className="mt-3 text-lg font-semibold text-white">{detail.team.captain_name}</p>
-            <p className="mt-2 text-sm text-[#a8b7d2]">{detail.team.captain_email}</p>
+            <p className="mt-2 text-sm text-[#a8b7d2]">{maskedCaptainEmail}</p>
           </div>
         </div>
       }

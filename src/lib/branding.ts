@@ -1,18 +1,21 @@
 export const TOURNAMENT_NAME = "Mater et Fátima";
 export const TOURNAMENT_SHORT_NAME = "Mater et Fátima";
+export const TOURNAMENT_PWA_NAME = "Sporti";
+export const TOURNAMENT_PWA_SHORT_NAME = "Sporti";
 export const TOURNAMENT_DESCRIPTION =
-  "IV torneo escolar Mater et Fátima organizado por Sporti, con inscripción de equipos, clasificación y cruces.";
-export const TOURNAMENT_TAGLINE = "Seguimiento y clasificación";
+  "Torneo escolar Mater et Fátima con inscripción de equipos, clasificación, partidos y cuadro eliminatorio.";
+export const TOURNAMENT_TAGLINE = "Torneo escolar";
 export const TOURNAMENT_VALUE_PROPOSITION =
-  "Inscripción, clasificación y cruces en una sola app para seguir la jornada sin ruido.";
+  "Inscribe equipos, consulta la clasificación y sigue los partidos del torneo desde una sola web.";
 export const TOURNAMENT_EDITION_LABEL = "IV torneo";
 export const TOURNAMENT_ORGANIZER_MAIN = "Sporti";
+export const TOURNAMENT_ORGANIZERS_COMPACT = "Sporti junto a AMPA Mater";
 export const TOURNAMENT_ORGANIZERS_LABEL =
-  "Sporti organiza el torneo en vinculación con las parroquias Transfiguración del Señor y Nuestra Señora de la Soledad.";
+  "Organiza Sporti junto a AMPA Mater, Transfiguración del Señor y Nuestra Señora de la Soledad.";
 export const TOURNAMENT_ORGANIZERS_SHORT =
-  "Sporti · Transfiguración del Señor · Nuestra Señora de la Soledad";
+  "Organiza Sporti junto a AMPA Mater, Transfiguración del Señor y Nuestra Señora de la Soledad";
 export const TOURNAMENT_PARTICIPATION_LABEL =
-  "Con la participación de Colegio Mater Purissima, Nuestra Señora de Fátima y AMPA del Mater.";
+  "Con la participación de Colegio Mater Purissima y Nuestra Señora de Fátima.";
 export const TOURNAMENT_EVENT_DATE_LABEL = "18 de abril de 2026";
 export const TOURNAMENT_EVENT_START_LABEL = "10:00";
 export const TOURNAMENT_EVENT_WINDOW_LABEL = "10:00 a 14:00";

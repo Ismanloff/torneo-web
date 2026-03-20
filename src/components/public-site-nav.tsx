@@ -5,9 +5,9 @@ import { MobileNavToggle } from "@/components/mobile-nav-toggle";
 const NAV_ITEMS = [
   { href: "/#clasificacion", label: "Clasificación" },
   { href: "/#partidos", label: "Partidos" },
-  { href: "/#cruces", label: "Cruces" },
-  { href: "/inscripcion", label: "Inscripción" },
-  { href: "/login", label: "Staff" },
+  { href: "/#cruces", label: "Cuadro" },
+  { href: "/inscripcion", label: "Inscribir equipo" },
+  { href: "/login", label: "Zona staff" },
 ];
 
 export function PublicSiteNav() {

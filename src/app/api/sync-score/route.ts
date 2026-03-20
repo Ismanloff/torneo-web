@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getAdminAccessContext } from "@/lib/admin-auth";
+import { isTrustedMutationRequest } from "@/lib/server-security";
 import { validateCompletedScore } from "@/lib/sport-rules";
 import { getOperationalMatchById } from "@/lib/supabase/queries";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -16,6 +17,10 @@ const syncScoreSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    if (!isTrustedMutationRequest(request)) {
+      return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
+    }
+
     const body = await request.json();
     const parsed = syncScoreSchema.safeParse(body);
 
@@ -48,6 +53,8 @@ export async function POST(request: Request) {
           full_name: "Superadmin temporal",
           role: "superadmin" as const,
           pin: null,
+          pin_hash: null,
+          pin_last_four: null,
           is_active: true,
           created_at: new Date(0).toISOString(),
           updated_at: new Date(0).toISOString(),

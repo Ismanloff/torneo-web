@@ -264,6 +264,8 @@ export type StaffProfileRow = {
   full_name: string;
   role: StaffRole;
   pin: string | null;
+  pin_hash: string | null;
+  pin_last_four: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

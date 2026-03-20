@@ -6,7 +6,20 @@ create table if not exists public.staff_profiles (
   email text not null unique,
   full_name text not null,
   role text not null check (role in ('superadmin', 'admin', 'referee', 'assistant')),
+  pin text unique,
+  pin_hash text unique,
+  pin_last_four text,
   is_active boolean not null default true,
+  last_login_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.staff_login_attempts (
+  attempt_key text primary key,
+  failure_count integer not null default 0 check (failure_count >= 0),
+  locked_until timestamptz,
+  last_attempt_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -236,6 +249,12 @@ before update on public.staff_assignments
 for each row
 execute function public.update_updated_at_column();
 
+drop trigger if exists staff_login_attempts_set_updated_at on public.staff_login_attempts;
+create trigger staff_login_attempts_set_updated_at
+before update on public.staff_login_attempts
+for each row
+execute function public.update_updated_at_column();
+
 drop trigger if exists team_checkins_set_updated_at on public.team_checkins;
 create trigger team_checkins_set_updated_at
 before update on public.team_checkins
@@ -249,6 +268,7 @@ for each row
 execute function public.update_updated_at_column();
 
 alter table public.staff_profiles enable row level security;
+alter table public.staff_login_attempts enable row level security;
 alter table public.staff_assignments enable row level security;
 alter table public.team_checkins enable row level security;
 alter table public.match_result_audit enable row level security;
@@ -431,6 +451,18 @@ grant select on public.team_checkins to anon, authenticated;
 grant insert, update on public.team_checkins to authenticated;
 grant select on public.match_result_audit to authenticated;
 grant select on public.match_qr_tokens to authenticated;
+
+revoke all on public.staff_login_attempts from anon, authenticated;
+
+drop policy if exists "deny_staff_login_attempts_client_access"
+on public.staff_login_attempts;
+
+create policy "deny_staff_login_attempts_client_access"
+on public.staff_login_attempts
+for all
+to authenticated
+using (false)
+with check (false);
 
 alter table public.category_matches replica identity full;
 alter table public.bracket_matches replica identity full;

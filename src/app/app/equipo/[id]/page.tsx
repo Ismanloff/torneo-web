@@ -4,7 +4,7 @@ import { ArrowUpRight, QrCode, Users } from "lucide-react";
 
 import { checkInTeamAction, saveCheckinAction } from "@/app/admin/actions";
 import { QrTile } from "@/components/qr-tile";
-import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
+import { EmptyStatePanel } from "@/components/surface-primitives";
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalTeamById } from "@/lib/supabase/queries";
 import type { EnrichedBracketMatch, EnrichedCategoryMatch, StaffContext } from "@/lib/types";

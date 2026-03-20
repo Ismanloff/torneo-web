@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Calendar, Trophy } from "lucide-react";
+import { ArrowUpRight, Trophy } from "lucide-react";
 
 import { BracketTree } from "@/components/bracket-tree";
 import { ScoreboardTable } from "@/components/scoreboard-table";
@@ -21,12 +21,6 @@ function getStatusLabel(status: string) {
   return "Programado";
 }
 
-function getStatusColor(status: string) {
-  if (status === "completed") return "text-green-400";
-  if (status === "cancelled") return "text-red-400";
-  return "text-blue-400";
-}
-
 function SportIcon({ sport }: { sport: string }) {
   const normalized = sport
     .normalize("NFD")
@@ -42,6 +36,7 @@ function SportIcon({ sport }: { sport: string }) {
 
 export function SportTabs({ categories, sports }: SportTabsProps) {
   const [activeSport, setActiveSport] = useState(sports[0] ?? "");
+  const [schoolFilterBySport, setSchoolFilterBySport] = useState<Record<string, string>>({});
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleTabKeyDown = useCallback(
@@ -65,11 +60,22 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
     [sports],
   );
 
-  const filteredCategories = categories.filter(
+  const sportCategories = categories.filter(
     (c) =>
       c.category.sport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() ===
       activeSport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(),
   );
+  const activeSchool = schoolFilterBySport[activeSport] ?? null;
+  const schoolOptions = Array.from(
+    new Set(
+      sportCategories
+        .map((category) => category.category.school)
+        .filter((school): school is string => Boolean(school?.trim())),
+    ),
+  );
+  const filteredCategories = activeSchool
+    ? sportCategories.filter((category) => category.category.school === activeSchool)
+    : sportCategories;
 
   const categoriesWithMatches = filteredCategories.filter((c) => c.matches.length > 0);
   const bracketCategories = filteredCategories.filter((c) => c.bracket);
@@ -95,35 +101,35 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             className="public-ticker__inner"
           >
             <div
-            className="grid grid-cols-3 gap-2 py-3 sm:flex sm:flex-wrap"
-            role="tablist"
-            aria-label="Deportes"
+              className="sport-tab-list py-3 sm:flex sm:flex-wrap sm:overflow-visible"
+              role="tablist"
+              aria-label="Deportes"
             >
-            {sports.map((sport, index) => {
-              const isActive =
-                sport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() ===
-                activeSport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+              {sports.map((sport, index) => {
+                const isActive =
+                  sport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() ===
+                  activeSport.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
-              const tabId = `sport-tab-${index}`;
-              const panelId = `sport-tabpanel-${index}`;
+                const tabId = `sport-tab-${index}`;
+                const panelId = `sport-tabpanel-${index}`;
 
-              return (
-                <button
-                  key={sport}
-                  ref={(el) => { tabRefs.current[index] = el; }}
-                  id={tabId}
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-controls={panelId}
-                  tabIndex={isActive ? 0 : -1}
-                  type="button"
-                  onClick={() => setActiveSport(sport)}
-                  onKeyDown={(e) => handleTabKeyDown(e, index)}
-                  className={isActive ? "sport-tab sport-tab--active" : "sport-tab"}
-                >
-                  <SportIcon sport={sport} />
-                  <span className="sport-tab__label">{sport}</span>
-                </button>
+                return (
+                  <button
+                    key={sport}
+                    ref={(el) => { tabRefs.current[index] = el; }}
+                    id={tabId}
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={panelId}
+                    tabIndex={isActive ? 0 : -1}
+                    type="button"
+                    onClick={() => setActiveSport(sport)}
+                    onKeyDown={(e) => handleTabKeyDown(e, index)}
+                    className={isActive ? "sport-tab sport-tab--active sport-tab--block" : "sport-tab sport-tab--block"}
+                  >
+                    <SportIcon sport={sport} />
+                    <span className="sport-tab__label">{sport}</span>
+                  </button>
                 );
               })}
             </div>
@@ -148,19 +154,19 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
         <div className="public-wrap grid gap-8">
           <SectionHeader
             eyebrow="Clasificación"
-            title="Tabla pública"
-            description="Una lectura más directa del deporte activo: menos cajas, más tabla, y acceso rápido a la inscripción cuando todavía hay plazas."
+            title="Clasificación"
+            description="Consulta las categorías del deporte activo y entra en el detalle de cada una."
             action={filteredCategories.length > 0 ? (
               <div className="section-surface public-sport-cta">
                 <div className="public-sport-cta__copy">
                   <p className="public-kicker">{activeSport}</p>
                   <p className="mt-3 text-lg font-semibold text-white">
                     {hasTeamsInSport
-                      ? "Las inscripciones siguen abiertas."
-                      : `Las inscripciones están abiertas para ${activeSport}.`}
+                      ? "La inscripción sigue abierta."
+                      : `La inscripción está abierta para ${activeSport}.`}
                   </p>
                   <p className="mt-2 text-sm leading-7 text-[#b7c2b0]">
-                    {filteredCategories.length} categorías · {totalTeamsInSport} equipos registrados ·{" "}
+                    {filteredCategories.length} categorías · {totalTeamsInSport} equipos inscritos ·{" "}
                     {totalSlotsLeft} plazas disponibles.
                   </p>
                 </div>
@@ -182,11 +188,31 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             ) : null}
           />
 
+          {schoolOptions.length > 1 ? (
+            <div className="tabs-scroll-strip items-center sm:flex sm:flex-wrap sm:overflow-visible">
+              {schoolOptions.map((school) => (
+                <button
+                  key={school}
+                  type="button"
+                  onClick={() =>
+                    setSchoolFilterBySport((current) => ({
+                      ...current,
+                      [activeSport]: current[activeSport] === school ? "" : school,
+                    }))
+                  }
+                  className={activeSchool === school ? "sport-tab sport-tab--active" : "sport-tab"}
+                >
+                  {school}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {!hasTeamsInSport && filteredCategories.length > 0 ? (
             <EmptyStatePanel
               eyebrow={activeSport}
-              title={`Todavía no hay equipos visibles en ${activeSport}`}
-              description="La primera inscripción activará la tabla pública y el seguimiento del deporte."
+              title={`Aún no hay equipos inscritos en ${activeSport}`}
+              description="La clasificación se mostrará aquí en cuanto se complete la primera inscripción."
             />
           ) : null}
 
@@ -215,14 +241,14 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             align="start"
             eyebrow="Partidos"
             title="Próximos encuentros"
-            description="Las jornadas ahora se leen como un calendario editorial: categoría arriba y enfrentamientos en filas compactas."
+            description="Consulta los próximos partidos del deporte activo."
           />
 
           {!hasAnyMatchesInSport && filteredCategories.length > 0 ? (
             <EmptyStatePanel
               eyebrow={activeSport}
-              title={`Todavía no hay partidos programados para ${activeSport}`}
-              description="El calendario aparecerá aquí cuando la organización prepare los encuentros."
+              title={`Aún no hay partidos programados para ${activeSport}`}
+              description="Los partidos aparecerán aquí en cuanto la organización publique el calendario."
               action={
                 <a className="public-action public-action--ghost" href="#clasificacion">
                   Ver categorías
@@ -307,8 +333,8 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
             ) : (
               <EmptyStatePanel
                 eyebrow="Calendario"
-                title="Todavía no hay partidos programados para este deporte"
-                description="El calendario aparecerá aquí cuando la organización cree los encuentros."
+                title="Aún no hay partidos programados para este deporte"
+                description="Los partidos aparecerán aquí en cuanto la organización publique el calendario."
               />
             )}
           </div>
@@ -321,8 +347,8 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
           <SectionHeader
             align="start"
             eyebrow="Eliminatorias"
-            title="Cruces y cuadro"
-            description="El cuadro ya no compite con tarjetas ajenas: se apoya en un único contenedor estructural por categoría."
+            title="Cuadro eliminatorio"
+            description="Consulta las eliminatorias de cada categoría cuando estén publicadas."
           />
 
           {bracketCategories.length > 0 ? (
@@ -350,7 +376,7 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
           ) : (
             <EmptyStatePanel
               eyebrow="Cruces"
-              title="Todavía no hay cuadro eliminatorio para este deporte"
+              title="Aún no hay cuadro eliminatorio para este deporte"
               description="Aparecerá cuando la organización genere las eliminatorias."
             />
           )}

@@ -6,10 +6,16 @@ import { formatStaffRoleLabel } from "@/lib/utils";
 import type { StaffProfileRow } from "@/lib/types";
 
 type AdminStaffTabProps = {
+  createdPin?: string;
+  createdStaffName?: string;
   staffProfiles: StaffProfileRow[];
 };
 
-export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
+export function AdminStaffTab({
+  createdPin,
+  createdStaffName,
+  staffProfiles,
+}: AdminStaffTabProps) {
   const activeStaff = staffProfiles.filter((profile) => profile.is_active);
 
   return (
@@ -36,6 +42,20 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
             Crear staff (genera PIN)
           </button>
         </form>
+
+        {createdPin ? (
+          <div className="mt-4 rounded-[1.25rem] border border-[rgba(141,246,95,0.2)] bg-[rgba(84,209,43,0.08)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--app-accent)]">
+              PIN generado
+            </p>
+            <p className="mt-2 text-sm text-white">
+              {createdStaffName ?? "Nuevo perfil"} ya tiene acceso. Este PIN solo se muestra ahora.
+            </p>
+            <p className="mt-3 font-mono text-2xl font-bold tracking-[0.28em] text-[var(--app-accent)]">
+              {createdPin}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div className="admin-card">
@@ -52,13 +72,13 @@ export function AdminStaffTab({ staffProfiles }: AdminStaffTabProps) {
                   <p className="mt-0.5 text-sm text-[var(--app-muted)]">
                     {formatStaffRoleLabel(profile.role)}
                   </p>
-                  {profile.pin ? (
+                  {profile.pin_last_four ? (
                     <p className="font-mono mt-1.5 text-lg font-bold tracking-[0.3em] text-[var(--app-accent)]">
-                      {profile.pin}
+                      ••{profile.pin_last_four}
                     </p>
                   ) : (
                     <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">
-                      Sin PIN asignado
+                      PIN protegido
                     </p>
                   )}
                 </div>

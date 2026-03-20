@@ -1,3 +1,5 @@
+import "server-only";
+
 import { cache } from "react";
 
 import { ALLOWED_SPORT_LABELS, isAllowedSport } from "@/lib/allowed-sports";
@@ -365,41 +367,6 @@ function enrichCategories(input: {
     };
   });
 }
-
-const getActiveTournamentBase = cache(async () => {
-  const [{ data: tournament }, { data: categories }] = await Promise.all([
-    supabaseAdmin
-      .from("tournaments")
-      .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<TournamentRow>(),
-    supabaseAdmin
-      .from("categories")
-      .select("*")
-      .eq("is_active", true)
-      .order("sport", { ascending: true })
-      .order("name", { ascending: true })
-      .returns<CategoryRow[]>(),
-  ]);
-
-  const activeTournament = requireTournament(tournament);
-  const activeCategories = (categories ?? []).filter(
-    (category) => category.tournament_id === activeTournament.id && isAllowedSport(category.sport),
-  );
-
-  if (!activeCategories.length) {
-    throw new Error(
-      `No hay categorias activas para los deportes permitidos: ${ALLOWED_SPORT_LABELS.join(", ")}.`,
-    );
-  }
-
-  return {
-    tournament: activeTournament,
-    categories: activeCategories,
-  };
-});
 
 const getActiveTournamentData = cache(async () => {
   const [{ data: tournament }, { data: categories }, { data: schools }, { data: teams }] =
@@ -1086,88 +1053,6 @@ function buildAdminMatchCheckinLog(categories: ScoreboardCategory[]): AdminMatch
     })
     .sort((left, right) => new Date(right.checkedInAt).getTime() - new Date(left.checkedInAt).getTime())
     .slice(0, 12);
-}
-
-function flattenOperationalMatches(
-  categories: ScoreboardCategory[],
-  staff: StaffContext,
-): OperationalMatchSummary[] {
-  const summaries: OperationalMatchSummary[] = [];
-
-  for (const category of categories) {
-    for (const match of category.matches) {
-      const duty =
-        isManagementRole(staff.profile.role)
-          ? "admin"
-          : match.referee_assignment?.auth_user_id === staff.authUserId
-            ? "referee"
-            : match.assistant_assignment?.auth_user_id === staff.authUserId
-              ? "assistant"
-              : null;
-
-      if (!duty) {
-        continue;
-      }
-
-      summaries.push({
-        scope: "category_match",
-        matchId: match.id,
-        categoryId: category.category.id,
-        categoryName: category.category.name,
-        sport: category.category.sport,
-        ageGroup: category.category.age_group,
-        location: match.location,
-        scheduledAt: match.scheduled_at,
-        status: match.status,
-        homeTeam: match.home_team,
-        awayTeam: match.away_team,
-        duty,
-        qrToken: match.qr_token?.token ?? null,
-      });
-    }
-
-    for (const round of category.bracket?.rounds ?? []) {
-      for (const match of round.matches) {
-        const duty =
-          isManagementRole(staff.profile.role)
-            ? "admin"
-            : match.referee_assignment?.auth_user_id === staff.authUserId
-              ? "referee"
-              : match.assistant_assignment?.auth_user_id === staff.authUserId
-                ? "assistant"
-                : null;
-
-        if (!duty) {
-          continue;
-        }
-
-        summaries.push({
-          scope: "bracket_match",
-          matchId: match.id,
-          categoryId: category.category.id,
-          categoryName: `${category.category.name} · ${round.round.name}`,
-          sport: category.category.sport,
-          ageGroup: category.category.age_group,
-          location: match.location,
-          scheduledAt: match.scheduled_at,
-          status: match.status,
-          homeTeam: match.home_team,
-          awayTeam: match.away_team,
-          duty,
-          qrToken: match.qr_token?.token ?? null,
-        });
-      }
-    }
-  }
-
-  return summaries.sort((left, right) => {
-    const leftTime = left.scheduledAt ? new Date(left.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
-    const rightTime = right.scheduledAt
-      ? new Date(right.scheduledAt).getTime()
-      : Number.MAX_SAFE_INTEGER;
-
-    return leftTime - rightTime;
-  });
 }
 
 export async function getOperationalDashboardData(

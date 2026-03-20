@@ -6,7 +6,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import {
+  setPublicAccessState,
+  setRegistrationSuccessFlash,
+} from "@/lib/flash-state";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  assertRateLimitAllowed,
+  registerRateLimitAttempt,
+} from "@/lib/staff-auth";
 import { sendRegistrationEmail } from "@/lib/email";
 import { slugToCode } from "@/lib/utils";
 
@@ -20,6 +28,12 @@ const registrationSchema = z.object({
   gdprConsent: z.literal("on"),
   regulationAccepted: z.literal("on"),
 });
+
+const publicRegistrationRateLimit = {
+  maxAttempts: 8,
+  windowMs: 30 * 60 * 1000,
+  lockWindowMs: 30 * 60 * 1000,
+} as const;
 
 export async function registerTeamAction(formData: FormData) {
   const parsed = registrationSchema.safeParse({
@@ -36,6 +50,17 @@ export async function registerTeamAction(formData: FormData) {
   if (!parsed.success) {
     redirect(`/inscripcion/${formData.get("categoryId") ?? ""}?error=registro`);
   }
+
+  const throttle = await assertRateLimitAllowed(
+    "public-team-registration",
+    publicRegistrationRateLimit,
+  );
+
+  if (!throttle.allowed) {
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
+  }
+
+  await registerRateLimitAttempt(throttle.attemptKey, publicRegistrationRateLimit);
 
   const { data: category, error: categoryError } = await supabaseAdmin
     .from("categories")
@@ -97,7 +122,17 @@ export async function registerTeamAction(formData: FormData) {
 
   const emailStatus = emailResult.status === "sent" ? "sent" : emailResult.status;
 
+  await setRegistrationSuccessFlash({
+    teamId,
+    token: qrToken,
+    emailStatus,
+  });
+  await setPublicAccessState({
+    resourceId: teamId,
+    resourceType: "team",
+    token: qrToken,
+  });
   revalidatePath("/");
   revalidatePath("/inscripcion");
-  redirect(`/inscripcion/exito?code=${registrationCode}&email=${emailStatus}`);
+  redirect("/inscripcion/exito");
 }

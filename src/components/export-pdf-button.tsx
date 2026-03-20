@@ -13,7 +13,7 @@ type ExportPdfButtonProps = {
 
 export function ExportPdfButton({ categoryName, sport, standings }: ExportPdfButtonProps) {
   async function handleExport() {
-    const { jsPDF } = await import("jspdf");
+    const { jsPDF } = await import("jspdf/dist/jspdf.es.min.js");
     const autoTable = (await import("jspdf-autotable")).default;
     const scoreMetricLabel = getScoreMetricLabel(sport);
 

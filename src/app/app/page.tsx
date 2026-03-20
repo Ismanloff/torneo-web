@@ -4,7 +4,7 @@ import { ArrowRight, CalendarClock, QrCode, Shield, Sparkles, Users } from "luci
 import { requireStaffSession } from "@/lib/admin-auth";
 import { getOperationalDashboardData } from "@/lib/supabase/queries";
 import { PushPermissionBanner } from "@/components/push-permission-banner";
-import { EmptyStatePanel, MetricStrip, StatusPill } from "@/components/surface-primitives";
+import { EmptyStatePanel, MetricStrip } from "@/components/surface-primitives";
 import { isManagementRole } from "@/lib/utils";
 
 function formatTime(value: string) {

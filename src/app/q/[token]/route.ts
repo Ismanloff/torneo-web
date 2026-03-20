@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { setPublicAccessState } from "@/lib/flash-state";
 import { getAdminAccessContext } from "@/lib/admin-auth";
 import { getQrTargetByToken, touchQrToken } from "@/lib/supabase/queries";
 import { buildPublicQrTargetPath, buildQrTargetPath } from "@/lib/utils";
@@ -16,7 +17,10 @@ export async function GET(request: Request, { params }: QrRouteProps) {
   const qrTarget = await getQrTargetByToken(token);
 
   if (!qrTarget) {
-    return NextResponse.redirect(`${origin}/login?error=restricted`);
+    const response = NextResponse.redirect(`${origin}/login?error=restricted`);
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    return response;
   }
 
   await touchQrToken(token);
@@ -28,16 +32,25 @@ export async function GET(request: Request, { params }: QrRouteProps) {
   }
 
   appTargetUrl.searchParams.set("from", "scan");
-  const publicDestination = buildPublicQrTargetPath({
-    ...qrTarget,
-    token,
-  });
+  const publicDestination = buildPublicQrTargetPath(qrTarget);
 
   const context = await getAdminAccessContext();
 
   if (!context) {
-    return NextResponse.redirect(`${origin}${publicDestination}`);
+    await setPublicAccessState({
+      resourceId: qrTarget.resource_id,
+      resourceType: qrTarget.resource_type,
+      token,
+    });
+
+    const response = NextResponse.redirect(`${origin}${publicDestination}`);
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    return response;
   }
 
-  return NextResponse.redirect(appTargetUrl);
+  const response = NextResponse.redirect(appTargetUrl);
+  response.headers.set("Cache-Control", "private, no-store, max-age=0");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  return response;
 }

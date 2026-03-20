@@ -17,6 +17,13 @@ create index if not exists staff_profiles_auth_user_idx
   on public.staff_profiles(auth_user_id)
   where auth_user_id is not null;
 
+create unique index if not exists staff_profiles_pin_hash_idx
+  on public.staff_profiles(pin_hash)
+  where pin_hash is not null;
+
+create index if not exists staff_login_attempts_locked_until_idx
+  on public.staff_login_attempts(locked_until);
+
 -- QR tokens lookup by resource (used in q/[token]/route.ts)
 -- Note: match_qr_tokens_active_resource_idx already covers (resource_type, resource_id)
 -- filtered on is_active = true. This non-unique variant supports multi-row lookups.
