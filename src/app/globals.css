@@ -741,31 +741,96 @@ textarea {
 
   .public-nav--mobile {
     display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    flex-direction: column;
-    gap: 0.25rem;
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 4.6rem);
+    right: 1rem;
+    left: auto;
+    width: min(22rem, calc(100vw - 2rem));
     z-index: 2;
-    margin: 0.5rem 1rem 0;
-    padding: 0.9rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 1.2rem;
-    background: linear-gradient(180deg, rgba(11, 18, 16, 0.985), rgba(11, 18, 16, 0.965));
-    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(22px);
   }
 
   .public-nav--open {
     display: flex;
   }
 
-  .public-nav__link {
-    justify-content: flex-start;
+  .public-nav__panel {
     width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 0.75rem;
+    display: grid;
+    gap: 0.9rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.35rem;
+    background: linear-gradient(180deg, rgba(10, 18, 15, 0.985), rgba(10, 18, 15, 0.955));
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(22px);
+  }
+
+  .public-nav__mobile-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .public-nav__eyebrow {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #cbb97f;
+  }
+
+  .public-nav__title {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-display), sans-serif;
+    font-size: 1.8rem;
+    line-height: 0.95;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #f7f4eb;
+  }
+
+  .public-nav__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.3rem;
+    height: 2.3rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #f7f4eb;
+  }
+
+  .public-nav__stack {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .public-nav__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: #aeb9aa;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .public-nav__link {
+    justify-content: space-between;
+    width: 100%;
+    min-height: 3.6rem;
+    padding: 0.95rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 0.92rem;
+    letter-spacing: 0.12em;
   }
 
   .public-nav__link:hover {

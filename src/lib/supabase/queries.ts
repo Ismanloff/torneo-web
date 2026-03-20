@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { ALLOWED_SPORT_LABELS, isAllowedSport } from "@/lib/allowed-sports";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
@@ -26,9 +28,11 @@ import type {
   StaffProfileRow,
   TeamCheckinRow,
   TeamRow,
+  TeamSummary,
   TeamScoreAdjustmentRow,
   TeamStatusRow,
   TournamentRow,
+  StaffDuty,
 } from "@/lib/types";
 import { getDefaultOperationalSettings } from "@/lib/operational-scheduling";
 import { buildCategoryStandings, buildGroupedStandings } from "@/lib/standings";
@@ -44,6 +48,23 @@ function requireTournament(tournament: TournamentRow | null): TournamentRow {
 
 function sortBracketRounds(rounds: BracketRoundRow[]) {
   return [...rounds].sort((left, right) => left.round_number - right.round_number);
+}
+
+function unique<T>(values: T[]) {
+  return [...new Set(values)];
+}
+
+function uniqueById<T extends { id: string }>(rows: T[]) {
+  const seen = new Set<string>();
+
+  return rows.filter((row) => {
+    if (seen.has(row.id)) {
+      return false;
+    }
+
+    seen.add(row.id);
+    return true;
+  });
 }
 
 function buildAssignmentMaps(assignments: StaffAssignmentRow[], staffProfiles: StaffProfileRow[]) {
@@ -345,7 +366,42 @@ function enrichCategories(input: {
   });
 }
 
-async function getActiveTournamentData() {
+const getActiveTournamentBase = cache(async () => {
+  const [{ data: tournament }, { data: categories }] = await Promise.all([
+    supabaseAdmin
+      .from("tournaments")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<TournamentRow>(),
+    supabaseAdmin
+      .from("categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("sport", { ascending: true })
+      .order("name", { ascending: true })
+      .returns<CategoryRow[]>(),
+  ]);
+
+  const activeTournament = requireTournament(tournament);
+  const activeCategories = (categories ?? []).filter(
+    (category) => category.tournament_id === activeTournament.id && isAllowedSport(category.sport),
+  );
+
+  if (!activeCategories.length) {
+    throw new Error(
+      `No hay categorias activas para los deportes permitidos: ${ALLOWED_SPORT_LABELS.join(", ")}.`,
+    );
+  }
+
+  return {
+    tournament: activeTournament,
+    categories: activeCategories,
+  };
+});
+
+const getActiveTournamentData = cache(async () => {
   const [{ data: tournament }, { data: categories }, { data: schools }, { data: teams }] =
     await Promise.all([
       supabaseAdmin
@@ -394,6 +450,387 @@ async function getActiveTournamentData() {
     categories: activeCategories,
     schools: schools ?? [],
     teams: activeTeams,
+  };
+});
+
+function buildTeamSummaryMap(teams: TeamRow[]) {
+  return new Map(
+    teams.map((team) => [
+      team.id,
+      {
+        id: team.id,
+        team_name: team.team_name,
+        registration_code: team.registration_code,
+      },
+    ]),
+  );
+}
+
+function buildStaffDutyIndex(
+  assignments: StaffAssignmentRow[],
+  staff: StaffContext,
+) {
+  const categoryDuty = new Map<string, StaffDuty>();
+  const categoryMatchDuty = new Map<string, StaffDuty>();
+  const bracketMatchDuty = new Map<string, StaffDuty>();
+
+  for (const assignment of assignments) {
+    if (!staff.authUserId || assignment.staff_user_id !== staff.authUserId) {
+      continue;
+    }
+
+    if (assignment.category_match_id && !categoryMatchDuty.has(assignment.category_match_id)) {
+      categoryMatchDuty.set(assignment.category_match_id, assignment.duty);
+      continue;
+    }
+
+    if (assignment.bracket_match_id && !bracketMatchDuty.has(assignment.bracket_match_id)) {
+      bracketMatchDuty.set(assignment.bracket_match_id, assignment.duty);
+      continue;
+    }
+
+    if (assignment.category_id && !categoryDuty.has(assignment.category_id)) {
+      categoryDuty.set(assignment.category_id, assignment.duty);
+    }
+  }
+
+  return {
+    categoryDuty,
+    categoryMatchDuty,
+    bracketMatchDuty,
+  };
+}
+
+function enrichOperationalCategoryMatch(input: {
+  match: CategoryMatchRow;
+  teamSummaryMap: Map<string, TeamSummary>;
+  assignmentMaps: ReturnType<typeof buildAssignmentMaps>;
+  categoryAssignmentMap?: Map<string, StaffProfileRow>;
+  checkinsByKey: Map<string, TeamCheckinRow & { recorded_by: StaffProfileRow | null }>;
+  qrTokenByKey: Map<string, MatchQrTokenRow>;
+}) {
+  const assignmentMap = input.assignmentMaps.byCategoryMatchId.get(input.match.id);
+
+  return {
+    ...input.match,
+    scope: "category_match" as const,
+    home_team:
+      input.teamSummaryMap.get(input.match.home_team_id) ?? {
+        id: input.match.home_team_id,
+        team_name: "Equipo desconocido",
+        registration_code: "",
+      },
+    away_team:
+      input.teamSummaryMap.get(input.match.away_team_id) ?? {
+        id: input.match.away_team_id,
+        team_name: "Equipo desconocido",
+        registration_code: "",
+      },
+    referee_assignment:
+      assignmentMap?.get("referee") ?? input.categoryAssignmentMap?.get("referee") ?? null,
+    assistant_assignment:
+      assignmentMap?.get("assistant") ?? input.categoryAssignmentMap?.get("assistant") ?? null,
+    home_checkin:
+      input.checkinsByKey.get(`category_match:${input.match.id}:${input.match.home_team_id}`) ?? null,
+    away_checkin:
+      input.checkinsByKey.get(`category_match:${input.match.id}:${input.match.away_team_id}`) ?? null,
+    qr_token: input.qrTokenByKey.get(`category_match:${input.match.id}`) ?? null,
+  };
+}
+
+function enrichOperationalBracketMatch(input: {
+  match: BracketMatchRow;
+  teamSummaryMap: Map<string, TeamSummary>;
+  assignmentMaps: ReturnType<typeof buildAssignmentMaps>;
+  categoryAssignmentMap?: Map<string, StaffProfileRow>;
+  checkinsByKey: Map<string, TeamCheckinRow & { recorded_by: StaffProfileRow | null }>;
+  qrTokenByKey: Map<string, MatchQrTokenRow>;
+}) {
+  const assignmentMap = input.assignmentMaps.byBracketMatchId.get(input.match.id);
+
+  return {
+    ...input.match,
+    scope: "bracket_match" as const,
+    home_team: input.match.home_team_id
+      ? (input.teamSummaryMap.get(input.match.home_team_id) ?? {
+          id: input.match.home_team_id,
+          team_name: "Pendiente",
+          registration_code: "",
+        })
+      : null,
+    away_team: input.match.away_team_id
+      ? (input.teamSummaryMap.get(input.match.away_team_id) ?? {
+          id: input.match.away_team_id,
+          team_name: "Pendiente",
+          registration_code: "",
+        })
+      : null,
+    winner_team: input.match.winner_team_id
+      ? (input.teamSummaryMap.get(input.match.winner_team_id) ?? {
+          id: input.match.winner_team_id,
+          team_name: "Pendiente",
+          registration_code: "",
+        })
+      : null,
+    referee_assignment:
+      assignmentMap?.get("referee") ?? input.categoryAssignmentMap?.get("referee") ?? null,
+    assistant_assignment:
+      assignmentMap?.get("assistant") ?? input.categoryAssignmentMap?.get("assistant") ?? null,
+    home_checkin:
+      input.match.home_team_id
+        ? input.checkinsByKey.get(`bracket_match:${input.match.id}:${input.match.home_team_id}`) ?? null
+        : null,
+    away_checkin:
+      input.match.away_team_id
+        ? input.checkinsByKey.get(`bracket_match:${input.match.id}:${input.match.away_team_id}`) ?? null
+        : null,
+    qr_token: input.qrTokenByKey.get(`bracket_match:${input.match.id}`) ?? null,
+  };
+}
+
+async function getScopedAssignments(input: {
+  tournamentId: string;
+  categoryIds?: string[];
+  categoryMatchIds?: string[];
+  bracketMatchIds?: string[];
+}) {
+  const categoryIds = unique(input.categoryIds ?? []);
+  const categoryMatchIds = unique(input.categoryMatchIds ?? []);
+  const bracketMatchIds = unique(input.bracketMatchIds ?? []);
+  const queries: Array<PromiseLike<{ data: StaffAssignmentRow[] | null }>> = [];
+
+  if (categoryIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("staff_assignments")
+        .select("*")
+        .eq("tournament_id", input.tournamentId)
+        .in("category_id", categoryIds)
+        .is("category_match_id", null)
+        .is("bracket_match_id", null)
+        .returns<StaffAssignmentRow[]>(),
+    );
+  }
+
+  if (categoryMatchIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("staff_assignments")
+        .select("*")
+        .eq("tournament_id", input.tournamentId)
+        .in("category_match_id", categoryMatchIds)
+        .returns<StaffAssignmentRow[]>(),
+    );
+  }
+
+  if (bracketMatchIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("staff_assignments")
+        .select("*")
+        .eq("tournament_id", input.tournamentId)
+        .in("bracket_match_id", bracketMatchIds)
+        .returns<StaffAssignmentRow[]>(),
+    );
+  }
+
+  if (!queries.length) {
+    return [];
+  }
+
+  const responses = await Promise.all(queries);
+  return uniqueById(responses.flatMap((response) => response.data ?? []));
+}
+
+async function getStaffProfilesForAssignments(assignments: StaffAssignmentRow[]) {
+  const authUserIds = unique(
+    assignments.map((assignment) => assignment.staff_user_id).filter(Boolean),
+  );
+
+  if (!authUserIds.length) {
+    return [];
+  }
+
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("*")
+    .in("auth_user_id", authUserIds)
+    .returns<StaffProfileRow[]>();
+
+  return data ?? [];
+}
+
+async function getScopedMatchQrTokens(input: {
+  categoryMatchIds?: string[];
+  bracketMatchIds?: string[];
+  teamIds?: string[];
+}) {
+  const categoryMatchIds = unique(input.categoryMatchIds ?? []);
+  const bracketMatchIds = unique(input.bracketMatchIds ?? []);
+  const teamIds = unique(input.teamIds ?? []);
+  const queries: Array<PromiseLike<{ data: MatchQrTokenRow[] | null }>> = [];
+
+  if (categoryMatchIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("match_qr_tokens")
+        .select("*")
+        .eq("is_active", true)
+        .eq("resource_type", "category_match")
+        .in("resource_id", categoryMatchIds)
+        .returns<MatchQrTokenRow[]>(),
+    );
+  }
+
+  if (bracketMatchIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("match_qr_tokens")
+        .select("*")
+        .eq("is_active", true)
+        .eq("resource_type", "bracket_match")
+        .in("resource_id", bracketMatchIds)
+        .returns<MatchQrTokenRow[]>(),
+    );
+  }
+
+  if (teamIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("match_qr_tokens")
+        .select("*")
+        .eq("is_active", true)
+        .eq("resource_type", "team")
+        .in("resource_id", teamIds)
+        .returns<MatchQrTokenRow[]>(),
+    );
+  }
+
+  if (!queries.length) {
+    return [];
+  }
+
+  const responses = await Promise.all(queries);
+  return uniqueById(responses.flatMap((response) => response.data ?? []));
+}
+
+async function getScopedTeamCheckins(input: {
+  categoryMatchIds?: string[];
+  bracketMatchIds?: string[];
+}) {
+  const categoryMatchIds = unique(input.categoryMatchIds ?? []);
+  const bracketMatchIds = unique(input.bracketMatchIds ?? []);
+  const queries: Array<PromiseLike<{ data: TeamCheckinRow[] | null }>> = [];
+
+  if (categoryMatchIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("team_checkins")
+        .select("*")
+        .eq("match_scope", "category_match")
+        .in("match_id", categoryMatchIds)
+        .returns<TeamCheckinRow[]>(),
+    );
+  }
+
+  if (bracketMatchIds.length) {
+    queries.push(
+      supabaseAdmin
+        .from("team_checkins")
+        .select("*")
+        .eq("match_scope", "bracket_match")
+        .in("match_id", bracketMatchIds)
+        .returns<TeamCheckinRow[]>(),
+    );
+  }
+
+  if (!queries.length) {
+    return [];
+  }
+
+  const responses = await Promise.all(queries);
+  return uniqueById(responses.flatMap((response) => response.data ?? []));
+}
+
+function sortOperationalSummaries(summaries: OperationalMatchSummary[]) {
+  return summaries.sort((left, right) => {
+    const leftTime = left.scheduledAt ? new Date(left.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const rightTime = right.scheduledAt
+      ? new Date(right.scheduledAt).getTime()
+      : Number.MAX_SAFE_INTEGER;
+
+    return leftTime - rightTime;
+  });
+}
+
+function buildOperationalSummaryFromCategoryMatch(input: {
+  category: CategoryRow;
+  match: CategoryMatchRow;
+  teamSummaryMap: Map<string, TeamSummary>;
+  duty: StaffDuty | "admin";
+  qrTokenByKey: Map<string, MatchQrTokenRow>;
+}) {
+  return {
+    scope: "category_match" as const,
+    matchId: input.match.id,
+    categoryId: input.category.id,
+    categoryName: input.category.name,
+    sport: input.category.sport,
+    ageGroup: input.category.age_group,
+    location: input.match.location,
+    scheduledAt: input.match.scheduled_at,
+    status: input.match.status,
+    homeTeam:
+      input.teamSummaryMap.get(input.match.home_team_id) ?? {
+        id: input.match.home_team_id,
+        team_name: "Equipo desconocido",
+        registration_code: "",
+      },
+    awayTeam:
+      input.teamSummaryMap.get(input.match.away_team_id) ?? {
+        id: input.match.away_team_id,
+        team_name: "Equipo desconocido",
+        registration_code: "",
+      },
+    duty: input.duty,
+    qrToken: input.qrTokenByKey.get(`category_match:${input.match.id}`)?.token ?? null,
+  };
+}
+
+function buildOperationalSummaryFromBracketMatch(input: {
+  category: CategoryRow;
+  roundName: string | null;
+  match: BracketMatchRow;
+  teamSummaryMap: Map<string, TeamSummary>;
+  duty: StaffDuty | "admin";
+  qrTokenByKey: Map<string, MatchQrTokenRow>;
+}) {
+  return {
+    scope: "bracket_match" as const,
+    matchId: input.match.id,
+    categoryId: input.category.id,
+    categoryName: input.roundName ? `${input.category.name} · ${input.roundName}` : input.category.name,
+    sport: input.category.sport,
+    ageGroup: input.category.age_group,
+    location: input.match.location,
+    scheduledAt: input.match.scheduled_at,
+    status: input.match.status,
+    homeTeam: input.match.home_team_id
+      ? (input.teamSummaryMap.get(input.match.home_team_id) ?? {
+          id: input.match.home_team_id,
+          team_name: "Pendiente",
+          registration_code: "",
+        })
+      : null,
+    awayTeam: input.match.away_team_id
+      ? (input.teamSummaryMap.get(input.match.away_team_id) ?? {
+          id: input.match.away_team_id,
+          team_name: "Pendiente",
+          registration_code: "",
+        })
+      : null,
+    duty: input.duty,
+    qrToken: input.qrTokenByKey.get(`bracket_match:${input.match.id}`)?.token ?? null,
   };
 }
 
@@ -736,31 +1173,258 @@ function flattenOperationalMatches(
 export async function getOperationalDashboardData(
   staff: StaffContext,
 ): Promise<OperationalDashboardData> {
-  const adminData = await getAdminScoreboardData();
-  const assignedMatches = flattenOperationalMatches(adminData.categories, staff);
-  const teamIds = new Set<string>();
+  const base = await getActiveTournamentData();
+  const categoriesById = new Map(base.categories.map((category) => [category.id, category]));
+  const teamSummaryMap = buildTeamSummaryMap(base.teams);
+  const isManager = isManagementRole(staff.profile.role);
+  if (isManager) {
+    const categoryIds = base.categories.map((category) => category.id);
+    const [{ data: categoryMatches }, { data: brackets }] = await Promise.all([
+      supabaseAdmin
+        .from("category_matches")
+        .select("*")
+        .in("category_id", categoryIds)
+        .returns<CategoryMatchRow[]>(),
+      supabaseAdmin
+        .from("category_brackets")
+        .select("*")
+        .in("category_id", categoryIds)
+        .returns<CategoryBracketRow[]>(),
+    ]);
+    const bracketIds = (brackets ?? []).map((bracket) => bracket.id);
+    const [{ data: rounds }, { data: bracketMatches }] = await Promise.all([
+      bracketIds.length
+        ? supabaseAdmin
+            .from("bracket_rounds")
+            .select("*")
+            .in("bracket_id", bracketIds)
+            .returns<BracketRoundRow[]>()
+        : Promise.resolve({ data: [] as BracketRoundRow[] }),
+      bracketIds.length
+        ? supabaseAdmin
+            .from("bracket_matches")
+            .select("*")
+            .in("bracket_id", bracketIds)
+            .returns<BracketMatchRow[]>()
+        : Promise.resolve({ data: [] as BracketMatchRow[] }),
+    ]);
+    const qrTokens = await getScopedMatchQrTokens({
+      categoryMatchIds: (categoryMatches ?? []).map((match) => match.id),
+      bracketMatchIds: (bracketMatches ?? []).map((match) => match.id),
+    });
+    const qrTokenByKey = buildQrTokenMap(qrTokens);
+    const bracketById = new Map((brackets ?? []).map((bracket) => [bracket.id, bracket]));
+    const roundNameById = new Map((rounds ?? []).map((round) => [round.id, round.name]));
 
-  for (const match of assignedMatches) {
-    if (match.homeTeam?.id) teamIds.add(match.homeTeam.id);
-    if (match.awayTeam?.id) teamIds.add(match.awayTeam.id);
-  }
+    return {
+      tournament: base.tournament,
+      staff: staff.profile,
+      assignedMatches: sortOperationalSummaries([
+        ...(categoryMatches ?? []).flatMap((match) => {
+          const category = categoriesById.get(match.category_id);
+          return category
+            ? [
+                buildOperationalSummaryFromCategoryMatch({
+                  category,
+                  match,
+                  teamSummaryMap,
+                  duty: "admin",
+                  qrTokenByKey,
+                }),
+              ]
+            : [];
+        }),
+        ...(bracketMatches ?? []).flatMap((match) => {
+          const bracket = bracketById.get(match.bracket_id);
+          const category = bracket ? categoriesById.get(bracket.category_id) : null;
 
-  const teams = adminData.categories
-    .flatMap((category) =>
-      category.teams
-        .filter((team) => isManagementRole(staff.profile.role) || teamIds.has(team.id))
+          return category
+            ? [
+                buildOperationalSummaryFromBracketMatch({
+                  category,
+                  roundName: roundNameById.get(match.round_id) ?? null,
+                  match,
+                  teamSummaryMap,
+                  duty: "admin",
+                  qrTokenByKey,
+                }),
+              ]
+            : [];
+        }),
+      ]),
+      teams: base.teams
         .map((team) => ({
           ...team,
-          category: category.category,
-        })),
-    )
-    .sort((left, right) => left.team_name.localeCompare(right.team_name, "es"));
+          category: categoriesById.get(team.category_id) ?? base.categories[0],
+        }))
+        .sort((left, right) => left.team_name.localeCompare(right.team_name, "es")),
+    };
+  }
+
+  if (!staff.authUserId) {
+    return {
+      tournament: base.tournament,
+      staff: staff.profile,
+      assignedMatches: [],
+      teams: [],
+    };
+  }
+
+  const { data: rawAssignments } = await supabaseAdmin
+    .from("staff_assignments")
+    .select("*")
+    .eq("tournament_id", base.tournament.id)
+    .eq("staff_user_id", staff.authUserId)
+    .returns<StaffAssignmentRow[]>();
+
+  const assignments = rawAssignments ?? [];
+
+  if (!assignments.length) {
+    return {
+      tournament: base.tournament,
+      staff: staff.profile,
+      assignedMatches: [],
+      teams: [],
+    };
+  }
+
+  const dutyIndex = buildStaffDutyIndex(assignments, staff);
+  const categoryAssignedIds = unique(assignments.map((assignment) => assignment.category_id).filter(Boolean));
+  const directCategoryMatchIds = unique(assignments.map((assignment) => assignment.category_match_id).filter(Boolean));
+  const directBracketMatchIds = unique(assignments.map((assignment) => assignment.bracket_match_id).filter(Boolean));
+  const [
+    { data: directCategoryRows },
+    { data: categoryScopedRows },
+    { data: directBracketRows },
+    { data: categoryBrackets },
+  ] = await Promise.all([
+    directCategoryMatchIds.length
+      ? supabaseAdmin
+          .from("category_matches")
+          .select("*")
+          .in("id", directCategoryMatchIds)
+          .returns<CategoryMatchRow[]>()
+      : Promise.resolve({ data: [] as CategoryMatchRow[] }),
+    categoryAssignedIds.length
+      ? supabaseAdmin
+          .from("category_matches")
+          .select("*")
+          .in("category_id", categoryAssignedIds)
+          .returns<CategoryMatchRow[]>()
+      : Promise.resolve({ data: [] as CategoryMatchRow[] }),
+    directBracketMatchIds.length
+      ? supabaseAdmin
+          .from("bracket_matches")
+          .select("*")
+          .in("id", directBracketMatchIds)
+          .returns<BracketMatchRow[]>()
+      : Promise.resolve({ data: [] as BracketMatchRow[] }),
+    categoryAssignedIds.length
+      ? supabaseAdmin
+          .from("category_brackets")
+          .select("*")
+          .in("category_id", categoryAssignedIds)
+          .returns<CategoryBracketRow[]>()
+      : Promise.resolve({ data: [] as CategoryBracketRow[] }),
+  ]);
+
+  const directBracketIds = unique((directBracketRows ?? []).map((match) => match.bracket_id));
+  const categoryBracketIds = (categoryBrackets ?? []).map((bracket) => bracket.id);
+  const missingBracketIds = directBracketIds.filter((bracketId) => !categoryBracketIds.includes(bracketId));
+  const [{ data: directBracketMeta }, { data: categoryScopedBracketRows }] = await Promise.all([
+    missingBracketIds.length
+      ? supabaseAdmin
+          .from("category_brackets")
+          .select("*")
+          .in("id", missingBracketIds)
+          .returns<CategoryBracketRow[]>()
+      : Promise.resolve({ data: [] as CategoryBracketRow[] }),
+    categoryBracketIds.length
+      ? supabaseAdmin
+          .from("bracket_matches")
+          .select("*")
+          .in("bracket_id", categoryBracketIds)
+          .returns<BracketMatchRow[]>()
+      : Promise.resolve({ data: [] as BracketMatchRow[] }),
+  ]);
+  const relevantBrackets = uniqueById([...(categoryBrackets ?? []), ...(directBracketMeta ?? [])]);
+  const bracketIds = relevantBrackets.map((bracket) => bracket.id);
+  const [{ data: rounds }, qrTokens] = await Promise.all([
+    bracketIds.length
+      ? supabaseAdmin
+          .from("bracket_rounds")
+          .select("*")
+          .in("bracket_id", bracketIds)
+          .returns<BracketRoundRow[]>()
+      : Promise.resolve({ data: [] as BracketRoundRow[] }),
+    getScopedMatchQrTokens({
+      categoryMatchIds: uniqueById([...(directCategoryRows ?? []), ...(categoryScopedRows ?? [])]).map(
+        (match) => match.id,
+      ),
+      bracketMatchIds: uniqueById([...(directBracketRows ?? []), ...(categoryScopedBracketRows ?? [])]).map(
+        (match) => match.id,
+      ),
+    }),
+  ]);
+  const categoryMatches = uniqueById([...(directCategoryRows ?? []), ...(categoryScopedRows ?? [])]);
+  const bracketMatches = uniqueById([...(directBracketRows ?? []), ...(categoryScopedBracketRows ?? [])]);
+  const roundNameById = new Map((rounds ?? []).map((round) => [round.id, round.name]));
+  const qrTokenByKey = buildQrTokenMap(qrTokens);
+  const bracketById = new Map(relevantBrackets.map((bracket) => [bracket.id, bracket]));
+  const assignedMatches = sortOperationalSummaries([
+    ...categoryMatches.flatMap((match) => {
+      const category = categoriesById.get(match.category_id);
+      const duty = dutyIndex.categoryMatchDuty.get(match.id) ?? dutyIndex.categoryDuty.get(match.category_id);
+
+      return category && duty
+        ? [
+            buildOperationalSummaryFromCategoryMatch({
+              category,
+              match,
+              teamSummaryMap,
+              duty,
+              qrTokenByKey,
+            }),
+          ]
+        : [];
+    }),
+    ...bracketMatches.flatMap((match) => {
+      const bracket = bracketById.get(match.bracket_id);
+      const category = bracket ? categoriesById.get(bracket.category_id) : null;
+      const duty = dutyIndex.bracketMatchDuty.get(match.id) ?? (category ? dutyIndex.categoryDuty.get(category.id) : null);
+
+      return category && duty
+        ? [
+            buildOperationalSummaryFromBracketMatch({
+              category,
+              roundName: roundNameById.get(match.round_id) ?? null,
+              match,
+              teamSummaryMap,
+              duty,
+              qrTokenByKey,
+            }),
+          ]
+        : [];
+    }),
+  ]);
+  const visibleTeamIds = new Set<string>();
+
+  for (const match of assignedMatches) {
+    if (match.homeTeam?.id) visibleTeamIds.add(match.homeTeam.id);
+    if (match.awayTeam?.id) visibleTeamIds.add(match.awayTeam.id);
+  }
 
   return {
-    tournament: adminData.tournament,
+    tournament: base.tournament,
     staff: staff.profile,
     assignedMatches,
-    teams,
+    teams: base.teams
+      .filter((team) => visibleTeamIds.has(team.id))
+      .map((team) => ({
+        ...team,
+        category: categoriesById.get(team.category_id) ?? base.categories[0],
+      }))
+      .sort((left, right) => left.team_name.localeCompare(right.team_name, "es")),
   };
 }
 
@@ -768,107 +1432,274 @@ export async function getOperationalMatchById(
   staff: StaffContext,
   input: { matchId: string; scope: MatchScope },
 ) {
-  const adminData = await getAdminScoreboardData();
+  const base = await getActiveTournamentData();
+  const categoriesById = new Map(base.categories.map((category) => [category.id, category]));
+  const teamSummaryMap = buildTeamSummaryMap(base.teams);
+  const isManager = isManagementRole(staff.profile.role);
 
-  for (const category of adminData.categories) {
-    if (input.scope === "category_match") {
-      const match = category.matches.find((item) => item.id === input.matchId);
+  if (input.scope === "category_match") {
+    const { data: rawMatch } = await supabaseAdmin
+      .from("category_matches")
+      .select("*")
+      .eq("id", input.matchId)
+      .maybeSingle<CategoryMatchRow>();
 
-      if (!match) {
-        continue;
-      }
-
-      const canAccess =
-        isManagementRole(staff.profile.role) ||
-        match.referee_assignment?.auth_user_id === staff.authUserId ||
-        match.assistant_assignment?.auth_user_id === staff.authUserId;
-
-      return canAccess
-        ? {
-            category,
-            match,
-            canSubmitResult:
-              isManagementRole(staff.profile.role) ||
-              match.referee_assignment?.auth_user_id === staff.authUserId,
-            canCheckIn:
-              isManagementRole(staff.profile.role) ||
-              match.assistant_assignment?.auth_user_id === staff.authUserId,
-          }
-        : null;
+    if (!rawMatch) {
+      return null;
     }
 
-    for (const round of category.bracket?.rounds ?? []) {
-      const match = round.matches.find((item) => item.id === input.matchId);
+    const category = categoriesById.get(rawMatch.category_id);
 
-      if (!match) {
-        continue;
-      }
-
-      const canAccess =
-        isManagementRole(staff.profile.role) ||
-        match.referee_assignment?.auth_user_id === staff.authUserId ||
-        match.assistant_assignment?.auth_user_id === staff.authUserId;
-
-      return canAccess
-        ? {
-            category,
-            round,
-            match,
-            canSubmitResult:
-              isManagementRole(staff.profile.role) ||
-              match.referee_assignment?.auth_user_id === staff.authUserId,
-            canCheckIn:
-              isManagementRole(staff.profile.role) ||
-              match.assistant_assignment?.auth_user_id === staff.authUserId,
-          }
-        : null;
+    if (!category) {
+      return null;
     }
+
+    const [assignments, checkins, qrTokens] = await Promise.all([
+      getScopedAssignments({
+        tournamentId: category.tournament_id,
+        categoryIds: [category.id],
+        categoryMatchIds: [rawMatch.id],
+      }),
+      getScopedTeamCheckins({
+        categoryMatchIds: [rawMatch.id],
+      }),
+      getScopedMatchQrTokens({
+        categoryMatchIds: [rawMatch.id],
+      }),
+    ]);
+    const staffProfiles = await getStaffProfilesForAssignments(assignments);
+    const assignmentMaps = buildAssignmentMaps(assignments, staffProfiles);
+    const categoryAssignmentMap = assignmentMaps.byCategoryId.get(category.id);
+    const match = enrichOperationalCategoryMatch({
+      match: rawMatch,
+      teamSummaryMap,
+      assignmentMaps,
+      categoryAssignmentMap,
+      checkinsByKey: buildCheckinMap(checkins, staffProfiles),
+      qrTokenByKey: buildQrTokenMap(qrTokens),
+    });
+    const canAccess =
+      isManager ||
+      match.referee_assignment?.auth_user_id === staff.authUserId ||
+      match.assistant_assignment?.auth_user_id === staff.authUserId;
+
+    if (!canAccess) {
+      return null;
+    }
+
+    return {
+      category: {
+        category,
+        bracket: null,
+      },
+      match,
+      canSubmitResult: isManager || match.referee_assignment?.auth_user_id === staff.authUserId,
+      canCheckIn: isManager || match.assistant_assignment?.auth_user_id === staff.authUserId,
+    };
   }
 
-  return null;
+  const { data: rawBracketMatch } = await supabaseAdmin
+    .from("bracket_matches")
+    .select("*")
+    .eq("id", input.matchId)
+    .maybeSingle<BracketMatchRow>();
+
+  if (!rawBracketMatch) {
+    return null;
+  }
+
+  const [{ data: bracket }, { data: round }] = await Promise.all([
+    supabaseAdmin
+      .from("category_brackets")
+      .select("*")
+      .eq("id", rawBracketMatch.bracket_id)
+      .maybeSingle<CategoryBracketRow>(),
+    supabaseAdmin
+      .from("bracket_rounds")
+      .select("*")
+      .eq("id", rawBracketMatch.round_id)
+      .maybeSingle<BracketRoundRow>(),
+  ]);
+
+  if (!bracket) {
+    return null;
+  }
+
+  const category = categoriesById.get(bracket.category_id);
+
+  if (!category) {
+    return null;
+  }
+
+  const [assignments, checkins, qrTokens] = await Promise.all([
+    getScopedAssignments({
+      tournamentId: category.tournament_id,
+      categoryIds: [category.id],
+      bracketMatchIds: [rawBracketMatch.id],
+    }),
+    getScopedTeamCheckins({
+      bracketMatchIds: [rawBracketMatch.id],
+    }),
+    getScopedMatchQrTokens({
+      bracketMatchIds: [rawBracketMatch.id],
+    }),
+  ]);
+  const staffProfiles = await getStaffProfilesForAssignments(assignments);
+  const assignmentMaps = buildAssignmentMaps(assignments, staffProfiles);
+  const categoryAssignmentMap = assignmentMaps.byCategoryId.get(category.id);
+  const match = enrichOperationalBracketMatch({
+    match: rawBracketMatch,
+    teamSummaryMap,
+    assignmentMaps,
+    categoryAssignmentMap,
+    checkinsByKey: buildCheckinMap(checkins, staffProfiles),
+    qrTokenByKey: buildQrTokenMap(qrTokens),
+  });
+  const canAccess =
+    isManager ||
+    match.referee_assignment?.auth_user_id === staff.authUserId ||
+    match.assistant_assignment?.auth_user_id === staff.authUserId;
+
+  if (!canAccess) {
+    return null;
+  }
+
+  return {
+    category: {
+      category,
+      bracket: {
+        bracket,
+        rounds: round ? [{ round, matches: [] }] : [],
+      },
+    },
+    round: round ?? undefined,
+    match,
+    canSubmitResult: isManager || match.referee_assignment?.auth_user_id === staff.authUserId,
+    canCheckIn: isManager || match.assistant_assignment?.auth_user_id === staff.authUserId,
+  };
 }
 
 export async function getOperationalTeamById(staff: StaffContext, teamId: string) {
-  const adminData = await getAdminScoreboardData();
+  const base = await getActiveTournamentData();
+  const team = base.teams.find((item) => item.id === teamId);
 
-  for (const category of adminData.categories) {
-    const team = category.teams.find((item) => item.id === teamId);
-
-    if (!team) {
-      continue;
-    }
-
-    const relatedCategoryMatches = category.matches.filter(
-      (match) => match.home_team.id === teamId || match.away_team.id === teamId,
-    );
-    const relatedBracketMatches = (category.bracket?.rounds ?? []).flatMap((round) =>
-      round.matches.filter((match) => match.home_team?.id === teamId || match.away_team?.id === teamId),
-    );
-
-    const canAccess =
-      isManagementRole(staff.profile.role) ||
-      relatedCategoryMatches.some(
-        (match) =>
-          match.referee_assignment?.auth_user_id === staff.authUserId ||
-          match.assistant_assignment?.auth_user_id === staff.authUserId,
-      ) ||
-      relatedBracketMatches.some(
-        (match) =>
-          match.referee_assignment?.auth_user_id === staff.authUserId ||
-          match.assistant_assignment?.auth_user_id === staff.authUserId,
-      );
-
-    return canAccess
-      ? {
-          team,
-          category: category.category,
-          categoryMatches: relatedCategoryMatches,
-          bracketMatches: relatedBracketMatches,
-        }
-      : null;
+  if (!team) {
+    return null;
   }
 
-  return null;
+  const category = base.categories.find((item) => item.id === team.category_id);
+
+  if (!category) {
+    return null;
+  }
+
+  const [{ data: categoryMatches }, { data: brackets }] = await Promise.all([
+    supabaseAdmin
+      .from("category_matches")
+      .select("*")
+      .eq("category_id", category.id)
+      .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+      .returns<CategoryMatchRow[]>(),
+    supabaseAdmin
+      .from("category_brackets")
+      .select("*")
+      .eq("category_id", category.id)
+      .returns<CategoryBracketRow[]>(),
+  ]);
+  const bracketIds = (brackets ?? []).map((bracket) => bracket.id);
+  const [{ data: bracketRows }, { data: bracketMatches }, { data: teamQrTokens }] = await Promise.all([
+    bracketIds.length
+      ? supabaseAdmin
+          .from("bracket_rounds")
+          .select("*")
+          .in("bracket_id", bracketIds)
+          .returns<BracketRoundRow[]>()
+      : Promise.resolve({ data: [] as BracketRoundRow[] }),
+    bracketIds.length
+      ? supabaseAdmin
+          .from("bracket_matches")
+          .select("*")
+          .in("bracket_id", bracketIds)
+          .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+          .returns<BracketMatchRow[]>()
+      : Promise.resolve({ data: [] as BracketMatchRow[] }),
+    supabaseAdmin
+      .from("match_qr_tokens")
+      .select("*")
+      .eq("is_active", true)
+      .eq("resource_type", "team")
+      .eq("resource_id", teamId)
+      .returns<MatchQrTokenRow[]>(),
+  ]);
+  const scopedAssignments = await getScopedAssignments({
+    tournamentId: category.tournament_id,
+    categoryIds: [category.id],
+    categoryMatchIds: (categoryMatches ?? []).map((match) => match.id),
+    bracketMatchIds: (bracketMatches ?? []).map((match) => match.id),
+  });
+  const [staffProfiles, checkins, matchQrTokens] = await Promise.all([
+    getStaffProfilesForAssignments(scopedAssignments),
+    getScopedTeamCheckins({
+      categoryMatchIds: (categoryMatches ?? []).map((match) => match.id),
+      bracketMatchIds: (bracketMatches ?? []).map((match) => match.id),
+    }),
+    getScopedMatchQrTokens({
+      categoryMatchIds: (categoryMatches ?? []).map((match) => match.id),
+      bracketMatchIds: (bracketMatches ?? []).map((match) => match.id),
+    }),
+  ]);
+  const assignmentMaps = buildAssignmentMaps(scopedAssignments, staffProfiles);
+  const categoryAssignmentMap = assignmentMaps.byCategoryId.get(category.id);
+  const teamSummaryMap = buildTeamSummaryMap(base.teams);
+  const checkinsByKey = buildCheckinMap(checkins, staffProfiles);
+  const qrTokenByKey = buildQrTokenMap([...matchQrTokens, ...(teamQrTokens ?? [])]);
+  const relatedCategoryMatches = (categoryMatches ?? []).map((match) =>
+    enrichOperationalCategoryMatch({
+      match,
+      teamSummaryMap,
+      assignmentMaps,
+      categoryAssignmentMap,
+      checkinsByKey,
+      qrTokenByKey,
+    }),
+  );
+  const relatedBracketMatches = (bracketMatches ?? []).map((match) =>
+    enrichOperationalBracketMatch({
+      match,
+      teamSummaryMap,
+      assignmentMaps,
+      categoryAssignmentMap,
+      checkinsByKey,
+      qrTokenByKey,
+    }),
+  );
+  const canAccess =
+    isManagementRole(staff.profile.role) ||
+    relatedCategoryMatches.some(
+      (match) =>
+        match.referee_assignment?.auth_user_id === staff.authUserId ||
+        match.assistant_assignment?.auth_user_id === staff.authUserId,
+    ) ||
+    relatedBracketMatches.some(
+      (match) =>
+        match.referee_assignment?.auth_user_id === staff.authUserId ||
+        match.assistant_assignment?.auth_user_id === staff.authUserId,
+    );
+
+  if (!canAccess) {
+    return null;
+  }
+
+  return {
+    team: {
+      ...team,
+      qr_token: qrTokenByKey.get(`team:${team.id}`) ?? null,
+    },
+    category,
+    bracketRounds: bracketRows ?? [],
+    categoryMatches: relatedCategoryMatches,
+    bracketMatches: relatedBracketMatches,
+  };
 }
 
 export async function getPublicMatchByToken(input: {
