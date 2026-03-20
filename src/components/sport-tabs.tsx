@@ -90,12 +90,7 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
   return (
     <div>
       {/* Sticky sport tabs */}
-      <div
-        className="public-ticker"
-        style={{
-          top: "3.9rem",
-        }}
-      >
+      <div className="public-ticker">
         <div className="public-wrap">
           <div
             className="public-ticker__inner"
@@ -155,15 +150,14 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
           <SectionHeader
             eyebrow="Clasificación"
             title="Clasificación"
-            description="Consulta las categorías del deporte activo y entra en el detalle de cada una."
+            description="Consulta las categorías publicadas y entra en el detalle de cada una."
             action={filteredCategories.length > 0 ? (
               <div className="section-surface public-sport-cta">
                 <div className="public-sport-cta__copy">
-                  <p className="public-kicker">{activeSport}</p>
                   <p className="mt-3 text-lg font-semibold text-white">
                     {hasTeamsInSport
                       ? "La inscripción sigue abierta."
-                      : `La inscripción está abierta para ${activeSport}.`}
+                      : "La inscripción está abierta."}
                   </p>
                   <p className="mt-2 text-sm leading-7 text-[#b7c2b0]">
                     {filteredCategories.length} categorías · {totalTeamsInSport} equipos inscritos ·{" "}
@@ -175,14 +169,6 @@ export function SportTabs({ categories, sports }: SportTabsProps) {
                     Inscribir equipo
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
-                  <div className="public-sport-cta__meta">
-                    {filteredCategories.map((category) => (
-                      <span key={category.category.id} className="public-mini-chip">
-                        {category.category.name} ·{" "}
-                        {Math.max(category.category.max_teams - category.teams.length, 0)} libres
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
             ) : null}

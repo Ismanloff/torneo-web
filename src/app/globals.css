@@ -1877,8 +1877,10 @@ textarea {
 }
 
 .public-ticker {
-  position: relative;
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 4.5rem);
   z-index: 20;
+  margin: 1.5rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(11, 18, 14, 0.95), rgba(13, 20, 16, 0.9));
   backdrop-filter: blur(14px);
@@ -1891,7 +1893,7 @@ textarea {
   align-items: center;
   width: 100%;
   gap: 0.8rem;
-  padding: 1rem 0 0.95rem;
+  padding: 0.8rem 0;
 }
 
 .public-editorial-grid {
