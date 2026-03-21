@@ -4,7 +4,6 @@ import { ChevronLeft, CircleAlert, Landmark, Users } from "lucide-react";
 
 import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
-import { MetricStrip } from "@/components/surface-primitives";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ALLOWED_SPORT_LABELS, isAllowedSport, normalizeSportName } from "@/lib/allowed-sports";
 import {
@@ -98,8 +97,6 @@ export default async function RegistroPage() {
     }
   }
 
-  const totalRemainingSlots = categoryData.reduce((sum, category) => sum + category.remaining, 0);
-
   return (
     <main className="public-arena">
       <div className="public-shell">
@@ -144,16 +141,6 @@ export default async function RegistroPage() {
                 </p>
               </article>
 
-              <aside className="section-surface p-5 lg:p-6">
-                <MetricStrip
-                  className="metric-strip--compact"
-                  items={[
-                    { label: "Deportes", value: sportGroups.length, meta: "Disponibles", tone: "accent" },
-                    { label: "Categorías", value: categoryData.length, meta: "Abiertas", tone: "neutral" },
-                    { label: "Plazas", value: totalRemainingSlots, meta: "Todavía libres", tone: "info" },
-                  ]}
-                />
-              </aside>
             </div>
 
             <div className="public-payment-banner mt-6 lg:mt-8">

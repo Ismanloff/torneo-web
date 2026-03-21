@@ -5,7 +5,7 @@ import { BracketTree } from "@/components/bracket-tree";
 import { MatchList } from "@/components/match-list";
 import { PublicPageShell } from "@/components/public-page-shell";
 import { ScoreboardTable } from "@/components/scoreboard-table";
-import { EmptyStatePanel, MetricStrip, StatusPill } from "@/components/surface-primitives";
+import { EmptyStatePanel, StatusPill } from "@/components/surface-primitives";
 import { getScoreboardHomeData } from "@/lib/supabase/queries";
 
 type CategoryPageProps = {
@@ -54,26 +54,17 @@ export default async function CategoryScoreboardPage({ params }: CategoryPagePro
       backLabel="Volver a clasificación"
       compactHero
       actions={
-        <div className="grid gap-4">
-          <MetricStrip
-            className="metric-strip--compact"
-            items={[
-              { label: "Equipos", value: category.teams.length, meta: "Registrados", tone: "accent" },
-              { label: "Partidos", value: category.matches.length, meta: "Calendario", tone: "neutral" },
-            ]}
-          />
-          <div className="row-surface p-4">
-            <p className="text-sm leading-7 text-[#b7c2b0]">
-              Consulta la clasificación, los partidos y el cuadro de esta categoría.
-            </p>
-            {category.bracket ? (
-              <div className="mt-4">
-                <Link className="public-action public-action--ghost" href={`/cuadro/${category.category.id}`}>
-                  Ver cuadro eliminatorio
-                </Link>
-              </div>
-            ) : null}
-          </div>
+        <div className="row-surface p-4">
+          <p className="text-sm leading-7 text-[#b7c2b0]">
+            Consulta la clasificación, los partidos y el cuadro de esta categoría.
+          </p>
+          {category.bracket ? (
+            <div className="mt-4">
+              <Link className="public-action public-action--ghost" href={`/cuadro/${category.category.id}`}>
+                Ver cuadro eliminatorio
+              </Link>
+            </div>
+          ) : null}
         </div>
       }
     >
