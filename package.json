@@ -9,7 +9,18 @@
     "lint": "eslint",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:unit:docker": "TEST_ENV_FILE=.env.local.docker vitest run",
+    "test:e2e:docker": "TEST_ENV_FILE=.env.local.docker playwright test",
+    "test:docker": "npm run db:local:bootstrap && npm run db:local:env:write && npm run test:unit:docker && npm run test:e2e:docker",
+    "db:local:start": "supabase start",
+    "db:local:stop": "supabase stop",
+    "db:local:reset": "supabase db reset",
+    "db:local:status": "supabase status",
+    "db:local:env": "supabase status -o env",
+    "db:local:env:write": "node scripts/write-docker-env.mjs",
+    "db:local:seed:export": "node scripts/export-supabase-seed.mjs",
+    "db:local:bootstrap": "bash scripts/bootstrap-local-supabase.sh"
   },
   "overrides": {
     "flatted": "^3.4.2"

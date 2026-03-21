@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { InstallAppNavButton } from "@/components/install-app-nav-button";
 import { PublicAgeGroupsSidebarCard } from "@/components/public-age-groups";
 import { MobileNavToggle } from "@/components/mobile-nav-toggle";
 
@@ -29,6 +30,7 @@ export function PublicSiteNav() {
             {item.label}
           </Link>
         ))}
+        <InstallAppNavButton />
       </MobileNavToggle>
     </>
   );

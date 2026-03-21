@@ -1,0 +1,3 @@
+-- Base local seed placeholder.
+-- Real local snapshots should be generated into supabase/seeds/999_local_snapshot.sql
+-- via `npm run db:local:seed:export`.

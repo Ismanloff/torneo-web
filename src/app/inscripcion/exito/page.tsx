@@ -6,6 +6,7 @@ import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
 import { QrTile } from "@/components/qr-tile";
 import { getRegistrationSuccessFlash } from "@/lib/flash-state";
+import { REGISTRATION_PAYMENT_SUCCESS_COPY } from "@/lib/registration-payment";
 import { getPublicTeamByToken } from "@/lib/supabase/queries";
 import { maskEmailAddress } from "@/lib/security";
 import { buildPublicQrTargetPath, buildQrShareUrl } from "@/lib/utils";
@@ -155,6 +156,13 @@ export default async function ExitoPage({ searchParams }: ExitoPageProps) {
                     El QR todavía no está disponible. Si acabas de terminar la inscripción, recarga esta pantalla en unos segundos.
                   </div>
                 )}
+
+                <div className="public-soft mt-5 border border-[rgba(141,246,95,0.18)] bg-[rgba(84,209,43,0.08)] p-4 text-left">
+                  <p className="text-sm font-semibold text-white">Importe pendiente el día del torneo</p>
+                  <p className="mt-2 text-sm leading-6 text-[#dbe7f8]">
+                    {REGISTRATION_PAYMENT_SUCCESS_COPY}
+                  </p>
+                </div>
               </div>
             </div>
 

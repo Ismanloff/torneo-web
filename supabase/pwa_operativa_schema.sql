@@ -2,7 +2,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists public.staff_profiles (
   id uuid primary key default gen_random_uuid(),
-  auth_user_id uuid unique references auth.users(id) on delete set null,
+  auth_user_id uuid unique,
   email text not null unique,
   full_name text not null,
   role text not null check (role in ('superadmin', 'admin', 'referee', 'assistant')),

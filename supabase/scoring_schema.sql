@@ -25,6 +25,12 @@ create table if not exists public.category_matches (
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  phase text not null default 'league'
+    check (phase in ('group', 'league', 'placement', 'friendly')),
+  group_label text
+    check (group_label is null or group_label in ('A', 'B')),
+  counts_for_standings boolean not null default true,
+  schedule_run_id uuid references public.category_schedule_runs(id) on delete set null,
   constraint category_matches_distinct_teams_check check (home_team_id <> away_team_id),
   constraint category_matches_completed_scores_check check (
     (status = 'completed' and home_score is not null and away_score is not null)

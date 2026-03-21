@@ -14,6 +14,7 @@ const INSTALL_DISMISSED_KEY = "torneo-install-dismissed-until";
 const HOME_VISIT_COUNT_KEY = "torneo-home-visit-count";
 const INSTALL_INTEREST_KEY = "torneo-install-interest";
 const AUTO_UPDATE_RELOAD_KEY = "torneo-auto-update-version";
+export const OPEN_INSTALL_PROMPT_EVENT = "torneo:pwa-open-install";
 const INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 14;
 const SHORT_INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 3;
 const INSTALL_SCROLL_THRESHOLD = 320;
@@ -155,6 +156,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       ? false
       : window.localStorage.getItem(INSTALL_INTEREST_KEY) === "1",
   );
+  const [forceInstallPrompt, setForceInstallPrompt] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateDismissed, setUpdateDismissed] = useState(false);
 
@@ -337,6 +339,27 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   }, [isStandalone, pathname]);
 
   useEffect(() => {
+    const handleOpenInstallPrompt = () => {
+      window.localStorage.removeItem(INSTALL_DISMISSED_KEY);
+      markInstallInterest();
+      setInstallDismissed(false);
+      setHasInstallInterest(true);
+      setForceInstallPrompt(true);
+      trackPwaEvent("install_prompt_shown", {
+        platform,
+        direct: Boolean(installEvent),
+        source: "menu",
+      });
+    };
+
+    window.addEventListener(OPEN_INSTALL_PROMPT_EVENT, handleOpenInstallPrompt);
+
+    return () => {
+      window.removeEventListener(OPEN_INSTALL_PROMPT_EVENT, handleOpenInstallPrompt);
+    };
+  }, [installEvent, platform]);
+
+  useEffect(() => {
     if (!("serviceWorker" in navigator)) {
       return;
     }
@@ -376,8 +399,15 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       event.preventDefault();
       setInstallEvent(event as BeforeInstallPromptEvent);
     };
+    const handleAppInstalled = () => {
+      setInstallEvent(null);
+      setForceInstallPrompt(false);
+      persistInstallDismiss(INSTALL_DISMISS_TTL);
+      setInstallDismissed(true);
+    };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
 
     const handleControllerChange = () => {
       if (
@@ -464,6 +494,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
       registrationCleanup?.();
@@ -497,13 +528,15 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     };
   }, [checkDeploymentVersion]);
 
+  const canExplainInstall =
+    Boolean(installEvent) || platform === "ios-safari" || platform === "ios-other" || platform === "android";
   const shouldShowInstallPrompt =
-    pathname === "/" &&
+    (pathname === "/" || forceInstallPrompt) &&
     !installDismissed &&
     !isStandalone &&
     isMobileViewport &&
-    (visitCount >= 2 || hasInstallInterest) &&
-    (Boolean(installEvent) || platform === "ios-safari" || platform === "ios-other" || platform === "android");
+    (forceInstallPrompt || visitCount >= 2 || hasInstallInterest) &&
+    canExplainInstall;
 
   const isDirectInstall = Boolean(installEvent);
   const isIosInstall = platform === "ios-safari" || platform === "ios-other";
@@ -534,6 +567,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
   const dismissInstallPrompt = (ttl = INSTALL_DISMISS_TTL) => {
     persistInstallDismiss(ttl);
     setInstallDismissed(true);
+    setForceInstallPrompt(false);
     trackPwaEvent("install_prompt_dismissed", { platform, ttl });
   };
 
@@ -576,6 +610,7 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
                   await installEvent.prompt();
                   const choice = await installEvent.userChoice.catch(() => null);
                   setInstallEvent(null);
+                  setForceInstallPrompt(false);
 
                   if (choice?.outcome === "accepted") {
                     trackPwaEvent("install_prompt_accepted", { platform });

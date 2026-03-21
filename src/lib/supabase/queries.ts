@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomBytes } from "node:crypto";
+
 import { cache } from "react";
 
 import { ALLOWED_SPORT_LABELS, isAllowedSport } from "@/lib/allowed-sports";
@@ -1747,6 +1749,44 @@ export async function touchQrToken(token: string) {
     .eq("token", token);
 }
 
+async function ensureActiveTeamQrToken(teamId: string) {
+  const { data: existingToken, error: lookupError } = await supabaseAdmin
+    .from("match_qr_tokens")
+    .select("*")
+    .eq("resource_type", "team")
+    .eq("resource_id", teamId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MatchQrTokenRow>();
+
+  if (lookupError) {
+    throw new Error(lookupError.message);
+  }
+
+  if (existingToken) {
+    return existingToken;
+  }
+
+  const token = randomBytes(18).toString("base64url");
+  const { data: insertedToken, error: insertError } = await supabaseAdmin
+    .from("match_qr_tokens")
+    .insert({
+      token,
+      resource_type: "team",
+      resource_id: teamId,
+      is_active: true,
+    })
+    .select("*")
+    .single<MatchQrTokenRow>();
+
+  if (insertError || !insertedToken) {
+    throw new Error(insertError?.message ?? "No se pudo crear el QR del equipo.");
+  }
+
+  return insertedToken;
+}
+
 export async function confirmParentalAuthorization(input: {
   token: string;
   parentName: string;
@@ -1794,6 +1834,8 @@ export async function confirmParentalAuthorization(input: {
   if (updateTeamError) {
     throw new Error(updateTeamError.message);
   }
+
+  await ensureActiveTeamQrToken(confirmation.team.id);
 
   return {
     message: "La autorizacion se ha registrado correctamente.",

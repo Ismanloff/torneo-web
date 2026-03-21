@@ -1,7 +1,7 @@
 import { config as loadEnv } from "dotenv";
 import { defineConfig } from "@playwright/test";
 
-loadEnv({ path: ".env.local" });
+loadEnv({ path: process.env.TEST_ENV_FILE || ".env.local" });
 
 const playwrightBaseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3101";
 

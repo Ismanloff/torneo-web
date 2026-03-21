@@ -12,18 +12,31 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [isPending, startTransition] = useTransition();
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const lastSubmittedPinRef = useRef<string | null>(null);
 
   useEffect(() => {
     refs.current[0]?.focus();
   }, [error]);
 
-  const submit = useCallback((pin: string) => {
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("pin", pin);
-      await loginWithPinAction(fd);
-    });
-  }, []);
+  useEffect(() => {
+    if (digits.every((digit) => digit.length === 1)) {
+      const pin = digits.join("");
+
+      if (lastSubmittedPinRef.current === pin) {
+        return;
+      }
+
+      lastSubmittedPinRef.current = pin;
+      startTransition(async () => {
+        const fd = new FormData();
+        fd.set("pin", pin);
+        await loginWithPinAction(fd);
+      });
+      return;
+    }
+
+    lastSubmittedPinRef.current = null;
+  }, [digits, startTransition]);
 
   const handleChange = useCallback(
     (index: number, value: string) => {
@@ -33,10 +46,6 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
         const next = [...prev];
         next[index] = digit;
 
-        if (digit && index === 5 && next.every((d) => d.length === 1)) {
-          submit(next.join(""));
-        }
-
         return next;
       });
 
@@ -44,7 +53,7 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
         refs.current[index + 1]?.focus();
       }
     },
-    [submit],
+    [],
   );
 
   const handleKeyDown = useCallback(
@@ -73,13 +82,11 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
 
       setDigits(next);
 
-      if (pasted.length === 6) {
-        submit(pasted);
-      } else {
+      if (pasted.length < 6) {
         refs.current[pasted.length]?.focus();
       }
     },
-    [submit],
+    [],
   );
 
   const filledCount = digits.filter((d) => d).length;

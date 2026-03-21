@@ -1,0 +1,9 @@
+# Supabase
+.branches
+.temp
+seeds/999_local_snapshot.sql
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local

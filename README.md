@@ -90,3 +90,34 @@ Regla de seguridad:
 - no documentar ni versionar el valor real de `ADMIN_ACCESS_KEY`
 - el valor debe guardarse solo en variables de entorno del entorno local o de producción
 - si hace falta compartirlo con alguien, hacerlo fuera del repositorio y rotarlo si se ha expuesto
+
+## Réplica local con Docker
+
+La forma recomendada de montar una réplica local es usar Supabase CLI, que levanta el stack en Docker y expone Postgres, API, Auth, Studio e Inbucket.
+
+Pasos:
+
+1. Exporta un snapshot local de datos desde el proyecto actual:
+   - `npm run db:local:seed:export`
+2. Arranca el stack y aplica esquema + snapshot con el bootstrap local:
+   - `npm run db:local:bootstrap`
+3. Obtén las variables locales del stack:
+   - `npm run db:local:env`
+4. Genera un entorno de app/tests apuntando al Supabase local:
+   - `npm run db:local:env:write`
+
+Notas:
+
+- El snapshot se genera en `supabase/seeds/999_local_snapshot.sql`.
+- Ese archivo queda fuera de git para no versionar datos reales.
+- La réplica usa el esquema SQL del repo y una semilla exportada desde tu proyecto Supabase actual.
+- `npm run db:local:start` solo levanta los contenedores. El comando que deja la base lista para usar es `npm run db:local:bootstrap`.
+- Si quieres refrescar la réplica antes de otro ensayo, vuelve a exportar el seed y ejecuta `npm run db:local:bootstrap`.
+
+### Tests sobre la réplica local
+
+Una vez generado `.env.local.docker`, puedes ejecutar la suite contra Docker sin tocar tu `.env.local` habitual:
+
+- Unit: `npm run test:unit:docker`
+- E2E: `npm run test:e2e:docker`
+- Flujo completo: `npm run test:docker`

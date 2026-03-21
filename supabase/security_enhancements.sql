@@ -43,7 +43,10 @@ create index if not exists team_checkins_team_scope_idx
 alter table if exists public.push_subscriptions enable row level security;
 
 -- Staff can only read/manage their own push subscriptions
-create policy if not exists "staff_own_push_subscriptions"
+drop policy if exists "staff_own_push_subscriptions"
+on public.push_subscriptions;
+
+create policy "staff_own_push_subscriptions"
   on public.push_subscriptions
   for all
   using (staff_user_id = auth.uid())
@@ -155,8 +158,10 @@ revoke execute on function public.register_team_atomic(
 
 -- Staff members can read their own audit entries in addition to the
 -- existing admin-only policy defined in pwa_operativa_schema.sql.
--- Uses "if not exists" so it is safe to re-run.
-create policy if not exists "staff_read_own_audit"
+drop policy if exists "staff_read_own_audit"
+on public.match_result_audit;
+
+create policy "staff_read_own_audit"
   on public.match_result_audit
   for select
   using (actor_user_id = auth.uid());

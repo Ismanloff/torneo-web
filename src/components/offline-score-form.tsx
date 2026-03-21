@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Settings2, Wifi, WifiOff } from "lucide-react";
 
@@ -44,6 +44,24 @@ async function requestOfflineScoreSync() {
   registration.active?.postMessage({ type: "sync-offline-scores" });
 }
 
+function subscribeToOnlineStatus(onStoreChange: () => void) {
+  window.addEventListener("online", onStoreChange);
+  window.addEventListener("offline", onStoreChange);
+
+  return () => {
+    window.removeEventListener("online", onStoreChange);
+    window.removeEventListener("offline", onStoreChange);
+  };
+}
+
+function getOnlineStatusSnapshot() {
+  return navigator.onLine;
+}
+
+function getOnlineStatusServerSnapshot() {
+  return true;
+}
+
 export function OfflineScoreForm({
   matchId,
   matchScope,
@@ -62,8 +80,10 @@ export function OfflineScoreForm({
 }: OfflineScoreFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [isOnline, setIsOnline] = useState(() =>
-    typeof navigator !== "undefined" ? navigator.onLine : true,
+  const isOnline = useSyncExternalStore(
+    subscribeToOnlineStatus,
+    getOnlineStatusSnapshot,
+    getOnlineStatusServerSnapshot,
   );
   const [syncState, setSyncState] = useState<"idle" | "pending" | "syncing" | "synced">("idle");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -71,19 +91,6 @@ export function OfflineScoreForm({
   const [locationValue, setLocationValue] = useState(currentLocation ?? "");
   const [notesValue, setNotesValue] = useState(currentNotes ?? "");
   const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    const goOnline = () => setIsOnline(true);
-    const goOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", goOnline);
-    window.addEventListener("offline", goOffline);
-
-    return () => {
-      window.removeEventListener("online", goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
-  }, []);
 
   // Listen for sync-complete messages from the service worker
   useEffect(() => {
