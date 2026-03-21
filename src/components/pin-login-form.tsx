@@ -15,6 +15,15 @@ export function PinLoginForm({ error }: PinLoginFormProps) {
   const lastSubmittedPinRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    // Avoid auto-focus on touch devices, which can trigger keyboard zoom/reflow on first load.
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      return;
+    }
+
     refs.current[0]?.focus();
   }, [error]);
 
