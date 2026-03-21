@@ -86,15 +86,17 @@ describe("sendRegistrationEmail", () => {
     expect(result).toEqual({ status: "sent" });
     expect(toBufferMock).toHaveBeenCalledWith(
       expect.stringContaining("/q/token-prueba"),
-      expect.objectContaining({ width: 480 }),
+      expect.objectContaining({ width: 320 }),
     );
     expect(sendMock).toHaveBeenCalledTimes(1);
     expect(sendMock).toHaveBeenCalledWith(
       expect.objectContaining({
         from: "torneo@example.com",
         to: "capitan@example.com",
+        replyTo: "torneo@example.com",
         subject: expect.stringContaining("Las Aguilas"),
         html: expect.stringContaining("5 € en efectivo el día del torneo"),
+        text: expect.stringContaining("Pago:"),
         attachments: [
           expect.objectContaining({
             filename: "qr-las-aguilas-ab12.png",

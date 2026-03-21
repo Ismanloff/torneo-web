@@ -6,7 +6,7 @@ import {
   TOURNAMENT_NAME,
 } from "@/lib/branding";
 import { REGISTRATION_PAYMENT_EMAIL_COPY } from "@/lib/registration-payment";
-import { buildPublicQrTargetUrl } from "@/lib/utils";
+import { buildPublicQrTargetUrl, buildQrShareUrl } from "@/lib/utils";
 
 export type RegistrationEmailInput = {
   to: string;
@@ -34,6 +34,47 @@ function resolveSchoolName(input: RegistrationEmailInput) {
   return input.schoolName ?? (input.ageGroup === "14-17 años" ? "Colegio Mater" : "Colegio Fátima");
 }
 
+export function buildRegistrationEmailText(input: RegistrationEmailInput) {
+  const schoolName = resolveSchoolName(input);
+  const teamPanelUrl = buildPublicQrTargetUrl({
+    resource_id: input.teamId,
+    resource_type: "team",
+    token: input.qrToken,
+  });
+  const qrAccessUrl = buildQrShareUrl(input.qrToken);
+
+  return [
+    `${TOURNAMENT_NAME}`,
+    "",
+    `Hola ${input.captainName},`,
+    "",
+    "Tu equipo ya tiene plaza en el torneo.",
+    "",
+    `Equipo: ${input.teamName}`,
+    `Deporte: ${input.sport}`,
+    `Categoría: ${input.categoryName}`,
+    `Edad: ${input.ageGroup}`,
+    `Colegio asignado: ${schoolName}`,
+    `Código de registro: ${input.registrationCode}`,
+    `Horario del torneo: ${TOURNAMENT_EVENT_DATE_LABEL} · ${TOURNAMENT_EVENT_WINDOW_LABEL}`,
+    `Lugar: ${TOURNAMENT_EVENT_VENUE}`,
+    "",
+    `Pago: ${REGISTRATION_PAYMENT_EMAIL_COPY}`,
+    "",
+    "Panel privado del equipo:",
+    teamPanelUrl,
+    "",
+    "QR oficial del equipo:",
+    qrAccessUrl,
+    "",
+    "Plan del día:",
+    `- Presentación general: ${TOURNAMENT_EVENT_DATE_LABEL} a las ${TOURNAMENT_EVENT_START_LABEL}.`,
+    `- Sede: ${TOURNAMENT_EVENT_VENUE}.`,
+    `- Ventana operativa: ${TOURNAMENT_EVENT_WINDOW_LABEL}.`,
+    `- El QR del correo se escaneará en acreditación antes de jugar.`,
+  ].join("\n");
+}
+
 export function buildRegistrationEmailHtml(input: RegistrationEmailInput) {
   const schoolName = resolveSchoolName(input);
   const teamPanelUrl = buildPublicQrTargetUrl({
@@ -50,83 +91,61 @@ export function buildRegistrationEmailHtml(input: RegistrationEmailInput) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Inscripción confirmada</title>
 </head>
-<body style="margin:0;padding:0;background:#f2ede7;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#08131e;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2ede7;padding:26px 10px;">
+<body style="margin:0;padding:0;background:#f5f5f2;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#142018;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f2;padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#07111d;border-radius:30px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 24px 80px rgba(2,6,23,0.24);">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d9dfd2;">
           <tr>
-            <td style="padding:36px 34px 30px;background:
-              radial-gradient(circle at top right, rgba(132,239,83,0.28), transparent 32%),
-              radial-gradient(circle at bottom left, rgba(66,193,255,0.18), transparent 25%),
-              linear-gradient(180deg,#07111d 0%,#0c1b28 100%);
-              color:#f8fafc;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding-bottom:18px;">
-                    <span style="display:inline-block;padding:10px 16px;border-radius:999px;border:1px solid rgba(132,239,83,0.22);background:rgba(132,239,83,0.12);font-size:12px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:#d9ffc8;">
-                      Registro confirmado
-                    </span>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <h1 style="margin:0;font-size:44px;line-height:0.96;letter-spacing:0.02em;color:#f8fafc;">${escapeHtml(TOURNAMENT_NAME)}</h1>
-                    <p style="margin:16px 0 0;font-size:18px;line-height:1.6;color:#a8b7d2;">
-                      18 de abril a las ${escapeHtml(TOURNAMENT_EVENT_START_LABEL)} · ${escapeHtml(TOURNAMENT_EVENT_VENUE)}
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding:30px 28px 18px;background:#102016;color:#ffffff;">
+              <p style="margin:0 0 10px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#d9edc6;">
+                Inscripción confirmada
+              </p>
+              <h1 style="margin:0;font-size:32px;line-height:1.05;color:#ffffff;">${escapeHtml(TOURNAMENT_NAME)}</h1>
+              <p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:#d3dfd0;">
+                ${escapeHtml(TOURNAMENT_EVENT_DATE_LABEL)} · ${escapeHtml(TOURNAMENT_EVENT_START_LABEL)} · ${escapeHtml(TOURNAMENT_EVENT_VENUE)}
+              </p>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:32px 34px 10px;background:#07111d;color:#f8fafc;">
-              <p style="margin:0 0 14px;font-size:17px;line-height:1.6;color:#f8fafc;">
+            <td style="padding:28px 28px 8px;background:#ffffff;color:#142018;">
+              <p style="margin:0 0 14px;font-size:17px;line-height:1.6;color:#142018;">
                 Hola <strong>${escapeHtml(input.captainName)}</strong>,
               </p>
-              <p style="margin:0;font-size:16px;line-height:1.85;color:#a8b7d2;">
-                Tu equipo ya tiene plaza en el torneo. Te dejamos su acceso privado, el QR oficial para el check-in y toda la logística del día para que no dependas de ningún otro mensaje.
+              <p style="margin:0;font-size:16px;line-height:1.8;color:#435247;">
+                Tu equipo ya tiene plaza en el torneo. Este correo incluye el acceso privado del equipo, el QR oficial para el check-in y la información práctica del día.
               </p>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:18px 34px 0;background:#07111d;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.08);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.03));">
+            <td style="padding:18px 28px 0;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9dfd2;border-radius:16px;background:#fbfcf8;">
                 <tr>
                   <td style="padding:24px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding:0 0 18px;font-size:12px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fb3d9;">Equipo inscrito</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:0 0 8px;font-size:34px;line-height:1;color:#f8fafc;font-weight:700;">${escapeHtml(input.teamName)}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:0 0 22px;font-size:15px;line-height:1.7;color:#a8b7d2;">${escapeHtml(input.sport)} · ${escapeHtml(input.categoryName)} · ${escapeHtml(input.ageGroup)}</td>
-                      </tr>
-                    </table>
+                    <p style="margin:0 0 16px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#5b6f60;">Equipo inscrito</p>
+                    <p style="margin:0 0 8px;font-size:28px;line-height:1.1;color:#142018;font-weight:700;">${escapeHtml(input.teamName)}</p>
+                    <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#435247;">${escapeHtml(input.sport)} · ${escapeHtml(input.categoryName)} · ${escapeHtml(input.ageGroup)}</p>
 
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#8fa1c2;width:148px;">Código de registro</td>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);">
-                          <span style="display:inline-block;padding:8px 14px;border-radius:12px;background:linear-gradient(135deg,#b8ff79 0%,#54d12b 100%);color:#051006;font-size:15px;font-weight:800;letter-spacing:0.14em;">${escapeHtml(input.registrationCode)}</span>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:13px;color:#5b6f60;width:150px;">Código de registro</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;">
+                          <span style="display:inline-block;padding:7px 12px;border-radius:10px;background:#dff0ce;color:#142018;font-size:14px;font-weight:800;letter-spacing:0.12em;">${escapeHtml(input.registrationCode)}</span>
                         </td>
                       </tr>
                       <tr>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#8fa1c2;">Colegio asignado</td>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:15px;color:#f8fafc;">${escapeHtml(schoolName)}</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:13px;color:#5b6f60;">Colegio asignado</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:15px;color:#142018;">${escapeHtml(schoolName)}</td>
                       </tr>
                       <tr>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#8fa1c2;">Horario del torneo</td>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:15px;color:#f8fafc;">${escapeHtml(TOURNAMENT_EVENT_DATE_LABEL)} · ${escapeHtml(TOURNAMENT_EVENT_WINDOW_LABEL)}</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:13px;color:#5b6f60;">Horario del torneo</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:15px;color:#142018;">${escapeHtml(TOURNAMENT_EVENT_DATE_LABEL)} · ${escapeHtml(TOURNAMENT_EVENT_WINDOW_LABEL)}</td>
                       </tr>
                       <tr>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#8fa1c2;">Lugar</td>
-                        <td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:15px;color:#f8fafc;">${escapeHtml(TOURNAMENT_EVENT_VENUE)}</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:13px;color:#5b6f60;">Lugar</td>
+                        <td style="padding:12px 0;border-top:1px solid #d9dfd2;font-size:15px;color:#142018;">${escapeHtml(TOURNAMENT_EVENT_VENUE)}</td>
                       </tr>
                     </table>
                   </td>
@@ -136,12 +155,12 @@ export function buildRegistrationEmailHtml(input: RegistrationEmailInput) {
           </tr>
 
           <tr>
-            <td style="padding:18px 34px 0;background:#07111d;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(132,239,83,0.14);border-radius:22px;background:linear-gradient(180deg,rgba(132,239,83,0.08),rgba(255,255,255,0.02));">
+            <td style="padding:18px 28px 0;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d2e4bf;border-radius:16px;background:#f5faed;">
                 <tr>
                   <td style="padding:24px;">
-                    <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#cbffb8;">Importe de participación</p>
-                    <p style="margin:14px 0 0;font-size:16px;line-height:1.8;color:#f8fafc;">
+                    <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#51713e;">Importe de participación</p>
+                    <p style="margin:14px 0 0;font-size:16px;line-height:1.8;color:#142018;">
                       ${escapeHtml(REGISTRATION_PAYMENT_EMAIL_COPY)}
                     </p>
                   </td>
@@ -151,18 +170,18 @@ export function buildRegistrationEmailHtml(input: RegistrationEmailInput) {
           </tr>
 
           <tr>
-            <td style="padding:18px 34px 0;background:#07111d;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.08);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.03));">
+            <td style="padding:18px 28px 0;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9dfd2;border-radius:16px;background:#fbfcf8;">
                 <tr>
                   <td style="padding:24px;" align="center">
-                    <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fb3d9;">QR oficial del equipo</p>
-                    <p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:#a8b7d2;">
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#5b6f60;">QR oficial del equipo</p>
+                    <p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:#435247;">
                       Este es el QR que la organización escaneará el día del torneo para validar la llegada del equipo y habilitar su entrada a pista.
                     </p>
-                    <div style="display:inline-block;padding:14px;border-radius:24px;background:#f5efe3;">
-                      <img src="cid:team-qr" alt="Código QR del equipo" width="220" height="220" style="display:block;width:220px;height:220px;border:0;outline:none;text-decoration:none;" />
+                    <div style="display:inline-block;padding:12px;border-radius:18px;background:#ffffff;border:1px solid #d9dfd2;">
+                      <img src="cid:team-qr" alt="Código QR del equipo" width="180" height="180" style="display:block;width:180px;height:180px;border:0;outline:none;text-decoration:none;" />
                     </div>
-                    <p style="margin:18px auto 0;max-width:420px;font-size:13px;line-height:1.8;color:#8fa1c2;">
+                    <p style="margin:18px auto 0;max-width:420px;font-size:13px;line-height:1.8;color:#5b6f60;">
                       Si abres este correo desde el móvil, puedes enseñar el QR directamente desde aquí. También puedes usar tu código de registro si fuera necesario.
                     </p>
                   </td>
@@ -172,24 +191,24 @@ export function buildRegistrationEmailHtml(input: RegistrationEmailInput) {
           </tr>
 
           <tr>
-            <td style="padding:18px 34px 0;background:#07111d;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(132,239,83,0.14);border-radius:22px;background:linear-gradient(180deg,rgba(132,239,83,0.08),rgba(255,255,255,0.02));">
+            <td style="padding:18px 28px 0;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9dfd2;border-radius:16px;background:#ffffff;">
                 <tr>
                   <td style="padding:24px;">
-                    <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#cbffb8;">Tu panel privado</p>
-                    <p style="margin:14px 0 0;font-size:16px;line-height:1.8;color:#f8fafc;">
+                    <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#5b6f60;">Tu panel privado</p>
+                    <p style="margin:14px 0 0;font-size:16px;line-height:1.8;color:#142018;">
                       Este enlace es único para tu equipo. Desde ahí podrás revisar tu inscripción, el colegio asignado y el horario del torneo sin depender del código público.
                     </p>
                     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;">
                       <tr>
-                        <td align="center" style="border-radius:999px;background:linear-gradient(135deg,#b8ff79 0%,#54d12b 100%);">
-                          <a href="${escapeHtml(teamPanelUrl)}" style="display:inline-block;padding:15px 28px;border-radius:999px;font-size:14px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#051006;text-decoration:none;">
+                        <td align="center" style="border-radius:999px;background:#1d4d22;">
+                          <a href="${escapeHtml(teamPanelUrl)}" style="display:inline-block;padding:14px 24px;border-radius:999px;font-size:14px;font-weight:700;letter-spacing:0.06em;color:#ffffff;text-decoration:none;">
                             Abrir panel de mi equipo
                           </a>
                         </td>
                       </tr>
                     </table>
-                    <p style="margin:16px 0 0;font-size:12px;line-height:1.8;color:#8fa1c2;word-break:break-all;">
+                    <p style="margin:16px 0 0;font-size:12px;line-height:1.8;color:#5b6f60;word-break:break-all;">
                       Acceso privado: ${escapeHtml(teamPanelUrl)}
                     </p>
                   </td>
@@ -199,12 +218,12 @@ export function buildRegistrationEmailHtml(input: RegistrationEmailInput) {
           </tr>
 
           <tr>
-            <td style="padding:18px 34px 34px;background:#07111d;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(111,192,255,0.16);border-radius:22px;background:rgba(87,171,245,0.08);">
+            <td style="padding:18px 28px 28px;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9dfd2;border-radius:16px;background:#fbfcf8;">
                 <tr>
                   <td style="padding:24px;">
-                    <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9fd5ff;">Plan del día</p>
-                    <ul style="margin:14px 0 0;padding:0 0 0 18px;color:#cdd7ea;font-size:15px;line-height:1.9;">
+                    <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#5b6f60;">Plan del día</p>
+                    <ul style="margin:14px 0 0;padding:0 0 0 18px;color:#435247;font-size:15px;line-height:1.9;">
                       <li>Presentación general: ${escapeHtml(TOURNAMENT_EVENT_DATE_LABEL)} a las ${escapeHtml(TOURNAMENT_EVENT_START_LABEL)}.</li>
                       <li>Sede: ${escapeHtml(TOURNAMENT_EVENT_VENUE)}.</li>
                       <li>Ventana operativa del torneo: ${escapeHtml(TOURNAMENT_EVENT_WINDOW_LABEL)}.</li>

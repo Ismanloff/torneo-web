@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import { TOURNAMENT_NAME } from "@/lib/branding";
 import {
   buildRegistrationEmailHtml,
+  buildRegistrationEmailText,
   type RegistrationEmailInput,
 } from "@/lib/registration-email-template";
 import { buildQrShareUrl } from "@/lib/utils";
@@ -40,20 +41,23 @@ export async function sendRegistrationEmail(
     const resend = new Resend(apiKey);
     const qrAccessUrl = buildQrShareUrl(input.qrToken);
     const qrPng = await QRCode.toBuffer(qrAccessUrl, {
-      width: 480,
-      margin: 2,
+      width: 320,
+      margin: 1,
       color: {
         dark: "#08131e",
         light: "#f5efe3",
       },
     });
     const html = buildRegistrationEmailHtml(input);
+    const text = buildRegistrationEmailText(input);
 
     const { error } = await resend.emails.send({
       from: fromAddress,
       to: input.to,
+      replyTo: fromAddress,
       subject: `Inscripción confirmada: ${input.teamName} · ${TOURNAMENT_NAME}`,
       html,
+      text,
       attachments: [
         {
           filename: `qr-${input.registrationCode.toLowerCase()}.png`,
