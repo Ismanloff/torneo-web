@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, CircleAlert } from "lucide-react";
 
 import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
-import { REGISTRATION_PAYMENT_BASE_COPY } from "@/lib/registration-payment";
+import { REGISTRATION_PAYMENT_BASE_COPY, TEAM_REGISTRATION_FEE_EUR } from "@/lib/registration-payment";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { TeamRegistrationForm } from "@/components/team-registration-form";
 import type { CategoryRow } from "@/lib/types";
@@ -99,11 +99,16 @@ export default async function CategoryRegistrationPage({ params }: CategoryRegis
         <section className="public-section pt-8 pb-20">
           <div className="public-wrap max-w-2xl mx-auto">
             <div className="public-glass p-6 lg:p-8">
-              <div className="public-soft mb-6 border border-[rgba(141,246,95,0.18)] bg-[rgba(84,209,43,0.08)] p-5">
-                <p className="public-kicker mb-2">Importe de participación</p>
-                <p className="text-sm leading-7 text-[#dbe7f8]">
-                  {REGISTRATION_PAYMENT_BASE_COPY}
-                </p>
+              <div className="public-payment-banner public-payment-banner--tight mb-6">
+                <div className="public-payment-banner__badge">
+                  <CircleAlert className="h-4 w-4" />
+                  Importe de participación
+                </div>
+                <div className="public-payment-banner__content">
+                  <p className="public-payment-banner__amount">{TEAM_REGISTRATION_FEE_EUR} € en efectivo</p>
+                  <p className="public-payment-banner__title">Pago obligatorio el día del torneo</p>
+                  <p className="public-payment-banner__copy">{REGISTRATION_PAYMENT_BASE_COPY}</p>
+                </div>
               </div>
               <TeamRegistrationForm
                 categoryId={category.id}

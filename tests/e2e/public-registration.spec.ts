@@ -20,7 +20,7 @@ async function getReadOnlySupabase() {
   });
 }
 
-test("public category registration page shows the cash payment reminder", async ({ page }) => {
+test("public registration flow highlights the cash payment reminder", async ({ page }) => {
   const supabase = await getReadOnlySupabase();
 
   if (!supabase) {
@@ -35,9 +35,15 @@ test("public category registration page shows the cash payment reminder", async 
     .limit(1)
     .single();
 
+  await page.goto("/inscripcion");
+  await expect(page.getByText("Aviso importante")).toBeVisible();
+  await expect(page.getByText("5 € en efectivo", { exact: true })).toBeVisible();
+  await expect(page.getByText("Cada equipo debe abonarlo el día del torneo")).toBeVisible();
+
   await page.goto(`/inscripcion/${category!.id}`);
 
   await expect(page.getByText("Importe de participación")).toBeVisible();
+  await expect(page.getByText("Pago obligatorio el día del torneo")).toBeVisible();
   await expect(
     page.getByText(
       "Para participar en el torneo, cada equipo debe abonar 5 € en efectivo el día del torneo para cubrir gastos de organización.",

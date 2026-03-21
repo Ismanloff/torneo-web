@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ChevronLeft, Landmark, Users } from "lucide-react";
+import { ChevronLeft, CircleAlert, Landmark, Users } from "lucide-react";
 
 import { PublicBrandLockup } from "@/components/public-brand-lockup";
 import { PublicSiteNav } from "@/components/public-site-nav";
@@ -12,6 +12,7 @@ import {
   TOURNAMENT_ORGANIZERS_LABEL,
   TOURNAMENT_PARTICIPATION_LABEL,
 } from "@/lib/branding";
+import { REGISTRATION_PAYMENT_BASE_COPY, TEAM_REGISTRATION_FEE_EUR } from "@/lib/registration-payment";
 import type { CategoryRow, TournamentRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +154,18 @@ export default async function RegistroPage() {
                   ]}
                 />
               </aside>
+            </div>
+
+            <div className="public-payment-banner mt-6 lg:mt-8">
+              <div className="public-payment-banner__badge">
+                <CircleAlert className="h-4 w-4" />
+                Aviso importante
+              </div>
+              <div className="public-payment-banner__content">
+                <p className="public-payment-banner__amount">{TEAM_REGISTRATION_FEE_EUR} € en efectivo</p>
+                <p className="public-payment-banner__title">Cada equipo debe abonarlo el día del torneo</p>
+                <p className="public-payment-banner__copy">{REGISTRATION_PAYMENT_BASE_COPY}</p>
+              </div>
             </div>
           </div>
         </section>
