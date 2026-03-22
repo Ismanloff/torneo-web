@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Ellipsis, Share2, Smartphone, X } from "lucide-react";
 import { trackPwaEvent } from "@/lib/pwa-telemetry";
+import { detectPwaPlatform, isStandaloneMode, type PwaPlatform } from "@/lib/pwa-platform";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -19,38 +20,6 @@ const INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 14;
 const SHORT_INSTALL_DISMISS_TTL = 1000 * 60 * 60 * 24 * 3;
 const INSTALL_SCROLL_THRESHOLD = 320;
 const SW_UPDATE_READY = "update-ready";
-
-type Platform = "ios-safari" | "ios-other" | "android" | "other";
-
-function detectPlatform(): Platform {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  const isIOS = /iphone|ipad|ipod/.test(userAgent);
-  const isAndroid = /android/.test(userAgent);
-  const isSafari =
-    /safari/.test(userAgent) &&
-    !/crios|fxios|edgios|opr\//.test(userAgent);
-
-  if (isIOS && isSafari) {
-    return "ios-safari";
-  }
-
-  if (isIOS) {
-    return "ios-other";
-  }
-
-  if (isAndroid) {
-    return "android";
-  }
-
-  return "other";
-}
-
-function isStandaloneMode() {
-  return (
-    window.matchMedia?.("(display-mode: standalone)").matches ||
-    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
-  );
-}
 
 function readDismissedState() {
   const rawValue = window.localStorage.getItem(INSTALL_DISMISSED_KEY);
@@ -145,8 +114,8 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       ? false
       : (window.matchMedia?.("(max-width: 767px)").matches ?? false),
   );
-  const [platform] = useState<Platform>(() =>
-    typeof window === "undefined" ? "other" : detectPlatform(),
+  const [platform] = useState<PwaPlatform>(() =>
+    typeof window === "undefined" ? "other" : detectPwaPlatform(),
   );
   const [visitCount, setVisitCount] = useState(() =>
     typeof window === "undefined" ? 0 : readVisitCount(),
@@ -528,8 +497,14 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     };
   }, [checkDeploymentVersion]);
 
+  const canUseDirectAndroidInstall = platform === "android-chrome";
   const canExplainInstall =
-    Boolean(installEvent) || platform === "ios-safari" || platform === "ios-other" || platform === "android";
+    Boolean(installEvent) ||
+    platform === "ios-safari" ||
+    platform === "ios-other" ||
+    platform === "android-chrome" ||
+    platform === "android-samsung" ||
+    platform === "android-other";
   const shouldShowInstallPrompt =
     (pathname === "/" || forceInstallPrompt) &&
     !installDismissed &&
@@ -538,14 +513,18 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
     (forceInstallPrompt || visitCount >= 2 || hasInstallInterest) &&
     canExplainInstall;
 
-  const isDirectInstall = Boolean(installEvent);
+  const isDirectInstall = Boolean(installEvent) && canUseDirectAndroidInstall;
   const isIosInstall = platform === "ios-safari" || platform === "ios-other";
+  const isSamsungInstall = platform === "android-samsung";
+  const isOtherAndroidInstall = platform === "android-other";
 
   const title = isDirectInstall
     ? "Instala la app del torneo"
     : isIosInstall
       ? "Guarda la app en tu inicio"
-      : "Instala la app del torneo";
+      : isSamsungInstall || isOtherAndroidInstall
+        ? "Instalala desde Chrome"
+        : "Instala la app del torneo";
 
   const description = isDirectInstall
     ? "Ábrela como app y entra más rápido a la jornada."
@@ -553,7 +532,11 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
       ? "En iPhone o iPad se instala desde Safari."
       : platform === "ios-other"
         ? "Ábrela en Safari para añadirla a pantalla de inicio."
-        : "Si no ves el botón directo, instálala desde el menú del navegador.";
+        : isSamsungInstall
+          ? "Samsung Internet puede mostrar un bloqueo de Play Protect al instalar algunas apps web. Para evitarlo, abre esta web en Chrome e instalala alli."
+          : isOtherAndroidInstall
+            ? "Para una instalacion mas estable en Android, abre esta web en Chrome y usa alli el boton de instalar."
+            : "Si no ves el boton directo, instalala desde el menu del navegador.";
 
   useEffect(() => {
     if (shouldShowInstallPrompt) {
@@ -648,6 +631,20 @@ export function PwaRegistrar({ appVersion }: { appVersion: string }) {
                   <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
                     2. Usa <span className="font-semibold">Compartir</span> y añade la app al inicio.
                   </div>
+                </>
+              ) : isSamsungInstall || isOtherAndroidInstall ? (
+                <>
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    1. Abre esta pagina en <span className="font-semibold">Chrome</span>.
+                  </div>
+                  <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                    2. En Chrome toca el menu y luego <span className="font-semibold">Instalar app</span>.
+                  </div>
+                  {isSamsungInstall ? (
+                    <div className="rounded-2xl border border-[var(--line)] bg-white/55 px-3 py-2 text-[0.82rem] text-[var(--ink)]">
+                      3. Evita instalarla desde <span className="font-semibold">Samsung Internet</span> para no encontrarte el aviso de Play Protect.
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <>
