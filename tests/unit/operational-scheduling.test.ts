@@ -7,7 +7,7 @@ import {
   computeOperationalCapacity,
   getDefaultOperationalSettings,
 } from "@/lib/operational-scheduling";
-import type { CategoryRow, CategoryScheduleRunRow, TeamRow } from "@/lib/types";
+import type { CategoryRow, CategoryScheduleRunRow, GroupLabel, TeamRow } from "@/lib/types";
 
 function makeCategory(overrides: Partial<CategoryRow> = {}): CategoryRow {
   return {
