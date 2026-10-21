@@ -62,6 +62,29 @@ databaseDescribe("database integrity", () => {
     }
   });
 
+  it("keeps active registrations unique by category, normalized team name and captain email", async () => {
+    const { data: teams, error } = await supabase!
+      .from("teams")
+      .select("category_id, team_name, captain_email, status");
+
+    expect(error).toBeNull();
+
+    const fingerprints = new Set<string>();
+
+    for (const team of teams ?? []) {
+      if (team.status === "cancelled") {
+        continue;
+      }
+
+      const normalizedTeamName = team.team_name.trim().toLowerCase().replace(/\s+/g, " ");
+      const normalizedCaptainEmail = team.captain_email.trim().toLowerCase();
+      const fingerprint = `${team.category_id}:${normalizedTeamName}:${normalizedCaptainEmail}`;
+
+      expect(fingerprints.has(fingerprint)).toBe(false);
+      fingerprints.add(fingerprint);
+    }
+  });
+
   it("keeps operational settings and staffing relations consistent", async () => {
     const { data: categories, error: categoryError } = await supabase!
       .from("categories")

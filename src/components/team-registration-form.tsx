@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useFormStatus } from "react-dom";
 import { ClipboardList } from "lucide-react";
 
 import { registerTeamAction } from "@/app/inscripcion/actions";
@@ -10,6 +11,21 @@ type TeamRegistrationFormProps = {
   categoryName: string;
   sport: string;
 };
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      className="public-action mt-2 w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+      type="submit"
+      disabled={pending}
+      aria-disabled={pending}
+    >
+      {pending ? "Inscribiendo equipo..." : "Inscribir equipo"}
+    </button>
+  );
+}
 
 export function TeamRegistrationForm({
   categoryId,
@@ -134,9 +150,7 @@ export function TeamRegistrationForm({
           </label>
         </div>
 
-        <button className="public-action mt-2 w-full cursor-pointer" type="submit">
-          Inscribir equipo
-        </button>
+        <SubmitButton />
       </form>
     </div>
   );

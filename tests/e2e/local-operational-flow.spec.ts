@@ -19,9 +19,14 @@ test.describe.serial("local docker tournament roundtrip", () => {
 
   const runId = Date.now();
   const prefix = `ZZ E2E ${runId}`;
+  const registrationCaptainEmail = `registro-${runId}@torneo.test`;
+  const registrationTeamName = `${prefix} Inscrito`;
 
   let registrationCategory: Awaited<ReturnType<typeof createRegistrationCategoryFixture>>;
   let operationalScenario: OperationalScenario;
+  let registeredTeamId: string;
+  let registeredTeamCode: string;
+  let registeredTeamQrToken: string;
 
   test.beforeAll(async () => {
     registrationCategory = await createRegistrationCategoryFixture(`${prefix} Registro`);
@@ -29,13 +34,11 @@ test.describe.serial("local docker tournament roundtrip", () => {
   });
 
   test("public registration submits, creates QR and opens the public follow-up", async ({ page }) => {
-    const captainEmail = `registro-${runId}@torneo.test`;
-
     await page.goto(`/inscripcion/${registrationCategory.category.id}`);
 
-    await page.getByLabel("Nombre del equipo").fill(`${prefix} Inscrito`);
+    await page.getByLabel("Nombre del equipo").fill(registrationTeamName);
     await page.getByLabel("Nombre del responsable").fill("Coordinador Demo");
-    await page.getByLabel("Correo electronico").fill(captainEmail);
+    await page.getByLabel("Correo electronico").fill(registrationCaptainEmail);
     await page.getByLabel("Telefono").fill("600123987");
     await page.getByLabel("Numero de jugadores").fill("9");
     await page.getByText("Acepto el tratamiento de datos personales").click();
@@ -46,8 +49,11 @@ test.describe.serial("local docker tournament roundtrip", () => {
     await expect(page.getByText("Importe pendiente el día del torneo")).toBeVisible();
     await expect(page.getByText("Correo no disponible")).toBeVisible();
 
-    const createdTeam = await getTeamByCaptainEmail(captainEmail);
+    const createdTeam = await getTeamByCaptainEmail(registrationCaptainEmail);
     const teamToken = await getActiveQrTokenForResource("team", createdTeam.id);
+    registeredTeamId = createdTeam.id;
+    registeredTeamCode = createdTeam.registration_code;
+    registeredTeamQrToken = teamToken.token;
 
     await expect(page.getByText(createdTeam.registration_code)).toBeVisible();
     await page.goto(`/q/${teamToken.token}`);
@@ -55,6 +61,39 @@ test.describe.serial("local docker tournament roundtrip", () => {
 
     const refreshedToken = await getActiveQrTokenForResource("team", createdTeam.id);
     expect(refreshedToken.last_used_at).toBeTruthy();
+  });
+
+  test("public duplicate registration reuses the existing team and QR", async ({ page }) => {
+    await page.goto(`/inscripcion/${registrationCategory.category.id}`);
+
+    await page.getByLabel("Nombre del equipo").fill(` ${registrationTeamName.toLowerCase().replace(" ", "   ")} `);
+    await page.getByLabel("Nombre del responsable").fill("Coordinador Demo");
+    await page.getByLabel("Correo electronico").fill(` ${registrationCaptainEmail.toUpperCase()} `);
+    await page.getByLabel("Telefono").fill("600123987");
+    await page.getByLabel("Numero de jugadores").fill("9");
+    await page.getByText("Acepto el tratamiento de datos personales").click();
+    await page.getByText("Acepto el reglamento del torneo").click();
+    await page.getByRole("button", { name: "Inscribir equipo" }).click();
+
+    await expect(page).toHaveURL(/\/inscripcion\/exito/);
+    await expect(page.getByText(registeredTeamCode)).toBeVisible();
+    await expect(page.getByText("QR único del equipo", { exact: true })).toBeVisible();
+
+    const deduplicatedTeam = await getTeamByCaptainEmail(registrationCaptainEmail);
+    expect(deduplicatedTeam.id).toBe(registeredTeamId);
+
+    const activeToken = await getActiveQrTokenForResource("team", registeredTeamId);
+    expect(activeToken.token).toBe(registeredTeamQrToken);
+
+    const { data: teams, error } = await localSupabase!
+      .from("teams")
+      .select("id")
+      .eq("category_id", registrationCategory.category.id)
+      .eq("captain_email", registrationCaptainEmail)
+      .neq("status", "cancelled");
+
+    expect(error).toBeNull();
+    expect(teams).toHaveLength(1);
   });
 
   test("admin generates the operational schedule from the panel", async ({ page }) => {

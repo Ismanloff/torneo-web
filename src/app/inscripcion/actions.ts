@@ -15,6 +15,7 @@ import {
   assertRateLimitAllowed,
   registerRateLimitAttempt,
 } from "@/lib/staff-auth";
+import { isTournamentCancelledMode, TOURNAMENT_CANCELLED_ROUTE } from "@/lib/tournament-status";
 import { sendRegistrationEmail } from "@/lib/email";
 import { slugToCode } from "@/lib/utils";
 
@@ -35,7 +36,19 @@ const publicRegistrationRateLimit = {
   lockWindowMs: 30 * 60 * 1000,
 } as const;
 
+type RegisterTeamRpcResult = {
+  success: boolean;
+  error?: string;
+  team_id?: string;
+  qr_token?: string;
+  deduplicated?: boolean;
+};
+
 export async function registerTeamAction(formData: FormData) {
+  if (isTournamentCancelledMode()) {
+    redirect(TOURNAMENT_CANCELLED_ROUTE);
+  }
+
   const parsed = registrationSchema.safeParse({
     categoryId: formData.get("categoryId"),
     teamName: formData.get("teamName"),
@@ -91,32 +104,42 @@ export async function registerTeamAction(formData: FormData) {
       p_qr_token: qrToken,
     },
   );
+  const registrationResult = rpcResult as RegisterTeamRpcResult | null;
 
-  if (rpcError || !rpcResult?.success) {
-    console.error("registerTeamAction rpc error", rpcError ?? rpcResult?.error);
+  if (rpcError || !registrationResult?.success) {
+    console.error("registerTeamAction rpc error", rpcError ?? registrationResult?.error);
     redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
   }
 
-  const teamId = rpcResult.team_id as string;
+  const teamId = registrationResult.team_id;
+  const activeQrToken = registrationResult.qr_token;
+  const deduplicated = registrationResult.deduplicated === true;
 
-  const emailResult = await sendRegistrationEmail({
-    to: parsed.data.captainEmail,
-    teamId,
-    teamName: parsed.data.teamName,
-    categoryName: category.name,
-    sport: category.sport,
-    ageGroup: category.age_group,
-    schoolName: category.school,
-    registrationCode,
-    qrToken,
-    captainName: parsed.data.captainName,
-  });
+  if (!teamId || !activeQrToken) {
+    console.error("registerTeamAction rpc payload error", registrationResult);
+    redirect(`/inscripcion/${parsed.data.categoryId}?error=registro`);
+  }
 
-  if (emailResult.status !== "sent") {
+  const emailResult = deduplicated
+    ? { status: "skipped" as const }
+    : await sendRegistrationEmail({
+        to: parsed.data.captainEmail,
+        teamId,
+        teamName: parsed.data.teamName,
+        categoryName: category.name,
+        sport: category.sport,
+        ageGroup: category.age_group,
+        schoolName: category.school,
+        registrationCode,
+        qrToken: activeQrToken,
+        captainName: parsed.data.captainName,
+      });
+
+  if (!deduplicated && emailResult.status !== "sent") {
     console.warn("registerTeamAction email unavailable", {
       registrationCode,
       status: emailResult.status,
-      reason: emailResult.error,
+      reason: "error" in emailResult ? emailResult.error : undefined,
     });
   }
 
@@ -124,13 +147,13 @@ export async function registerTeamAction(formData: FormData) {
 
   await setRegistrationSuccessFlash({
     teamId,
-    token: qrToken,
+    token: activeQrToken,
     emailStatus,
   });
   await setPublicAccessState({
     resourceId: teamId,
     resourceType: "team",
-    token: qrToken,
+    token: activeQrToken,
   });
   revalidatePath("/");
   revalidatePath("/inscripcion");

@@ -56,9 +56,35 @@ create policy "staff_own_push_subscriptions"
 -- 3. ATOMIC TEAM REGISTRATION FUNCTION
 -- ============================================================
 
+do $$
+begin
+  if exists (
+    select 1
+    from public.teams
+    where status <> 'cancelled'
+    group by
+      category_id,
+      regexp_replace(lower(trim(team_name)), '\s+', ' ', 'g'),
+      lower(trim(captain_email))
+    having count(*) > 1
+  ) then
+    raise exception
+      'Duplicate non-cancelled team registrations detected. Resolve them before applying teams_active_registration_dedupe_idx.';
+  end if;
+end;
+$$;
+
+create unique index if not exists teams_active_registration_dedupe_idx
+  on public.teams(
+    category_id,
+    regexp_replace(lower(trim(team_name)), '\s+', ' ', 'g'),
+    lower(trim(captain_email))
+  )
+  where status <> 'cancelled';
+
 -- Prevents race condition when checking max_teams capacity.
--- The function locks the category row, counts active teams, and
--- inserts both the team record and its QR token in a single transaction.
+-- The function locks the category row, deduplicates repeated submissions,
+-- and inserts both the team record and its QR token in a single transaction.
 create or replace function public.register_team_atomic(
   p_category_id        uuid,
   p_team_name          text,
@@ -75,10 +101,17 @@ security definer
 set search_path = public
 as $$
 declare
-  v_category    record;
-  v_active_count integer;
-  v_team_id     uuid;
+  v_category                 record;
+  v_active_count             integer;
+  v_team_id                  uuid;
+  v_existing_team_id         uuid;
+  v_existing_qr_token        text;
+  v_normalized_team_name     text;
+  v_normalized_captain_email text;
 begin
+  v_normalized_team_name := regexp_replace(lower(trim(p_team_name)), '\s+', ' ', 'g');
+  v_normalized_captain_email := lower(trim(p_captain_email));
+
   -- Lock the category row to prevent concurrent inserts
   select * into v_category
     from public.categories
@@ -88,6 +121,38 @@ begin
 
   if not found then
     return jsonb_build_object('success', false, 'error', 'category_not_found');
+  end if;
+
+  select id into v_existing_team_id
+    from public.teams
+    where category_id = p_category_id
+      and status <> 'cancelled'
+      and regexp_replace(lower(trim(team_name)), '\s+', ' ', 'g') = v_normalized_team_name
+      and lower(trim(captain_email)) = v_normalized_captain_email
+    order by created_at asc
+    limit 1;
+
+  if v_existing_team_id is not null then
+    select token into v_existing_qr_token
+      from public.match_qr_tokens
+      where resource_type = 'team'
+        and resource_id = v_existing_team_id
+        and is_active = true
+      order by created_at desc
+      limit 1;
+
+    if v_existing_qr_token is null then
+      insert into public.match_qr_tokens (token, resource_type, resource_id, is_active)
+      values (p_qr_token, 'team', v_existing_team_id, true)
+      returning token into v_existing_qr_token;
+    end if;
+
+    return jsonb_build_object(
+      'success', true,
+      'team_id', v_existing_team_id,
+      'qr_token', v_existing_qr_token,
+      'deduplicated', true
+    );
   end if;
 
   -- Count active teams (non-cancelled)
@@ -132,7 +197,12 @@ begin
   insert into public.match_qr_tokens (token, resource_type, resource_id, is_active)
   values (p_qr_token, 'team', v_team_id, true);
 
-  return jsonb_build_object('success', true, 'team_id', v_team_id);
+  return jsonb_build_object(
+    'success', true,
+    'team_id', v_team_id,
+    'qr_token', p_qr_token,
+    'deduplicated', false
+  );
 
 exception
   when unique_violation then

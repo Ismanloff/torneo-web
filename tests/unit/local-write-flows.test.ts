@@ -30,6 +30,8 @@ localDescribe("local Docker write flows", () => {
 
     expect(error).toBeNull();
     expect(data?.success).toBe(true);
+    expect(data?.deduplicated).toBe(false);
+    expect(data?.qr_token).toBe(qrToken);
     expect(typeof data?.team_id).toBe("string");
 
     const { data: team, error: teamError } = await localSupabase!
@@ -44,6 +46,164 @@ localDescribe("local Docker write flows", () => {
 
     const token = await getActiveQrTokenForResource("team", data.team_id as string);
     expect(token.token).toBe(qrToken);
+  });
+
+  it("register_team_atomic deduplicates repeated submissions and reuses the active QR token", async () => {
+    const fixture = await createRegistrationCategoryFixture(`ZZ Idempotent ${Date.now()}`);
+    const teamName = "ZZ Equipo Repetido";
+    const captainEmail = `repeat-${Date.now()}@torneo.test`;
+    const firstRegistrationCode = `ID1-${randomBytes(2).toString("hex").toUpperCase()}`;
+    const secondRegistrationCode = `ID2-${randomBytes(2).toString("hex").toUpperCase()}`;
+    const firstQrToken = randomBytes(18).toString("base64url");
+    const secondQrToken = randomBytes(18).toString("base64url");
+
+    const firstAttempt = await localSupabase!.rpc("register_team_atomic", {
+      p_category_id: fixture.category.id,
+      p_team_name: teamName,
+      p_captain_name: "Responsable Repeat",
+      p_captain_phone: "600321321",
+      p_captain_email: captainEmail,
+      p_total_players: 8,
+      p_registration_code: firstRegistrationCode,
+      p_qr_token: firstQrToken,
+    });
+
+    const secondAttempt = await localSupabase!.rpc("register_team_atomic", {
+      p_category_id: fixture.category.id,
+      p_team_name: " zz   equipo repetido ",
+      p_captain_name: "Responsable Repeat",
+      p_captain_phone: "600321321",
+      p_captain_email: ` ${captainEmail.toUpperCase()} `,
+      p_total_players: 8,
+      p_registration_code: secondRegistrationCode,
+      p_qr_token: secondQrToken,
+    });
+
+    expect(firstAttempt.error).toBeNull();
+    expect(secondAttempt.error).toBeNull();
+    expect(firstAttempt.data?.success).toBe(true);
+    expect(secondAttempt.data?.success).toBe(true);
+    expect(firstAttempt.data?.deduplicated).toBe(false);
+    expect(secondAttempt.data?.deduplicated).toBe(true);
+    expect(secondAttempt.data?.team_id).toBe(firstAttempt.data?.team_id);
+    expect(secondAttempt.data?.qr_token).toBe(firstQrToken);
+
+    const { data: teams, error: teamsError } = await localSupabase!
+      .from("teams")
+      .select("id, registration_code")
+      .eq("category_id", fixture.category.id)
+      .neq("status", "cancelled");
+
+    expect(teamsError).toBeNull();
+    expect(teams).toHaveLength(1);
+    expect(teams?.[0]?.registration_code).toBe(firstRegistrationCode);
+
+    const token = await getActiveQrTokenForResource("team", firstAttempt.data?.team_id as string);
+    expect(token.token).toBe(firstQrToken);
+  });
+
+  it("register_team_atomic allows a fresh registration after the previous one was cancelled", async () => {
+    const fixture = await createRegistrationCategoryFixture(`ZZ Cancelled ${Date.now()}`);
+    const teamName = "ZZ Equipo Cancelado";
+    const captainEmail = `cancelled-${Date.now()}@torneo.test`;
+    const firstRegistrationCode = `CN1-${randomBytes(2).toString("hex").toUpperCase()}`;
+    const secondRegistrationCode = `CN2-${randomBytes(2).toString("hex").toUpperCase()}`;
+    const firstQrToken = randomBytes(18).toString("base64url");
+    const secondQrToken = randomBytes(18).toString("base64url");
+
+    const firstAttempt = await localSupabase!.rpc("register_team_atomic", {
+      p_category_id: fixture.category.id,
+      p_team_name: teamName,
+      p_captain_name: "Responsable Cancelled",
+      p_captain_phone: "600111111",
+      p_captain_email: captainEmail,
+      p_total_players: 7,
+      p_registration_code: firstRegistrationCode,
+      p_qr_token: firstQrToken,
+    });
+
+    expect(firstAttempt.error).toBeNull();
+    expect(firstAttempt.data?.success).toBe(true);
+
+    const { error: cancelError } = await localSupabase!
+      .from("teams")
+      .update({ status: "cancelled" })
+      .eq("id", firstAttempt.data?.team_id as string);
+
+    expect(cancelError).toBeNull();
+
+    const secondAttempt = await localSupabase!.rpc("register_team_atomic", {
+      p_category_id: fixture.category.id,
+      p_team_name: teamName,
+      p_captain_name: "Responsable Cancelled",
+      p_captain_phone: "600111111",
+      p_captain_email: captainEmail,
+      p_total_players: 7,
+      p_registration_code: secondRegistrationCode,
+      p_qr_token: secondQrToken,
+    });
+
+    expect(secondAttempt.error).toBeNull();
+    expect(secondAttempt.data?.success).toBe(true);
+    expect(secondAttempt.data?.deduplicated).toBe(false);
+    expect(secondAttempt.data?.team_id).not.toBe(firstAttempt.data?.team_id);
+
+    const { data: activeTeams, error: activeTeamsError } = await localSupabase!
+      .from("teams")
+      .select("id")
+      .eq("category_id", fixture.category.id)
+      .neq("status", "cancelled");
+
+    expect(activeTeamsError).toBeNull();
+    expect(activeTeams).toHaveLength(1);
+    expect(activeTeams?.[0]?.id).toBe(secondAttempt.data?.team_id);
+  });
+
+  it("register_team_atomic recreates the team QR token when the deduplicated team lost its active QR", async () => {
+    const fixture = await createRegistrationCategoryFixture(`ZZ Missing QR ${Date.now()}`);
+    const registrationCode = `MQ-${randomBytes(2).toString("hex").toUpperCase()}`;
+    const captainEmail = `missing-qr-${Date.now()}@torneo.test`;
+
+    const { data: team, error: teamError } = await localSupabase!
+      .from("teams")
+      .insert({
+        category_id: fixture.category.id,
+        team_name: "ZZ Missing QR Team",
+        captain_name: "Responsable QR",
+        captain_phone: "600888888",
+        captain_email: captainEmail,
+        total_players: 8,
+        registration_code: registrationCode,
+        status: "pending",
+        gdpr_consent: true,
+        regulation_accepted: true,
+        parental_confirmation_required: false,
+      })
+      .select("id")
+      .single();
+
+    expect(teamError).toBeNull();
+
+    const regeneratedQrToken = randomBytes(18).toString("base64url");
+    const rpcAttempt = await localSupabase!.rpc("register_team_atomic", {
+      p_category_id: fixture.category.id,
+      p_team_name: " zz  missing qr team ",
+      p_captain_name: "Responsable QR",
+      p_captain_phone: "600888888",
+      p_captain_email: ` ${captainEmail.toUpperCase()} `,
+      p_total_players: 8,
+      p_registration_code: `MQ2-${randomBytes(2).toString("hex").toUpperCase()}`,
+      p_qr_token: regeneratedQrToken,
+    });
+
+    expect(rpcAttempt.error).toBeNull();
+    expect(rpcAttempt.data?.success).toBe(true);
+    expect(rpcAttempt.data?.deduplicated).toBe(true);
+    expect(rpcAttempt.data?.team_id).toBe(team?.id);
+    expect(rpcAttempt.data?.qr_token).toBe(regeneratedQrToken);
+
+    const token = await getActiveQrTokenForResource("team", team!.id);
+    expect(token.token).toBe(regeneratedQrToken);
   });
 
   it("confirmParentalAuthorization marks the token and team as confirmed", async () => {
